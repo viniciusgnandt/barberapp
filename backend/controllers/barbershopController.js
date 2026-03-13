@@ -1,8 +1,9 @@
 // controllers/barbershopController.js — Gerenciamento de Barbearias (Tenants)
 
 const Barbershop = require('../models/Barbershop');
+const User       = require('../models/User');
 
-// GET /api/barbershops - Listar barbearias do usuário
+// GET /api/barbershops — Listar barbearias do usuário (owner)
 const getBarbershops = async (req, res) => {
   try {
     const barbershops = await Barbershop.find({ owner: req.user._id });
@@ -12,10 +13,11 @@ const getBarbershops = async (req, res) => {
   }
 };
 
-// GET /api/barbershops/:id - Obter uma barbearia
-const getBarbershop = async (req, res) => {
+// GET /api/barbershops/mine — Retorna a barbearia do usuário logado (qualquer role)
+const getMyBarbershop = async (req, res) => {
   try {
-    const barbershop = await Barbershop.findOne({ _id: req.params.id, owner: req.user._id });
+    const barbershopId = req.user.barbershop?._id ?? req.user.barbershop;
+    const barbershop   = await Barbershop.findById(barbershopId);
     if (!barbershop)
       return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
@@ -25,7 +27,20 @@ const getBarbershop = async (req, res) => {
   }
 };
 
-// POST /api/barbershops - Criar nova barbearia
+// GET /api/barbershops/:id — Obter uma barbearia
+const getBarbershop = async (req, res) => {
+  try {
+    const barbershop = await Barbershop.findById(req.params.id);
+    if (!barbershop)
+      return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+
+    res.json({ success: true, data: barbershop });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/barbershops — Criar nova barbearia
 const createBarbershop = async (req, res) => {
   try {
     const { name, email, phone, address, city, state, zipCode, description } = req.body;
@@ -33,14 +48,7 @@ const createBarbershop = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Nome e email são obrigatórios.' });
 
     const barbershop = await Barbershop.create({
-      name,
-      email,
-      phone,
-      address,
-      city,
-      state,
-      zipCode,
-      description,
+      name, email, phone, address, city, state, zipCode, description,
       owner: req.user._id,
     });
 
@@ -50,14 +58,15 @@ const createBarbershop = async (req, res) => {
   }
 };
 
-// PUT /api/barbershops/:id - Atualizar barbearia
+// PUT /api/barbershops/:id — Atualizar barbearia
 const updateBarbershop = async (req, res) => {
   try {
-    const barbershop = await Barbershop.findOne({ _id: req.params.id, owner: req.user._id });
+    const barbershop = await Barbershop.findById(req.params.id);
     if (!barbershop)
       return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
-    Object.assign(barbershop, req.body);
+    const allowed = ['name', 'email', 'phone', 'address', 'city', 'state', 'zipCode', 'description', 'openingHours'];
+    allowed.forEach(k => { if (req.body[k] !== undefined) barbershop[k] = req.body[k]; });
     barbershop.updatedAt = new Date();
     await barbershop.save();
 
@@ -67,10 +76,10 @@ const updateBarbershop = async (req, res) => {
   }
 };
 
-// DELETE /api/barbershops/:id - Deletar barbearia
+// DELETE /api/barbershops/:id — Deletar barbearia
 const deleteBarbershop = async (req, res) => {
   try {
-    const barbershop = await Barbershop.findOne({ _id: req.params.id, owner: req.user._id });
+    const barbershop = await Barbershop.findById(req.params.id);
     if (!barbershop)
       return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
@@ -81,27 +90,37 @@ const deleteBarbershop = async (req, res) => {
   }
 };
 
-// GET /api/barbershops/:id/employees - Listar funcionários de uma barbearia
+// GET /api/barbershops/:id/employees — Listar funcionários
 const getBarbershopEmployees = async (req, res) => {
   try {
-    const barbershop = await Barbershop.findOne({ _id: req.params.id, owner: req.user._id });
-    if (!barbershop)
-      return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
-
-    const User = require('../models/User');
     const employees = await User.find({ barbershop: req.params.id }).select('-password');
-
     res.json({ success: true, count: employees.length, data: employees });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// DELETE /api/barbershops/:id/employees/:userId — Remover funcionário
+const removeEmployee = async (req, res) => {
+  try {
+    const { id: barbershopId, userId } = req.params;
+
+    if (String(userId) === String(req.user._id))
+      return res.status(400).json({ success: false, message: 'Você não pode remover a si mesmo.' });
+
+    const employee = await User.findOne({ _id: userId, barbershop: barbershopId });
+    if (!employee)
+      return res.status(404).json({ success: false, message: 'Funcionário não encontrado.' });
+
+    await User.deleteOne({ _id: userId });
+    res.json({ success: true, message: 'Funcionário removido.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
-  getBarbershops,
-  getBarbershop,
-  createBarbershop,
-  updateBarbershop,
-  deleteBarbershop,
-  getBarbershopEmployees,
+  getBarbershops, getMyBarbershop, getBarbershop,
+  createBarbershop, updateBarbershop, deleteBarbershop,
+  getBarbershopEmployees, removeEmployee,
 };

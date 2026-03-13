@@ -26,6 +26,7 @@ app.use((err, req, res, next) => {
 
 // ── Rotas da API ───────────────────────────────────────────────────────────────
 app.use('/api/auth',         require('./routes/authRoutes'));
+app.use('/api/users',        require('./routes/userRoutes'));
 app.use('/api/barbershops',  require('./routes/barbershopRoutes'));
 app.use('/api/services',     require('./routes/serviceRoutes'));
 app.use('/api/appointments', require('./routes/appointmentRoutes'));

@@ -7,6 +7,19 @@ const Barbershop = require('../models/Barbershop');
 const makeToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
+function formatUser(user, barbershop) {
+  return {
+    id:             user._id,
+    name:           user.name,
+    email:          user.email,
+    role:           user.role,
+    barbershop:     barbershop._id,
+    barbershopName: barbershop.name,
+    barbershopLogo: barbershop.logo || null,
+    profileImage:   user.profileImage || null,
+  };
+}
+
 // POST /api/auth/register
 const register = async (req, res) => {
   try {
@@ -17,7 +30,6 @@ const register = async (req, res) => {
     let barbershop = null;
 
     if (barbershopId) {
-      // Entrar em barbearia existente (barbeiro sendo adicionado por link/código)
       barbershop = await Barbershop.findById(barbershopId);
       if (!barbershop)
         return res.status(400).json({ success: false, message: 'Barbearia não encontrada.' });
@@ -34,43 +46,29 @@ const register = async (req, res) => {
       return res.status(201).json({
         success: true,
         token: makeToken(user._id),
-        user: {
-          id: user._id, name: user.name, email: user.email, role: user.role,
-          barbershop: barbershop._id, barbershopName: barbershop.name,
-          barbershopLogo: barbershop.logo || null,
-          profileImage: user.profileImage || null,
-        },
+        user:  formatUser(user, barbershop),
       });
     }
 
     if (barbershopName) {
-      // Criar nova barbearia — 3 passos com limpeza em caso de falha
-      // Passo 1: barbershop sem owner (schema permite null agora)
       barbershop = await Barbershop.create({ name: barbershopName, email });
 
       try {
-        // Passo 2: criar admin vinculado à barbearia
         const user = await User.create({
           name, email, password, role: 'admin',
           barbershop: barbershop._id,
         });
 
-        // Passo 3: setar owner
         barbershop.owner = user._id;
         await barbershop.save();
 
         return res.status(201).json({
           success: true,
           token: makeToken(user._id),
-          user: {
-            id: user._id, name: user.name, email: user.email, role: user.role,
-            barbershop: barbershop._id, barbershopName: barbershop.name,
-            barbershopLogo: barbershop.logo || null,
-            profileImage: user.profileImage || null,
-          },
+          user:  formatUser(user, barbershop),
         });
       } catch (innerErr) {
-        await Barbershop.deleteOne({ _id: barbershop._id }); // rollback
+        await Barbershop.deleteOne({ _id: barbershop._id });
         throw innerErr;
       }
     }
@@ -88,24 +86,112 @@ const login = async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios.' });
 
-    const user = await User.findOne({ email }).populate('barbershop');
+    // Busca TODOS os perfis com esse email
+    const users = await User.find({ email }).populate('barbershop');
+    if (!users.length)
+      return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+
+    // Verifica senha em cada perfil (mesmo email, bcrypt diferente por perfil)
+    const matched = [];
+    for (const u of users) {
+      if (await u.comparePassword(password)) matched.push(u);
+    }
+
+    if (!matched.length)
+      return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+
+    // Um único perfil → login direto
+    if (matched.length === 1) {
+      const u = matched[0];
+      return res.json({
+        success: true,
+        token:   makeToken(u._id),
+        user:    formatUser(u, u.barbershop),
+      });
+    }
+
+    // Múltiplos perfis → retorna lista para seleção (sem emitir JWT ainda)
+    return res.json({
+      success:        true,
+      needsSelection: true,
+      profiles: matched.map(u => ({
+        id:             u._id,
+        name:           u.name,
+        email:          u.email,
+        role:           u.role,
+        barbershop:     u.barbershop._id,
+        barbershopName: u.barbershop.name,
+        barbershopLogo: u.barbershop.logo || null,
+        profileImage:   u.profileImage || null,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/auth/select-profile  (sem autenticação — usa email+senha+profileId)
+const selectProfile = async (req, res) => {
+  try {
+    const { email, password, profileId } = req.body;
+    if (!email || !password || !profileId)
+      return res.status(400).json({ success: false, message: 'email, password e profileId são obrigatórios.' });
+
+    const user = await User.findOne({ _id: profileId, email }).populate('barbershop');
     if (!user || !(await user.comparePassword(password)))
       return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
 
-    const token = makeToken(user._id);
     res.json({
       success: true,
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        barbershop: user.barbershop._id,
-        barbershopName: user.barbershop.name,
-        barbershopLogo: user.barbershop.logo || null,
-        profileImage: user.profileImage || null,
-      },
+      token:   makeToken(user._id),
+      user:    formatUser(user, user.barbershop),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/auth/switch-profile  (requer autenticação — sem senha, usa JWT atual)
+const switchProfile = async (req, res) => {
+  try {
+    const { profileId } = req.body;
+    if (!profileId)
+      return res.status(400).json({ success: false, message: 'profileId é obrigatório.' });
+
+    // Garante que o perfil alvo pertence ao mesmo email do usuário logado
+    const target = await User.findOne({ _id: profileId, email: req.user.email }).populate('barbershop');
+    if (!target)
+      return res.status(404).json({ success: false, message: 'Perfil não encontrado.' });
+
+    res.json({
+      success: true,
+      token:   makeToken(target._id),
+      user:    formatUser(target, target.barbershop),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/auth/profiles  (requer autenticação)
+const getProfiles = async (req, res) => {
+  try {
+    const profiles = await User.find({ email: req.user.email })
+      .populate('barbershop', 'name logo')
+      .select('-password');
+
+    res.json({
+      success: true,
+      profiles: profiles.map(u => ({
+        id:             u._id,
+        name:           u.name,
+        email:          u.email,
+        role:           u.role,
+        barbershop:     u.barbershop._id,
+        barbershopName: u.barbershop.name,
+        barbershopLogo: u.barbershop.logo || null,
+        profileImage:   u.profileImage || null,
+      })),
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -118,16 +204,16 @@ const getMe = (req, res) => {
   res.json({
     success: true,
     user: {
-      id: u._id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      barbershop: u.barbershop?._id,
+      id:             u._id,
+      name:           u.name,
+      email:          u.email,
+      role:           u.role,
+      barbershop:     u.barbershop?._id,
       barbershopName: u.barbershop?.name,
       barbershopLogo: u.barbershop?.logo || null,
-      profileImage: u.profileImage || null,
+      profileImage:   u.profileImage || null,
     },
   });
 };
 
-module.exports = { register, login, getMe };
+module.exports = { register, login, selectProfile, switchProfile, getProfiles, getMe };

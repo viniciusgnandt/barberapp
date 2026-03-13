@@ -9,6 +9,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Agenda from './pages/Agenda';
 import Services from './pages/Services';
+import Profile from './pages/Profile';
+import Establishment from './pages/Establishment';
 
 export default function App() {
   return (
@@ -22,9 +24,11 @@ export default function App() {
 
             {/* Protected */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/agenda"    element={<Agenda />}    />
-              <Route path="/services"  element={<Services />}  />
+              <Route path="/dashboard"     element={<Dashboard />}     />
+              <Route path="/agenda"        element={<Agenda />}        />
+              <Route path="/services"      element={<Services />}      />
+              <Route path="/profile"       element={<Profile />}       />
+              <Route path="/establishment" element={<Establishment />} />
             </Route>
 
             {/* Redirect root */}

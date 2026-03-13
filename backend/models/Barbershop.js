@@ -2,6 +2,13 @@
 
 const mongoose = require('mongoose');
 
+const openingHourSchema = new mongoose.Schema({
+  day:   { type: Number, min: 0, max: 6, required: true }, // 0=Dom, 1=Seg, ..., 6=Sáb
+  open:  { type: Boolean, default: true },
+  from:  { type: String, default: '09:00' }, // "HH:MM"
+  to:    { type: String, default: '18:00' },
+}, { _id: false });
+
 const barbershopSchema = new mongoose.Schema({
   name:         { type: String, required: true, trim: true },
   email:        { type: String, required: true, lowercase: true, trim: true },
@@ -10,10 +17,22 @@ const barbershopSchema = new mongoose.Schema({
   city:         { type: String, trim: true },
   state:        { type: String, trim: true },
   zipCode:      { type: String, trim: true },
-  logo:         { type: String },                          // URL da logo
+  logo:         { type: String },
   description:  { type: String, trim: true },
   owner:        { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status:       { type: String, enum: ['active', 'inactive'], default: 'active' },
+  openingHours: {
+    type: [openingHourSchema],
+    default: () => [
+      { day: 0, open: false, from: '09:00', to: '18:00' }, // Dom
+      { day: 1, open: true,  from: '09:00', to: '18:00' }, // Seg
+      { day: 2, open: true,  from: '09:00', to: '18:00' }, // Ter
+      { day: 3, open: true,  from: '09:00', to: '18:00' }, // Qua
+      { day: 4, open: true,  from: '09:00', to: '18:00' }, // Qui
+      { day: 5, open: true,  from: '09:00', to: '18:00' }, // Sex
+      { day: 6, open: true,  from: '09:00', to: '13:00' }, // Sáb
+    ],
+  },
   createdAt:    { type: Date, default: Date.now },
   updatedAt:    { type: Date, default: Date.now },
 });

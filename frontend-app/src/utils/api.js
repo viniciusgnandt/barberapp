@@ -42,9 +42,12 @@ async function request(endpoint, options = {}) {
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
 export const Auth = {
-  login:    (email, password)                                            => request('/auth/login',    { method: 'POST', body: { email, password } }),
-  register: (name, email, password, role, barbershopName, barbershopId) => request('/auth/register', { method: 'POST', body: { name, email, password, role, barbershopName, barbershopId } }),
-  me:       ()                                                           => request('/auth/me'),
+  login:         (email, password)                                            => request('/auth/login',          { method: 'POST', body: { email, password } }),
+  register:      (name, email, password, role, barbershopName, barbershopId) => request('/auth/register',       { method: 'POST', body: { name, email, password, role, barbershopName, barbershopId } }),
+  selectProfile: (email, password, profileId)                                => request('/auth/select-profile', { method: 'POST', body: { email, password, profileId } }),
+  switchProfile: (profileId)                                                 => request('/auth/switch-profile', { method: 'POST', body: { profileId } }),
+  getProfiles:   ()                                                           => request('/auth/profiles'),
+  me:            ()                                                           => request('/auth/me'),
 };
 
 // ── Services ───────────────────────────────────────────────────────────────────
@@ -66,14 +69,22 @@ export const Appointments = {
   delete: (id)       => request(`/appointments/${id}`,  { method: 'DELETE' }),
 };
 
+// ── Users ──────────────────────────────────────────────────────────────────────
+export const Users = {
+  getMe:    ()      => request('/users/me'),
+  updateMe: (data)  => request('/users/me', { method: 'PUT', body: data }),
+};
+
 // ── Barbershops ────────────────────────────────────────────────────────────────
 export const Barbershops = {
-  getAll:       ()          => request('/barbershops'),
-  get:          (id)        => request(`/barbershops/${id}`),
-  create:       (data)      => request('/barbershops',            { method: 'POST',   body: data }),
-  update:       (id, data)  => request(`/barbershops/${id}`,      { method: 'PUT',    body: data }),
-  delete:       (id)        => request(`/barbershops/${id}`,      { method: 'DELETE' }),
-  getEmployees: (id)        => request(`/barbershops/${id}/employees`),
+  getAll:         ()           => request('/barbershops'),
+  getMine:        ()           => request('/barbershops/mine'),
+  get:            (id)         => request(`/barbershops/${id}`),
+  create:         (data)       => request('/barbershops',                         { method: 'POST',   body: data }),
+  update:         (id, data)   => request(`/barbershops/${id}`,                   { method: 'PUT',    body: data }),
+  delete:         (id)         => request(`/barbershops/${id}`,                   { method: 'DELETE' }),
+  getEmployees:   (id)         => request(`/barbershops/${id}/employees`),
+  removeEmployee: (id, userId) => request(`/barbershops/${id}/employees/${userId}`,{ method: 'DELETE' }),
 };
 
 // ── Upload ─────────────────────────────────────────────────────────────────────

@@ -1,8 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, CalendarDays, X } from 'lucide-react';
-import { Appointments } from '../utils/api';
+import { ChevronLeft, ChevronRight, CalendarDays, X, CheckCircle2, XCircle, Edit2, Trash2 } from 'lucide-react';
+import { Appointments, Services, Barbershops } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import Badge from './ui/Badge';
+import Modal from './ui/Modal';
+import Button from './ui/Button';
+import Input, { Select } from './ui/Input';
+import { toast } from './ui/Toast';
 import { cn } from '../utils/cn';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
@@ -17,8 +22,8 @@ function addMonths(date, n) { const d = new Date(date); d.setMonth(d.getMonth() 
 
 function startOfWeek(date) {
   const d   = new Date(date);
-  const dow = d.getDay(); // 0=Sun
-  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); // Monday-first
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -36,7 +41,6 @@ function isToday(d) { return isSameDay(d, new Date()); }
 function getMonthGrid(cursor) {
   const cells = [];
   let d = startOfWeek(startOfMonth(cursor));
-  // Always render 6 weeks (42 cells)
   for (let i = 0; i < 42; i++) { cells.push(new Date(d)); d = addDays(d, 1); }
   return cells;
 }
@@ -45,54 +49,67 @@ function getWeekDays(cursor) {
   return Array.from({ length: 7 }, (_, i) => addDays(s, i));
 }
 
+function toLocalDatetimeStr(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const EMPTY_FORM = {
+  clientName: '', service: '', barber: '', date: '', time: '', status: 'agendado', notes: '',
+};
+
 // ── Status dot colors ──────────────────────────────────────────────────────────
 const DOT = {
   agendado:  'bg-blue-500',
-  concluido: 'bg-emerald-500',
+  'concluído': 'bg-emerald-500',
   'concluído':'bg-emerald-500',
   cancelado: 'bg-red-400',
 };
 const CARD_BORDER = {
   agendado:  'border-l-blue-500',
-  concluido: 'border-l-emerald-500',
+  'concluído': 'border-l-emerald-500',
   'concluído':'border-l-emerald-500',
   cancelado: 'border-l-red-400',
 };
 
-// ── Appointment detail popover (portal — nunca cortado por overflow) ───────────
-function ApptPopover({ appt, anchorRect, onClose }) {
+// ── Appointment detail popover ─────────────────────────────────────────────────
+function ApptPopover({ appt, anchorRect, onClose, onStatusChange, onEdit, onDelete, isAdmin, changingStatus }) {
   const date = new Date(appt.date);
   const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const day  = date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  const W = 256, MARGIN = 8;
+  const isPending  = appt.status === 'agendado';
+  const isChanging = changingStatus === appt._id;
 
-  // Horizontal: centralizado no anchor, clamped para não sair da viewport
+  const W = 272, MARGIN = 8;
   const vw   = window.innerWidth;
   let left   = anchorRect.left + anchorRect.width / 2 - W / 2;
   left       = Math.max(MARGIN, Math.min(left, vw - W - MARGIN));
 
-  // Vertical: preferencialmente abaixo; se não couber, acima
   const spaceBelow = window.innerHeight - anchorRect.bottom - MARGIN;
-  const top = spaceBelow >= 180
+  const top = spaceBelow >= 220
     ? anchorRect.bottom + MARGIN
-    : anchorRect.top - MARGIN - 180; // altura estimada
+    : anchorRect.top - MARGIN - 220;
 
   return createPortal(
     <>
-      {/* Backdrop invisível para fechar ao clicar fora */}
       <div className="fixed inset-0 z-[48]" onClick={onClose} />
 
       <div
-        className="fixed z-[49] w-64 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl p-4 animate-scale-in"
-        style={{ top, left }}
+        className="fixed z-[49] bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl p-4 animate-scale-in"
+        style={{ top, left, width: W }}
       >
+        {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 pr-2">{appt.clientName}</p>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 shrink-0">
             <X size={13} />
           </button>
         </div>
+
+        {/* Details */}
         <div className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
           {appt.service?.name && (
             <p><span className="font-medium text-gray-700 dark:text-gray-300">Serviço: </span>{appt.service.name}</p>
@@ -105,8 +122,58 @@ function ApptPopover({ appt, anchorRect, onClose }) {
             <p><span className="font-medium text-gray-700 dark:text-gray-300">Valor: </span>R$ {appt.service.price.toFixed(2)}</p>
           )}
         </div>
-        <div className="mt-3">
+
+        <div className="mt-2.5">
           <Badge variant={appt.status} />
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+          {isPending && (
+            <>
+              <button
+                onClick={() => { onStatusChange(appt, 'concluído'); onClose(); }}
+                disabled={isChanging}
+                title="Marcar como concluído"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
+              >
+                {isChanging ? (
+                  <div className="w-3 h-3 border border-green-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <CheckCircle2 size={13} />
+                )}
+                Concluir
+              </button>
+              <button
+                onClick={() => { onStatusChange(appt, 'cancelado'); onClose(); }}
+                disabled={isChanging}
+                title="Marcar como cancelado"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
+              >
+                <XCircle size={13} />
+                Cancelar
+              </button>
+            </>
+          )}
+
+          <div className="flex gap-1 ml-auto">
+            <button
+              onClick={() => { onEdit(appt); onClose(); }}
+              title="Editar agendamento"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+            >
+              <Edit2 size={13} />
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => { onDelete(appt); onClose(); }}
+                title="Remover agendamento"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>,
@@ -123,9 +190,9 @@ function togglePop(e, appt, pop, setPop) {
 }
 
 // ── Month View ─────────────────────────────────────────────────────────────────
-function MonthView({ cursor, appointments, onDayClick }) {
+function MonthView({ cursor, appointments, onDayClick, actions }) {
   const cells       = useMemo(() => getMonthGrid(cursor), [cursor]);
-  const [pop, setPop] = useState(null); // { id, appt, rect }
+  const [pop, setPop] = useState(null);
 
   function apptsByDay(day) {
     return appointments.filter(a => isSameDay(new Date(a.date), day));
@@ -133,7 +200,6 @@ function MonthView({ cursor, appointments, onDayClick }) {
 
   return (
     <div>
-      {/* Day-of-week header */}
       <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-800">
         {WEEKDAYS.map(w => (
           <div key={w} className="py-2 text-center text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-wide">
@@ -142,7 +208,6 @@ function MonthView({ cursor, appointments, onDayClick }) {
         ))}
       </div>
 
-      {/* Cells */}
       <div className="grid grid-cols-7">
         {cells.map((day, idx) => {
           const appts    = apptsByDay(day);
@@ -199,19 +264,25 @@ function MonthView({ cursor, appointments, onDayClick }) {
         })}
       </div>
 
-      {pop && <ApptPopover appt={pop.appt} anchorRect={pop.rect} onClose={() => setPop(null)} />}
+      {pop && (
+        <ApptPopover
+          appt={pop.appt}
+          anchorRect={pop.rect}
+          onClose={() => setPop(null)}
+          {...actions}
+        />
+      )}
     </div>
   );
 }
 
 // ── Week View ──────────────────────────────────────────────────────────────────
-function WeekView({ cursor, appointments }) {
+function WeekView({ cursor, appointments, actions }) {
   const days      = useMemo(() => getWeekDays(cursor), [cursor]);
-  const [pop, setPop] = useState(null); // { id, appt, rect }
+  const [pop, setPop] = useState(null);
 
   return (
     <div>
-      {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-800">
         {days.map((day, i) => (
           <div key={i} className="py-3 px-2 text-center border-r border-gray-50 dark:border-gray-800/60 last:border-r-0">
@@ -226,7 +297,6 @@ function WeekView({ cursor, appointments }) {
         ))}
       </div>
 
-      {/* Appointment columns */}
       <div className="grid grid-cols-7 min-h-[280px]">
         {days.map((day, i) => {
           const appts = appointments
@@ -270,18 +340,25 @@ function WeekView({ cursor, appointments }) {
         })}
       </div>
 
-      {pop && <ApptPopover appt={pop.appt} anchorRect={pop.rect} onClose={() => setPop(null)} />}
+      {pop && (
+        <ApptPopover
+          appt={pop.appt}
+          anchorRect={pop.rect}
+          onClose={() => setPop(null)}
+          {...actions}
+        />
+      )}
     </div>
   );
 }
 
 // ── Day View ───────────────────────────────────────────────────────────────────
-function DayView({ cursor, appointments }) {
+function DayView({ cursor, appointments, actions }) {
   const appts = appointments
     .filter(a => isSameDay(new Date(a.date), cursor))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const [pop, setPop] = useState(null); // { id, appt, rect }
+  const [pop, setPop] = useState(null);
 
   if (appts.length === 0) {
     return (
@@ -329,24 +406,56 @@ function DayView({ cursor, appointments }) {
         );
       })}
 
-      {pop && <ApptPopover appt={pop.appt} anchorRect={pop.rect} onClose={() => setPop(null)} />}
+      {pop && (
+        <ApptPopover
+          appt={pop.appt}
+          anchorRect={pop.rect}
+          onClose={() => setPop(null)}
+          {...actions}
+        />
+      )}
     </div>
   );
 }
 
 // ── Main Calendar Widget ───────────────────────────────────────────────────────
 export default function CalendarWidget() {
+  const { user, isAdmin } = useAuth();
+
   const [view,   setView]   = useState('month');
   const [cursor, setCursor] = useState(new Date());
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Services + barbers for edit modal and filters
+  const [services, setServices] = useState([]);
+  const [barbers,  setBarbers]  = useState([]);
+
+  // Filters
+  const [filterService, setFilterService] = useState('');
+  const [filterBarber,  setFilterBarber]  = useState('');
+
+  // Quick status change
+  const [changingStatus, setChangingStatus] = useState(null);
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting,     setDeleting]     = useState(false);
+
+  // Edit modal
+  const [editModal, setEditModal] = useState(false);
+  const [editing,   setEditing]   = useState(null);
+  const [form,      setForm]      = useState(EMPTY_FORM);
+  const [saving,    setSaving]    = useState(false);
+  const [formErr,   setFormErr]   = useState('');
+
+  const setField = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   // Compute the date range to fetch
   const { rangeStart, rangeEnd, title } = useMemo(() => {
     if (view === 'month') {
       const rs = startOfWeek(startOfMonth(cursor));
       const re = endOfWeek(endOfMonth(cursor));
-      // Ensure 6 weeks always included
       const adjustedEnd = re < addDays(rs, 41) ? addDays(rs, 41) : re;
       return {
         rangeStart: rs,
@@ -372,15 +481,24 @@ export default function CalendarWidget() {
     setLoading(true);
     const s = new Date(rangeStart); s.setHours(0,  0,  0,   0);
     const e = new Date(rangeEnd);   e.setHours(23, 59, 59, 999);
-    const r = await Appointments.getAll({
-      startDate: s.toISOString(),
-      endDate:   e.toISOString(),
-    });
+    const params = { startDate: s.toISOString(), endDate: e.toISOString() };
+    if (filterBarber) params.barber = filterBarber;
+    const r = await Appointments.getAll(params);
     if (r.ok) setAppointments(r.data?.data || []);
     setLoading(false);
-  }, [rangeStart, rangeEnd]);
+  }, [rangeStart, rangeEnd, filterBarber]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Fetch services + barbers once
+  useEffect(() => {
+    Services.getAll().then(r => r.ok && setServices(r.data?.data || []));
+    if (isAdmin && user?.barbershop) {
+      Barbershops.getEmployees(user.barbershop).then(r => r.ok && setBarbers(r.data?.data || []));
+    } else if (user) {
+      setBarbers([{ _id: user._id, name: user.name }]);
+    }
+  }, [isAdmin, user]);
 
   function navigate(dir) {
     if (view === 'month') setCursor(c => addMonths(c, dir));
@@ -390,107 +508,298 @@ export default function CalendarWidget() {
 
   function goToday() { setCursor(new Date()); }
 
-  // Month view: clicking a day switches to day view
   function handleDayClick(day) {
     setCursor(day);
     setView('day');
   }
 
+  // ── Quick status change ────────────────────────────────────────────────────
+  const handleStatusChange = async (appt, newStatus) => {
+    setChangingStatus(appt._id);
+    const r = await Appointments.update(appt._id, { status: newStatus });
+    setChangingStatus(null);
+    if (r.ok) {
+      toast(newStatus === 'concluído' ? 'Serviço concluído!' : 'Agendamento cancelado.');
+      load();
+    } else {
+      toast(r.data?.message || 'Erro ao atualizar status.', 'error');
+    }
+  };
+
+  // ── Edit ──────────────────────────────────────────────────────────────────
+  const openEdit = appt => {
+    setEditing(appt);
+    const dt = toLocalDatetimeStr(appt.date);
+    setForm({
+      clientName: appt.clientName || '',
+      service:    appt.service?._id || appt.service || '',
+      barber:     appt.barber?._id  || appt.barber  || '',
+      date:       dt.split('T')[0]  || '',
+      time:       dt.split('T')[1]  || '',
+      status:     appt.status       || 'agendado',
+      notes:      appt.notes        || '',
+    });
+    setFormErr('');
+    setEditModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.clientName || !form.service || !form.barber || !form.date || !form.time) {
+      return setFormErr('Preencha todos os campos obrigatórios.');
+    }
+    setFormErr('');
+    setSaving(true);
+    const payload = {
+      clientName: form.clientName,
+      service:    form.service,
+      barber:     form.barber,
+      date:       new Date(`${form.date}T${form.time}`).toISOString(),
+      status:     form.status,
+      notes:      form.notes,
+    };
+    const r = await Appointments.update(editing._id, payload);
+    setSaving(false);
+    if (r.ok) {
+      toast('Agendamento atualizado!');
+      setEditModal(false);
+      load();
+    } else {
+      setFormErr(r.data?.message || 'Erro ao salvar.');
+    }
+  };
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const r = await Appointments.delete(deleteTarget._id);
+    setDeleting(false);
+    if (r.ok) {
+      toast('Agendamento removido.');
+      setDeleteTarget(null);
+      load();
+    } else {
+      toast(r.data?.message || 'Erro ao remover.', 'error');
+    }
+  };
+
+  const actions = {
+    onStatusChange: handleStatusChange,
+    onEdit:         openEdit,
+    onDelete:       setDeleteTarget,
+    isAdmin,
+    changingStatus,
+  };
+
+  const visibleAppointments = filterService
+    ? appointments.filter(a => (a.service?._id || a.service) === filterService)
+    : appointments;
+
+  const hasFilters = filterService || filterBarber;
+
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-      {/* ── Toolbar ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 gap-3 flex-wrap">
-        {/* Navigation */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={goToday}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            Hoje
-          </button>
-          <button
-            onClick={() => navigate(-1)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onClick={() => navigate(1)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            <ChevronRight size={16} />
-          </button>
-          <h2 className="ml-1 text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize min-w-0">
-            {title}
-          </h2>
+    <>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+        {/* ── Toolbar ── */}
+        <div className="border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 gap-3 flex-wrap">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={goToday}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Hoje
+              </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => navigate(1)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <h2 className="ml-1 text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize min-w-0">
+                {title}
+              </h2>
+            </div>
+
+            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 gap-0.5">
+              {['month', 'week', 'day'].map((v) => {
+                const labels = { month: 'Mês', week: 'Semana', day: 'Dia' };
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                      view === v
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+                    )}
+                  >
+                    {labels[v]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Filter row ── */}
+          <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
+            <select
+              value={filterService}
+              onChange={e => setFilterService(e.target.value)}
+              className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+            >
+              <option value="">Todos os serviços</option>
+              {services.map(s => (
+                <option key={s._id} value={s._id}>{s.name}</option>
+              ))}
+            </select>
+
+            {isAdmin && barbers.length > 1 && (
+              <select
+                value={filterBarber}
+                onChange={e => setFilterBarber(e.target.value)}
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+              >
+                <option value="">Todos os profissionais</option>
+                {barbers.map(b => (
+                  <option key={b._id} value={b._id}>{b.name}</option>
+                ))}
+              </select>
+            )}
+
+            {hasFilters && (
+              <button
+                onClick={() => { setFilterService(''); setFilterBarber(''); }}
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                Limpar
+              </button>
+            )}
+
+            <span className="ml-auto text-xs text-gray-400 dark:text-gray-600">
+              {visibleAppointments.length} agendamento{visibleAppointments.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
 
-        {/* View selector */}
-        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 gap-0.5">
-          {['month', 'week', 'day'].map((v) => {
-            const labels = { month: 'Mês', week: 'Semana', day: 'Dia' };
-            return (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                  view === v
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
-                )}
-              >
-                {labels[v]}
-              </button>
-            );
-          })}
-        </div>
+        {/* ── Loading overlay ── */}
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* ── View content ── */}
+        {!loading && (
+          <>
+            {view === 'month' && (
+              <MonthView
+                cursor={cursor}
+                appointments={visibleAppointments}
+                onDayClick={handleDayClick}
+                actions={actions}
+              />
+            )}
+            {view === 'week' && (
+              <WeekView cursor={cursor} appointments={visibleAppointments} actions={actions} />
+            )}
+            {view === 'day' && (
+              <DayView cursor={cursor} appointments={visibleAppointments} actions={actions} />
+            )}
+          </>
+        )}
+
+        {/* ── Legend ── */}
+        {!loading && (
+          <div className="flex items-center gap-4 px-4 py-2.5 border-t border-gray-50 dark:border-gray-800">
+            {[
+              { label: 'Agendado',  color: 'bg-blue-500'    },
+              { label: 'Concluído', color: 'bg-emerald-500' },
+              { label: 'Cancelado', color: 'bg-red-400'     },
+            ].map(({ label, color }) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <span className={cn('w-2 h-2 rounded-full', color)} />
+                <span className="text-xs text-gray-400 dark:text-gray-600">{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ── Loading overlay ── */}
-      {loading && (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
+      {/* ── Edit Modal ── */}
+      <Modal open={editModal} onClose={() => setEditModal(false)} title="Editar agendamento">
+        <div className="space-y-4">
+          <Input
+            label="Nome do cliente *"
+            placeholder="João da Silva"
+            value={form.clientName}
+            onChange={setField('clientName')}
+          />
 
-      {/* ── View content ── */}
-      {!loading && (
-        <>
-          {view === 'month' && (
-            <MonthView
-              cursor={cursor}
-              appointments={appointments}
-              onDayClick={handleDayClick}
-            />
-          )}
-          {view === 'week' && (
-            <WeekView cursor={cursor} appointments={appointments} />
-          )}
-          {view === 'day' && (
-            <DayView cursor={cursor} appointments={appointments} />
-          )}
-        </>
-      )}
+          <Select label="Serviço *" value={form.service} onChange={setField('service')}>
+            <option value="">Selecionar serviço</option>
+            {services.map(s => (
+              <option key={s._id} value={s._id}>{s.name} — R$ {s.price?.toFixed(2)}</option>
+            ))}
+          </Select>
 
-      {/* ── Legend ── */}
-      {!loading && (
-        <div className="flex items-center gap-4 px-4 py-2.5 border-t border-gray-50 dark:border-gray-800">
-          {[
-            { label: 'Agendado',  color: 'bg-blue-500'    },
-            { label: 'Concluído', color: 'bg-emerald-500' },
-            { label: 'Cancelado', color: 'bg-red-400'     },
-          ].map(({ label, color }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <span className={cn('w-2 h-2 rounded-full', color)} />
-              <span className="text-xs text-gray-400 dark:text-gray-600">{label}</span>
-            </div>
-          ))}
-          <span className="ml-auto text-xs text-gray-400 dark:text-gray-600">
-            {appointments.length} agendamento{appointments.length !== 1 ? 's' : ''}
-          </span>
+          {isAdmin && (
+            <Select label="Barbeiro *" value={form.barber} onChange={setField('barber')}>
+              <option value="">Selecionar barbeiro</option>
+              {barbers.map(b => (
+                <option key={b._id} value={b._id}>{b.name}</option>
+              ))}
+            </Select>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Data *" type="date" value={form.date} onChange={setField('date')} />
+            <Input label="Horário *" type="time" value={form.time} onChange={setField('time')} />
+          </div>
+
+          <Select label="Status" value={form.status} onChange={setField('status')}>
+            <option value="agendado">Agendado</option>
+            <option value="concluído">Concluído</option>
+            <option value="cancelado">Cancelado</option>
+          </Select>
+
+          <Input
+            label="Observações"
+            placeholder="Observações opcionais..."
+            value={form.notes}
+            onChange={setField('notes')}
+          />
+
+          {formErr && (
+            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{formErr}</p>
+          )}
+
+          <div className="flex gap-2 justify-end pt-1">
+            <Button variant="secondary" onClick={() => setEditModal(false)}>Cancelar</Button>
+            <Button onClick={handleSave} loading={saving}>Salvar alterações</Button>
+          </div>
         </div>
-      )}
-    </div>
+      </Modal>
+
+      {/* ── Delete Confirm Modal ── */}
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Remover agendamento">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Deseja remover o agendamento de <strong className="text-gray-900 dark:text-gray-100">{deleteTarget?.clientName}</strong>? Esta ação não pode ser desfeita.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={handleDelete} loading={deleting}>Remover</Button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
