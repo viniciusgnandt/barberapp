@@ -1,8 +1,10 @@
-import { useState, useRef } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Scissors, LogOut, Moon, Sun,
-  Scissors as ScissorsIcon, Camera, ChevronUp, Check, UserCircle, Store,
+  Scissors as ScissorsIcon, Camera, ChevronUp, ChevronDown, Check,
+  UserCircle, Store, BarChart2, CreditCard, Clock, Users,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -12,36 +14,54 @@ import Badge from '../ui/Badge';
 import { toast } from '../ui/Toast';
 
 const NAV_MAIN = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard'      },
-  { to: '/agenda',        icon: CalendarDays,    label: 'Agenda'         },
-  { to: '/services',      icon: Scissors,        label: 'Serviços'       },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
+  { to: '/agenda',    icon: CalendarDays,    label: 'Agenda'     },
+  { to: '/services',  icon: Scissors,        label: 'Serviços'   },
+  { to: '/reports',   icon: BarChart2,       label: 'Relatórios' },
 ];
 
-const NAV_ADMIN = [
-  { to: '/establishment', icon: Store,            label: 'Estabelecimento' },
+const ESTAB_SUBS = [
+  { to: '/establishment?tab=info',      label: 'Informações', icon: Store },
+  { to: '/establishment?tab=hours',     label: 'Horários',    icon: Clock },
+  { to: '/establishment?tab=employees', label: 'Equipe',      icon: Users },
+];
+
+const NAV_ADMIN_EXTRA = [
+  { to: '/billing', icon: CreditCard, label: 'Cobrança' },
 ];
 
 const NAV_USER = [
-  { to: '/profile',       icon: UserCircle,      label: 'Meu Perfil'    },
+  { to: '/profile', icon: UserCircle, label: 'Meu Perfil' },
 ];
+
+const navLinkClass = (isActive, collapsed) => cn(
+  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+  collapsed && 'justify-center px-2',
+  isActive
+    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+);
 
 export default function Sidebar() {
   const { user, logout, isAdmin, updateUser, profiles, switchProfile } = useAuth();
   const { dark, toggle } = useTheme();
+  const location = useLocation();
 
   const logoInputRef   = useRef(null);
   const avatarInputRef = useRef(null);
   const [uploadingLogo,   setUploadingLogo]   = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [switching,       setSwitching]       = useState(null); // profileId
+  const [switching,       setSwitching]       = useState(null);
+  const [collapsed,       setCollapsed]       = useState(false);
+
+  // Auto-expand estab sub-menu when on /establishment
+  const onEstab = location.pathname === '/establishment';
+  const [estabOpen, setEstabOpen] = useState(onEstab);
+  useEffect(() => { if (onEstab) setEstabOpen(true); }, [onEstab]);
 
   const initials = user?.name
-    ?.split(' ')
-    .slice(0, 2)
-    .map(n => n[0])
-    .join('')
-    .toUpperCase() || '?';
+    ?.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() || '?';
 
   const otherProfiles = profiles.filter(p => String(p.id) !== String(user?.id));
 
@@ -77,10 +97,25 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="flex flex-col w-60 shrink-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800">
+    <aside className={cn(
+      'relative flex flex-col shrink-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 transition-all duration-300',
+      collapsed ? 'w-16' : 'w-60',
+    )}>
+
+      {/* Collapse toggle button */}
+      <button
+        onClick={() => { setCollapsed(c => !c); setProfileMenuOpen(false); }}
+        title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        className="absolute -right-3 top-6 z-30 w-6 h-6 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-brand-500 shadow-sm transition-colors"
+      >
+        {collapsed
+          ? <PanelLeftOpen  size={12} />
+          : <PanelLeftClose size={12} />
+        }
+      </button>
 
       {/* Brand / Logo */}
-      <div className="px-5 py-5 border-b border-gray-100 dark:border-gray-800">
+      <div className={cn('border-b border-gray-100 dark:border-gray-800', collapsed ? 'px-3 py-5' : 'px-5 py-5')}>
         <div className="flex items-center gap-3">
           <div
             onClick={() => isAdmin && logoInputRef.current?.click()}
@@ -107,78 +142,140 @@ export default function Sidebar() {
             )}
           </div>
 
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-              {user?.barbershopName || 'BarberApp'}
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Sistema de Agendamento</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {user?.barbershopName || 'BarberApp'}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Sistema de Agendamento</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-thin">
-        <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Menu</p>
+      <nav className={cn('flex-1 py-4 space-y-0.5 overflow-y-auto scrollbar-thin', collapsed ? 'px-2' : 'px-3')}>
+        {!collapsed && (
+          <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Menu</p>
+        )}
         {NAV_MAIN.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => cn(
-            'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-            isActive
-              ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
-          )}>
-            <Icon size={16} /> {label}
+          <NavLink key={to} to={to} title={collapsed ? label : undefined}
+            className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+            <Icon size={16} className="shrink-0" />
+            {!collapsed && label}
           </NavLink>
         ))}
 
         {isAdmin && (
           <>
-            <p className="px-2 mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Administração</p>
-            {NAV_ADMIN.map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} className={({ isActive }) => cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
-              )}>
-                <Icon size={16} /> {label}
+            {!collapsed && (
+              <p className="px-2 mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Administração</p>
+            )}
+            {collapsed && <div className="mt-3" />}
+
+            {/* Estabelecimento — collapsible group */}
+            {collapsed ? (
+              /* Collapsed: show Store icon linking to /establishment */
+              <NavLink
+                to="/establishment"
+                title="Estabelecimento"
+                className={({ isActive }) => navLinkClass(isActive, true)}
+              >
+                <Store size={16} className="shrink-0" />
+              </NavLink>
+            ) : (
+              <>
+                <button
+                  onClick={() => setEstabOpen(o => !o)}
+                  className={cn(
+                    'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    onEstab
+                      ? 'text-brand-600 dark:text-brand-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+                  )}
+                >
+                  <Store size={16} className="shrink-0" />
+                  <span className="flex-1 text-left">Estabelecimento</span>
+                  {estabOpen
+                    ? <ChevronDown size={13} className="text-gray-400 shrink-0" />
+                    : <ChevronDown size={13} className="text-gray-400 shrink-0 -rotate-90" />
+                  }
+                </button>
+
+                {estabOpen && (
+                  <div className="ml-4 pl-3 border-l border-gray-100 dark:border-gray-800 space-y-0.5">
+                    {ESTAB_SUBS.map(({ to, label, icon: Icon }) => {
+                      const [path, qs] = to.split('?');
+                      const tabParam = new URLSearchParams(qs).get('tab');
+                      const isActive = location.pathname === path &&
+                        (location.search === `?tab=${tabParam}` || (!location.search && tabParam === 'info'));
+                      return (
+                        <NavLink
+                          key={to}
+                          to={to}
+                          className={cn(
+                            'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors',
+                            isActive
+                              ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+                          )}
+                        >
+                          <Icon size={13} className="shrink-0" />
+                          {label}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {NAV_ADMIN_EXTRA.map(({ to, icon: Icon, label }) => (
+              <NavLink key={to} to={to} title={collapsed ? label : undefined}
+                className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+                <Icon size={16} className="shrink-0" />
+                {!collapsed && label}
               </NavLink>
             ))}
           </>
         )}
 
-        <p className="px-2 mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Conta</p>
+        {!collapsed && (
+          <p className="px-2 mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Conta</p>
+        )}
+        {collapsed && <div className="mt-3" />}
         {NAV_USER.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => cn(
-            'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-            isActive
-              ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
-          )}>
-            <Icon size={16} /> {label}
+          <NavLink key={to} to={to} title={collapsed ? label : undefined}
+            className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+            <Icon size={16} className="shrink-0" />
+            {!collapsed && label}
           </NavLink>
         ))}
       </nav>
 
       {/* Bottom */}
-      <div className="px-3 py-4 border-t border-gray-100 dark:border-gray-800 space-y-1">
+      <div className={cn('py-4 border-t border-gray-100 dark:border-gray-800 space-y-1', collapsed ? 'px-2' : 'px-3')}>
         {/* Theme toggle */}
         <button
           onClick={toggle}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          title={collapsed ? (dark ? 'Modo Claro' : 'Modo Escuro') : undefined}
+          className={cn(
+            'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
+            collapsed && 'justify-center px-2',
+          )}
         >
-          {dark ? <Sun size={16} /> : <Moon size={16} />}
-          {dark ? 'Modo Claro' : 'Modo Escuro'}
+          {dark ? <Sun size={16} className="shrink-0" /> : <Moon size={16} className="shrink-0" />}
+          {!collapsed && (dark ? 'Modo Claro' : 'Modo Escuro')}
         </button>
 
         {/* Profile switcher popup */}
-        {profileMenuOpen && otherProfiles.length > 0 && (
+        {profileMenuOpen && otherProfiles.length > 0 && !collapsed && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setProfileMenuOpen(false)} />
             <div className="absolute bottom-20 left-3 right-3 z-20 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl p-2 space-y-1 animate-scale-in">
               <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">
                 Trocar perfil
               </p>
-              {/* Perfil atual */}
               <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-brand-50 dark:bg-brand-900/20">
                 <div className="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden">
                   {user?.profileImage
@@ -192,8 +289,6 @@ export default function Sidebar() {
                 </div>
                 <Check size={12} className="text-brand-500 shrink-0" />
               </div>
-
-              {/* Outros perfis */}
               {otherProfiles.map(p => {
                 const pInitials = p.name?.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() || '?';
                 const isLoading = switching === p.id;
@@ -225,8 +320,7 @@ export default function Sidebar() {
         )}
 
         {/* User row */}
-        <div className="relative flex items-center gap-3 px-3 py-2 rounded-lg">
-          {/* Avatar */}
+        <div className={cn('relative flex items-center gap-3 px-3 py-2 rounded-lg', collapsed && 'justify-center px-2')}>
           <div
             onClick={() => avatarInputRef.current?.click()}
             className="relative w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center text-white text-xs font-bold shrink-0 cursor-pointer overflow-hidden group"
@@ -245,38 +339,54 @@ export default function Sidebar() {
           </div>
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
 
-          {/* Name + role — clicável se houver outros perfis */}
-          <button
-            onClick={() => otherProfiles.length > 0 && setProfileMenuOpen(o => !o)}
-            className={cn(
-              'flex-1 min-w-0 text-left',
-              otherProfiles.length > 0 && 'cursor-pointer',
-            )}
-            title={otherProfiles.length > 0 ? 'Clique para trocar de perfil' : undefined}
-          >
-            <div className="flex items-center gap-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.name}</p>
-              {otherProfiles.length > 0 && (
-                <ChevronUp
-                  size={12}
-                  className={cn(
-                    'text-gray-400 shrink-0 transition-transform',
-                    !profileMenuOpen && 'rotate-180',
+          {!collapsed && (
+            <>
+              <button
+                onClick={() => otherProfiles.length > 0 && setProfileMenuOpen(o => !o)}
+                className={cn('flex-1 min-w-0 text-left', otherProfiles.length > 0 && 'cursor-pointer')}
+                title={otherProfiles.length > 0 ? 'Clique para trocar de perfil' : undefined}
+              >
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.name}</p>
+                  {otherProfiles.length > 0 && (
+                    <ChevronUp
+                      size={12}
+                      className={cn('text-gray-400 shrink-0 transition-transform', !profileMenuOpen && 'rotate-180')}
+                    />
                   )}
-                />
-              )}
-            </div>
-            <Badge variant={user?.role} className="mt-0.5" />
-          </button>
+                </div>
+                <Badge variant={user?.role} className="mt-0.5" />
+              </button>
 
+              <button
+                onClick={logout}
+                title="Sair"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <LogOut size={15} />
+              </button>
+            </>
+          )}
+
+          {collapsed && (
+            <button
+              onClick={logout}
+              title="Sair"
+              className="absolute -top-8 left-1/2 -translate-x-1/2 hidden" // hidden when collapsed; logout via profile page
+            />
+          )}
+        </div>
+
+        {/* Logout button when collapsed */}
+        {collapsed && (
           <button
             onClick={logout}
             title="Sair"
-            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            className="flex items-center justify-center w-full px-2 py-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
-            <LogOut size={15} />
+            <LogOut size={16} />
           </button>
-        </div>
+        )}
       </div>
     </aside>
   );

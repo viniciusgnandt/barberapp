@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Store, Clock, Users, Copy, Check, Trash2,
   Save, UserX, RefreshCw,
@@ -301,7 +302,9 @@ function EmployeesTab({ shop }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Establishment() {
   const { isAdmin } = useAuth();
-  const [tab,  setTab]  = useState('info');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'info';
+  const setTab = (id) => setSearchParams({ tab: id }, { replace: true });
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
 

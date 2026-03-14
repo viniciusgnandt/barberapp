@@ -2,6 +2,14 @@
 
 const mongoose = require('mongoose');
 
+const invoiceSchema = new mongoose.Schema({
+  description: { type: String },
+  amount:      { type: Number, default: 0 },
+  status:      { type: String, enum: ['paid', 'pending', 'failed'], default: 'paid' },
+  paidAt:      { type: Date },
+  card:        { type: String }, // last 4 digits
+}, { timestamps: true });
+
 const openingHourSchema = new mongoose.Schema({
   day:   { type: Number, min: 0, max: 6, required: true }, // 0=Dom, 1=Seg, ..., 6=Sáb
   open:  { type: Boolean, default: true },
@@ -33,8 +41,23 @@ const barbershopSchema = new mongoose.Schema({
       { day: 6, open: true,  from: '09:00', to: '13:00' }, // Sáb
     ],
   },
+  // Billing
+  plan:           { type: String, enum: ['trial', 'basic'], default: 'trial' },
+  planStatus:     { type: String, enum: ['active', 'expired', 'cancelled'], default: 'active' },
+  planExpiresAt:  { type: Date },
+  invoices:       { type: [invoiceSchema], default: [] },
+
   createdAt:    { type: Date, default: Date.now },
   updatedAt:    { type: Date, default: Date.now },
+});
+
+// Set planExpiresAt to 30 days from creation when not already set
+barbershopSchema.pre('save', function (next) {
+  if (!this.planExpiresAt) {
+    const base = this.createdAt || new Date();
+    this.planExpiresAt = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+  }
+  next();
 });
 
 module.exports = mongoose.model('Barbershop', barbershopSchema);

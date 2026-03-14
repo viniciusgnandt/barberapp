@@ -97,5 +97,21 @@ export const Upload = {
   },
 };
 
-const API = { Auth, Services, Appointments, Barbershops, Upload };
+// ── Reports ────────────────────────────────────────────────────────────────────
+export const Reports = {
+  get: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/reports${qs ? '?' + qs : ''}`);
+  },
+};
+
+// ── Billing ────────────────────────────────────────────────────────────────────
+export const Billing = {
+  get:          ()       => request('/billing'),
+  pay:          (data)   => request('/billing/pay',          { method: 'POST', body: data }),
+  applyCoupon:  (code)   => request('/billing/apply-coupon', { method: 'POST', body: { code } }),
+  cancel:       ()       => request('/billing/cancel',       { method: 'POST' }),
+};
+
+const API = { Auth, Users, Services, Appointments, Barbershops, Upload, Reports, Billing };
 export default API;

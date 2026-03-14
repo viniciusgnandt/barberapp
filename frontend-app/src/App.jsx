@@ -11,6 +11,8 @@ import Agenda from './pages/Agenda';
 import Services from './pages/Services';
 import Profile from './pages/Profile';
 import Establishment from './pages/Establishment';
+import Reports from './pages/Reports';
+import Billing from './pages/Billing';
 
 export default function App() {
   return (
@@ -29,6 +31,8 @@ export default function App() {
               <Route path="/services"      element={<Services />}      />
               <Route path="/profile"       element={<Profile />}       />
               <Route path="/establishment" element={<Establishment />} />
+              <Route path="/reports"      element={<Reports />}      />
+              <Route path="/billing"      element={<Billing />}      />
             </Route>
 
             {/* Redirect root */}
