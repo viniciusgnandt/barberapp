@@ -4,7 +4,7 @@ import {
   LayoutDashboard, CalendarDays, Scissors, LogOut, Moon, Sun,
   Scissors as ScissorsIcon, Camera, ChevronUp, ChevronDown, Check,
   UserCircle, Store, BarChart2, CreditCard, Clock, Users,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, TrendingUp, DollarSign, UserRound,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -14,10 +14,15 @@ import Badge from '../ui/Badge';
 import { toast } from '../ui/Toast';
 
 const NAV_MAIN = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
-  { to: '/agenda',    icon: CalendarDays,    label: 'Agenda'     },
-  { to: '/services',  icon: Scissors,        label: 'Serviços'   },
-  { to: '/reports',   icon: BarChart2,       label: 'Relatórios' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/agenda',    icon: CalendarDays,    label: 'Agenda'    },
+  { to: '/services',  icon: Scissors,        label: 'Serviços'  },
+  { to: '/clients',   icon: UserRound,       label: 'Clientes'  },
+];
+
+const REPORTS_SUBS = [
+  { to: '/reports?tab=services',  label: 'Serviços',          icon: Scissors    },
+  { to: '/reports?tab=financial', label: 'Gestão Financeira', icon: DollarSign  },
 ];
 
 const ESTAB_SUBS = [
@@ -59,6 +64,11 @@ export default function Sidebar() {
   const onEstab = location.pathname === '/establishment';
   const [estabOpen, setEstabOpen] = useState(onEstab);
   useEffect(() => { if (onEstab) setEstabOpen(true); }, [onEstab]);
+
+  // Auto-expand reports sub-menu when on /reports
+  const onReports = location.pathname === '/reports';
+  const [reportsOpen, setReportsOpen] = useState(onReports);
+  useEffect(() => { if (onReports) setReportsOpen(true); }, [onReports]);
 
   const initials = user?.name
     ?.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() || '?';
@@ -165,6 +175,59 @@ export default function Sidebar() {
             {!collapsed && label}
           </NavLink>
         ))}
+
+        {/* Relatórios — collapsible group (all users) */}
+        {collapsed ? (
+          <NavLink
+            to="/reports?tab=services"
+            title="Relatórios"
+            className={({ isActive }) => navLinkClass(isActive, true)}
+          >
+            <BarChart2 size={16} className="shrink-0" />
+          </NavLink>
+        ) : (
+          <>
+            <button
+              onClick={() => setReportsOpen(o => !o)}
+              className={cn(
+                'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                onReports
+                  ? 'text-brand-600 dark:text-brand-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+              )}
+            >
+              <BarChart2 size={16} className="shrink-0" />
+              <span className="flex-1 text-left">Relatórios</span>
+              <ChevronDown size={13} className={cn('text-gray-400 shrink-0 transition-transform', !reportsOpen && '-rotate-90')} />
+            </button>
+
+            {reportsOpen && (
+              <div className="ml-4 pl-3 border-l border-gray-100 dark:border-gray-800 space-y-0.5">
+                {REPORTS_SUBS.map(({ to, label, icon: Icon }) => {
+                  const [path, qs] = to.split('?');
+                  const tabParam = new URLSearchParams(qs).get('tab');
+                  const isActive = location.pathname === path &&
+                    (location.search === `?tab=${tabParam}` || (!location.search && tabParam === 'services'));
+                  return (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      className={cn(
+                        'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors',
+                        isActive
+                          ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+                      )}
+                    >
+                      <Icon size={13} className="shrink-0" />
+                      {label}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
 
         {isAdmin && (
           <>

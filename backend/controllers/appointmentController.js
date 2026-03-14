@@ -1,19 +1,23 @@
 // controllers/appointmentController.js
 
 const Appointment = require('../models/Appointment');
+const User        = require('../models/User');
+const crypto      = require('crypto');
 
 const populate = (q) =>
   q.populate('service', 'name duration price')
    .populate('barber', 'name email')
-   .populate('barbershop', 'name');
+   .populate('barbershop', 'name')
+   .populate('client', 'name phone email');
 
 // GET /api/appointments
 const getAppointments = async (req, res) => {
   try {
-    const { status, date, startDate, endDate, barber } = req.query;
+    const { status, date, startDate, endDate, barber, type } = req.query;
     const filter = { barbershop: req.user.barbershop._id };
 
     if (status) filter.status = status;
+    if (type)   filter.type   = type;
 
     // Barbeiro só vê seus próprios; admin pode filtrar por barbeiro
     if (req.user.role !== 'admin') {
@@ -40,41 +44,136 @@ const getAppointments = async (req, res) => {
 // POST /api/appointments
 const createAppointment = async (req, res) => {
   try {
-    const { clientName, service, barber, date, notes } = req.body;
-    if (!clientName || !service || !barber || !date)
-      return res.status(400).json({ success: false, message: 'Campos obrigatórios ausentes.' });
+    const {
+      type, clientName, client, service, barber, date, endDate, notes,
+      allBarbers, recurrence, occurrences,
+    } = req.body;
+    const isBlock = type === 'block';
 
-    // Barbeiro pode criar agendamento apenas para si mesmo
-    if (req.user.role === 'barbeiro' && barber !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Barbeiros podem criar agendamentos apenas para si mesmos.',
-      });
+    // Validation
+    const isAllBarbers = isBlock && allBarbers === true;
+    if (!clientName || !date)
+      return res.status(400).json({ success: false, message: 'Campos obrigatórios ausentes.' });
+    if (!isAllBarbers && !barber)
+      return res.status(400).json({ success: false, message: 'Selecione um profissional.' });
+    if (!isBlock && !service)
+      return res.status(400).json({ success: false, message: 'Serviço é obrigatório para agendamentos.' });
+
+    // Barbeiro só cria para si mesmo
+    if (!isBlock && req.user.role === 'barbeiro' && barber !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Barbeiros podem criar agendamentos apenas para si mesmos.' });
+
+    // Admin creating block for ALL barbers (e.g. holiday)
+    if (isAllBarbers) {
+      if (req.user.role !== 'admin')
+        return res.status(403).json({ success: false, message: 'Apenas admins podem bloquear para todos.' });
+
+      const employees = await User.find({ barbershop: req.user.barbershop._id });
+      const blocks = await Promise.all(employees.map(emp =>
+        Appointment.create({
+          type: 'block',
+          clientName,
+          barber:     emp._id,
+          barbershop: req.user.barbershop._id,
+          date:       new Date(date),
+          endDate:    endDate ? new Date(endDate) : undefined,
+          status:     'bloqueado',
+          notes,
+        })
+      ));
+      return res.status(201).json({ success: true, count: blocks.length, data: blocks });
     }
 
-    // Verificar conflito de horário (±30 min)
+    // Single-barber block
+    if (isBlock) {
+      let block = await Appointment.create({
+        type: 'block',
+        clientName,
+        barber,
+        barbershop: req.user.barbershop._id,
+        date:       new Date(date),
+        endDate:    endDate ? new Date(endDate) : undefined,
+        status:     'bloqueado',
+        notes,
+      });
+      block = await populate(Appointment.findById(block._id));
+      return res.status(201).json({ success: true, data: block });
+    }
+
+    // Regular appointment(s)
     const dt  = new Date(date);
     const gap = 30 * 60 * 1000;
-    const conflict = await Appointment.findOne({
-      barbershop: req.user.barbershop._id,
-      barber,
-      status: 'agendado',
-      date: { $gte: new Date(dt - gap), $lte: new Date(+dt + gap) },
-    });
-    if (conflict)
+
+    // Conflict detection helper
+    const checkConflict = async (targetDate) => {
+      const td = new Date(targetDate);
+
+      const apptConflict = await Appointment.findOne({
+        barbershop: req.user.barbershop._id,
+        barber,
+        type: { $ne: 'block' },
+        status: 'agendado',
+        date: { $gte: new Date(td - gap), $lte: new Date(+td + gap) },
+      });
+
+      const activeBlocks = await Appointment.find({
+        barbershop: req.user.barbershop._id,
+        barber,
+        type: 'block',
+        date: { $lte: new Date(+td + gap) },
+      });
+      const blockConflict = activeBlocks.find(b => {
+        const blockEnd = b.endDate ? b.endDate.getTime() : b.date.getTime() + gap;
+        return td.getTime() >= b.date.getTime() && td.getTime() <= blockEnd;
+      });
+
+      return apptConflict || blockConflict;
+    };
+
+    // Build list of dates for recurrence
+    const rec   = recurrence || 'none';
+    const count = Math.min(Math.max(parseInt(occurrences) || 1, 1), 52);
+
+    const dates = [new Date(dt)];
+    if (rec !== 'none') {
+      for (let i = 1; i < count; i++) {
+        const next = new Date(dates[dates.length - 1]);
+        if (rec === 'weekly')    next.setDate(next.getDate() + 7);
+        if (rec === 'biweekly')  next.setDate(next.getDate() + 14);
+        if (rec === 'monthly')   next.setMonth(next.getMonth() + 1);
+        dates.push(next);
+      }
+    }
+
+    // Check first date conflict
+    if (await checkConflict(dates[0]))
       return res.status(400).json({ success: false, message: 'Horário indisponível para este barbeiro.' });
 
-    let apt = await Appointment.create({
+    // Create all occurrences
+    const groupId = rec !== 'none' ? crypto.randomUUID() : undefined;
+    const baseDoc = {
       clientName,
+      client: client || undefined,
       service,
       barber,
       barbershop: req.user.barbershop._id,
-      date: dt,
       notes,
-    });
-    apt = await populate(Appointment.findById(apt._id));
+      recurrence: rec,
+      recurrenceGroupId: groupId,
+    };
 
-    res.status(201).json({ success: true, data: apt });
+    const created = await Promise.all(
+      dates.map(d => Appointment.create({ ...baseDoc, date: d }))
+    );
+
+    // Populate and return the first (or all)
+    const populated = await populate(Appointment.findById(created[0]._id));
+    res.status(201).json({
+      success: true,
+      count: created.length,
+      data: populated,
+      recurrenceCount: created.length,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

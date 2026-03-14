@@ -3,13 +3,18 @@
 const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
+  type:       { type: String, enum: ['appointment', 'block'], default: 'appointment' },
   clientName: { type: String, required: true, trim: true },
-  service:    { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
+  client:     { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
+  service:    { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
   barber:     { type: mongoose.Schema.Types.ObjectId, ref: 'User',    required: true },
   barbershop: { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   date:       { type: Date, required: true },
-  status:     { type: String, enum: ['agendado', 'concluído', 'cancelado'], default: 'agendado' },
+  endDate:    { type: Date },
+  status:     { type: String, enum: ['agendado', 'concluído', 'cancelado', 'bloqueado'], default: 'agendado' },
   notes:      { type: String, trim: true },
+  recurrence: { type: String, enum: ['none', 'weekly', 'biweekly', 'monthly'], default: 'none' },
+  recurrenceGroupId: { type: String },
   createdAt:  { type: Date, default: Date.now },
 });
 

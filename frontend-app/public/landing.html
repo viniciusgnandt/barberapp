@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BarberApp — Sistema de Gestão para Barbearias</title>
+  <meta name="description" content="Gerencie sua barbearia com inteligência. Agenda digital, gestão de clientes, controle financeiro e muito mais." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/landing.css" />
+</head>
+<body>
+
+<!-- ────────────────────────────────────────────
+     NAVBAR
+──────────────────────────────────────────── -->
+<header>
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <div class="navbar-inner">
+        <a href="#" class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2v8l4 4-4 4v4"/><path d="M18 2v8l-4 4 4 4v4"/>
+            </svg>
+          </div>
+          BarberApp
+        </a>
+
+        <div class="nav-links">
+          <a href="#features">Funcionalidades</a>
+          <a href="#demo">Demo</a>
+          <a href="#benefits">Benefícios</a>
+          <a href="#testimonials">Depoimentos</a>
+        </div>
+
+        <div class="nav-cta">
+          <a href="/login" class="btn btn-outline btn-nav">Entrar</a>
+          <a href="/register" class="btn btn-primary btn-nav">Começar grátis</a>
+          <button class="nav-menu-btn" onclick="toggleMobile()" aria-label="Menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#features" onclick="toggleMobile()">Funcionalidades</a>
+    <a href="#demo"     onclick="toggleMobile()">Demo</a>
+    <a href="#benefits" onclick="toggleMobile()">Benefícios</a>
+    <a href="/login"    class="btn btn-outline">Entrar</a>
+    <a href="/register" class="btn btn-primary">Começar grátis</a>
+  </div>
+</header>
+
+
+<!-- ────────────────────────────────────────────
+     HERO
+──────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="container">
+    <div class="hero-content">
+
+      <!-- Left -->
+      <div class="hero-left animate-fade-up">
+        <div>
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            Plataforma #1 para barbearias
+          </span>
+        </div>
+
+        <h1 class="hero-title">
+          Sua barbearia,<br/>
+          <span class="gradient-text">100% organizada</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          Chega de agenda no papel e horários perdidos. O BarberApp centraliza tudo — agendamentos, clientes, serviços e faturamento — em um único sistema moderno e fácil de usar.
+        </p>
+
+        <div class="hero-actions">
+          <a href="/register" class="btn btn-primary btn-lg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Começar gratuitamente
+          </a>
+          <a href="#demo" class="btn btn-outline btn-lg">
+            Ver demonstração
+          </a>
+        </div>
+
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <span class="hero-stat-num">500+</span>
+            <span class="hero-stat-label">Barbearias ativas</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-num">98%</span>
+            <span class="hero-stat-label">Satisfação</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-num">3×</span>
+            <span class="hero-stat-label">Mais organizado</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right — Mock UI -->
+      <div class="hero-visual">
+        <div class="mock-browser">
+          <div class="mock-browser-bar">
+            <div class="mock-dot"></div>
+            <div class="mock-dot"></div>
+            <div class="mock-dot"></div>
+            <div class="mock-url">barberapp.com/dashboard</div>
+          </div>
+          <div class="mock-body">
+            <!-- Sidebar -->
+            <div class="mock-sidebar">
+              <div class="mock-sidebar-logo">
+                <div class="mock-logo-icon"></div>
+                <div class="mock-logo-text"></div>
+              </div>
+              <div class="mock-nav-item active">
+                <div class="mock-nav-icon"></div>
+                <div class="mock-nav-text"></div>
+              </div>
+              <div class="mock-nav-item">
+                <div class="mock-nav-icon"></div>
+                <div class="mock-nav-text"></div>
+              </div>
+              <div class="mock-nav-item">
+                <div class="mock-nav-icon"></div>
+                <div class="mock-nav-text"></div>
+              </div>
+              <div class="mock-nav-item">
+                <div class="mock-nav-icon"></div>
+                <div class="mock-nav-text"></div>
+              </div>
+              <div class="mock-nav-item">
+                <div class="mock-nav-icon"></div>
+                <div class="mock-nav-text"></div>
+              </div>
+            </div>
+            <!-- Main -->
+            <div class="mock-main">
+              <div class="mock-stats">
+                <div class="mock-stat-card">
+                  <div class="mock-stat-top"><div class="mock-stat-dot"></div><div class="mock-stat-line"></div></div>
+                  <div class="mock-stat-num"></div>
+                  <div class="mock-stat-sub"></div>
+                </div>
+                <div class="mock-stat-card">
+                  <div class="mock-stat-top"><div class="mock-stat-dot" style="background:rgba(255,255,255,0.08)"></div><div class="mock-stat-line"></div></div>
+                  <div class="mock-stat-num"></div>
+                  <div class="mock-stat-sub"></div>
+                </div>
+                <div class="mock-stat-card">
+                  <div class="mock-stat-top"><div class="mock-stat-dot" style="background:rgba(255,255,255,0.08)"></div><div class="mock-stat-line"></div></div>
+                  <div class="mock-stat-num"></div>
+                  <div class="mock-stat-sub"></div>
+                </div>
+              </div>
+              <div class="mock-cards">
+                <div class="mock-appt">
+                  <div class="mock-avatar"></div>
+                  <div class="mock-appt-info">
+                    <div class="mock-appt-name"></div>
+                    <div class="mock-appt-sub"></div>
+                  </div>
+                  <div class="mock-appt-badge">Agendado</div>
+                </div>
+                <div class="mock-appt">
+                  <div class="mock-avatar" style="background:rgba(255,255,255,0.07)"></div>
+                  <div class="mock-appt-info">
+                    <div class="mock-appt-name"></div>
+                    <div class="mock-appt-sub"></div>
+                  </div>
+                  <div class="mock-appt-badge pending">Pendente</div>
+                </div>
+                <div class="mock-appt">
+                  <div class="mock-avatar" style="background:rgba(255,255,255,0.07)"></div>
+                  <div class="mock-appt-info">
+                    <div class="mock-appt-name"></div>
+                    <div class="mock-appt-sub"></div>
+                  </div>
+                  <div class="mock-appt-badge" style="background:rgba(74,222,128,0.1);color:#4ade80">Concluído</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating badges -->
+        <div class="hero-float-badge">
+          <div class="float-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <div class="float-text">
+            <span class="float-num">+42%</span>
+            <span class="float-label">Faturamento este mês</span>
+          </div>
+        </div>
+
+        <div class="hero-float-badge-2">
+          <div class="float-dot"></div>
+          Sistema online agora
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     PROBLEM
+──────────────────────────────────────────── -->
+<section class="problem" id="problem">
+  <div class="container">
+    <div class="problem-grid">
+      <div>
+        <div class="section-header reveal">
+          <span class="badge section-badge" style="background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.2)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            O problema
+          </span>
+          <h2 class="section-title">A gestão manual<br/>custa caro</h2>
+          <p class="section-sub">
+            Caderno, WhatsApp, papelzinho... a maioria das barbearias ainda perde tempo e dinheiro com métodos desorganizados.
+          </p>
+        </div>
+
+        <div class="problem-list">
+          <div class="problem-item reveal reveal-delay-1">
+            <div class="problem-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9.09" y1="9" x2="14.91" y2="15"/><line x1="14.91" y1="9" x2="9.09" y2="15"/></svg>
+            </div>
+            <div class="problem-text">
+              <h4>Conflito de horários</h4>
+              <p>Dois clientes marcados para o mesmo horário. Confusão, reclamação e cliente perdido.</p>
+            </div>
+          </div>
+          <div class="problem-item reveal reveal-delay-2">
+            <div class="problem-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="problem-text">
+              <h4>Horários perdidos sem aviso</h4>
+              <p>Cliente esqueceu, não avisou, e você ficou esperando sem aproveitar o tempo.</p>
+            </div>
+          </div>
+          <div class="problem-item reveal reveal-delay-3">
+            <div class="problem-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div class="problem-text">
+              <h4>Sem controle financeiro</h4>
+              <p>Não sabe quanto faturou, quais serviços rendem mais, nem como o mês foi.</p>
+            </div>
+          </div>
+          <div class="problem-item reveal reveal-delay-4">
+            <div class="problem-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div class="problem-text">
+              <h4>Histórico de clientes inexistente</h4>
+              <p>Não lembra o que o cliente pediu na última vez, suas preferências ou contato.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual: chaos calendar -->
+      <div class="problem-visual reveal">
+        <div class="chaos-card">
+          <div class="chaos-card-title">⚠️ Agenda Manual — Ter, 14 Mar</div>
+          <div class="chaos-rows">
+            <div class="chaos-row">
+              <div class="chaos-cell filled"></div>
+              <div class="chaos-cell"></div>
+              <div class="chaos-cell filled"></div>
+            </div>
+            <div class="chaos-row">
+              <div class="chaos-cell conflict"></div>
+              <div class="chaos-cell conflict"></div>
+              <div class="chaos-cell"></div>
+            </div>
+            <div class="chaos-row">
+              <div class="chaos-cell"></div>
+              <div class="chaos-cell filled"></div>
+              <div class="chaos-cell conflict"></div>
+            </div>
+            <div class="chaos-row">
+              <div class="chaos-cell filled"></div>
+              <div class="chaos-cell"></div>
+              <div class="chaos-cell filled"></div>
+            </div>
+          </div>
+          <p style="font-size:11px;color:#f87171;margin-top:12px;display:flex;align-items:center;gap:6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            3 conflitos de horário detectados
+          </p>
+        </div>
+
+        <div class="chaos-card" style="border-color:rgba(239,68,68,0.1)">
+          <div class="chaos-card-title">📱 WhatsApp — mensagens não lidas: 47</div>
+          <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px">
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--text-muted)">"Pode marcar pra hoje às 15h?"</div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--text-muted)">"Qual o valor do corte + barba?"</div>
+            <div style="background:rgba(239,68,68,0.08);border-radius:8px;padding:9px 12px;font-size:12px;color:#f87171">"Amigo, você marcou pra mim ás 14h e até agora nada"</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     SOLUTION
+──────────────────────────────────────────── -->
+<section class="solution" id="solution">
+  <div class="container">
+    <div class="solution-grid">
+      <!-- Visual: clean app -->
+      <div class="problem-visual reveal">
+        <div style="background:var(--bg-card);border:1px solid var(--border-brand);border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+          <div style="background:var(--bg-2);padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57"></div>
+            <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e"></div>
+            <div style="width:10px;height:10px;border-radius:50%;background:#28c840"></div>
+            <span style="font-size:12px;color:var(--text-muted);margin-left:8px">✅ Agenda BarberApp — Ter, 14 Mar</span>
+          </div>
+          <div style="padding:20px">
+            <!-- mini agenda -->
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:center;gap:10px;background:rgba(201,137,26,0.06);border:1px solid var(--border-brand);border-radius:10px;padding:10px 14px">
+                <span style="font-size:13px;font-weight:700;color:var(--brand-light);width:36px">09:00</span>
+                <div style="width:28px;height:28px;border-radius:50%;background:rgba(201,137,26,0.25)"></div>
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:600">Carlos Alves</div>
+                  <div style="font-size:11px;color:var(--text-muted)">Corte + Barba · R$ 55</div>
+                </div>
+                <span style="background:rgba(201,137,26,0.1);color:var(--brand-light);border:1px solid rgba(201,137,26,0.2);padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700">AGENDADO</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
+                <span style="font-size:13px;font-weight:700;color:var(--text-muted);width:36px">10:30</span>
+                <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.06)"></div>
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:600">Lucas Ferreira</div>
+                  <div style="font-size:11px;color:var(--text-muted)">Degradê · R$ 45</div>
+                </div>
+                <span style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2);padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700">CONCLUÍDO</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
+                <span style="font-size:13px;font-weight:700;color:var(--text-muted);width:36px">14:00</span>
+                <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.06)"></div>
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:600">Pedro Santos</div>
+                  <div style="font-size:11px;color:var(--text-muted)">Corte Navalhado · R$ 50</div>
+                </div>
+                <span style="background:rgba(201,137,26,0.1);color:var(--brand-light);border:1px solid rgba(201,137,26,0.2);padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700">AGENDADO</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+              <span style="font-size:12px;color:var(--text-muted)">3 agendamentos hoje</span>
+              <span style="font-size:13px;font-weight:700;color:#4ade80">R$ 150 garantidos</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-header reveal">
+          <span class="badge section-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            A solução
+          </span>
+          <h2 class="section-title">Tudo que sua<br/><span class="gradient-text">barbearia precisa</span></h2>
+          <p class="section-sub">
+            Um sistema completo, intuitivo e pensado para o dia a dia de quem trabalha com barbearia.
+          </p>
+        </div>
+
+        <div class="solution-list">
+          <div class="solution-item reveal reveal-delay-1">
+            <div class="solution-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <h4>Agenda digital inteligente</h4>
+              <p>Controle visual de horários, bloqueios e recorrências para toda a equipe.</p>
+            </div>
+          </div>
+          <div class="solution-item reveal reveal-delay-2">
+            <div class="solution-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <h4>Base de clientes completa</h4>
+              <p>Histórico de cada cliente, preferências, contato e anotações sempre disponíveis.</p>
+            </div>
+          </div>
+          <div class="solution-item reveal reveal-delay-3">
+            <div class="solution-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <h4>Controle financeiro detalhado</h4>
+              <p>Relatórios de faturamento, serviços mais vendidos e evolução de receita.</p>
+            </div>
+          </div>
+          <div class="solution-item reveal reveal-delay-4">
+            <div class="solution-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <h4>Gestão de equipe</h4>
+              <p>Cada barbeiro com seu acesso, agenda própria e desempenho individual.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     FEATURES
+──────────────────────────────────────────── -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-header center reveal">
+      <span class="badge section-badge">Funcionalidades</span>
+      <h2 class="section-title">Tudo que você precisa,<br/><span class="gradient-text">em um só lugar</span></h2>
+      <p class="section-sub">
+        Do agendamento ao relatório financeiro — o BarberApp tem tudo integrado para você gerenciar sua barbearia sem complicação.
+      </p>
+    </div>
+
+    <div class="features-grid">
+
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <h3>Agenda Inteligente</h3>
+        <p>Visualize todos os agendamentos do dia, semana ou mês. Crie recorrências automáticas e bloqueie horários com facilidade.</p>
+        <span class="feature-tag">Essencial</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <h3>Gestão de Clientes</h3>
+        <p>Cadastro completo com nome, telefone, e-mail, data de nascimento e observações. Busca instantânea na hora de agendar.</p>
+        <span class="feature-tag">Essencial</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v8l4 4-4 4v4"/><path d="M18 2v8l-4 4 4 4v4"/></svg>
+        </div>
+        <h3>Cadastro de Serviços</h3>
+        <p>Liste todos os serviços com preço, duração e ícone personalizado. Fácil de encontrar na hora de criar um agendamento.</p>
+        <span class="feature-tag">Essencial</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <h3>Relatórios de Faturamento</h3>
+        <p>Acompanhe receita diária, mensal e anual. Veja quais serviços rendem mais e tome decisões com dados reais.</p>
+        <span class="feature-tag">Financeiro</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h3>Controle de Equipe</h3>
+        <p>Cada barbeiro com login próprio. Administrador visualiza toda a equipe; barbeiros gerenciam apenas sua agenda.</p>
+        <span class="feature-tag">Equipe</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.15);color:#4ade80">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <h3>Integração WhatsApp</h3>
+        <p>Envie lembretes automáticos de agendamento para seus clientes via WhatsApp. Reduza o número de faltas significativamente.</p>
+        <span class="feature-tag new">Em breve</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.15);color:#c084fc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 110 20 10 10 0 010-20z"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>Agendamentos Recorrentes</h3>
+        <p>Clientes frequentes podem ter agendamentos semanais, quinzenais ou mensais criados automaticamente de uma vez.</p>
+        <span class="feature-tag">Automação</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.15);color:#c084fc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M4.93 4.93a10 10 0 000 14.14"/></svg>
+        </div>
+        <h3>Automação com IA</h3>
+        <p>Sugestões inteligentes de horários, análise de tendências de clientes e relatórios automáticos com insights do negócio.</p>
+        <span class="feature-tag coming">Em breve</span>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <h3>Bloqueio de Agenda</h3>
+        <p>Bloqueie horários específicos por barbeiro ou para toda a equipe em caso de feriados, reuniões e eventos da barbearia.</p>
+        <span class="feature-tag">Controle</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     DEMO
+──────────────────────────────────────────── -->
+<section class="demo" id="demo">
+  <div class="demo-bg"></div>
+  <div class="container demo-content">
+    <div class="section-header center reveal">
+      <span class="badge section-badge">Demonstração</span>
+      <h2 class="section-title">Veja o sistema<br/><span class="gradient-text">em ação</span></h2>
+      <p class="section-sub">Interface moderna, intuitiva e rápida. Pronto para usar no computador ou celular.</p>
+    </div>
+
+    <div class="demo-tabs reveal">
+      <button class="demo-tab active" onclick="switchTab('dashboard', this)">Dashboard</button>
+      <button class="demo-tab" onclick="switchTab('agenda', this)">Agenda</button>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div class="demo-screen active" id="tab-dashboard">
+      <div class="demo-topbar">
+        <div class="demo-dots">
+          <div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div>
+        </div>
+        <span class="demo-title">BarberApp — Dashboard</span>
+      </div>
+      <div class="demo-body">
+        <div class="demo-sidebar">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:12px">
+            <div style="width:28px;height:28px;border-radius:7px;background:var(--brand);flex-shrink:0"></div>
+            <span style="font-size:13px;font-weight:700">BarberApp</span>
+          </div>
+          <div class="demo-nav active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>Dashboard</span>
+          </div>
+          <div class="demo-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Agenda</span>
+          </div>
+          <div class="demo-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span>Clientes</span>
+          </div>
+          <div class="demo-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v8l4 4-4 4v4"/><path d="M18 2v8l-4 4 4 4v4"/></svg>
+            <span>Serviços</span>
+          </div>
+          <div class="demo-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>Relatórios</span>
+          </div>
+        </div>
+        <div class="demo-main">
+          <div class="dash-stats">
+            <div class="dash-stat">
+              <div class="dash-stat-label">Faturamento hoje</div>
+              <div class="dash-stat-val">R$&nbsp;680</div>
+              <div class="dash-stat-sub">↑ 12% vs ontem</div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-label">Atendimentos</div>
+              <div class="dash-stat-val" style="font-size:22px">14</div>
+              <div class="dash-stat-sub" style="color:var(--text-muted)">hoje</div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-label">Clientes novos</div>
+              <div class="dash-stat-val" style="font-size:22px">3</div>
+              <div class="dash-stat-sub" style="color:#60a5fa">esta semana</div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-label">Mês atual</div>
+              <div class="dash-stat-val" style="font-size:22px">R$&thinsp;9.4k</div>
+              <div class="dash-stat-sub">↑ 8% vs anterior</div>
+            </div>
+          </div>
+          <div class="dash-row">
+            <div class="dash-chart-card">
+              <div class="dash-chart-title">Faturamento semanal</div>
+              <div class="dash-bars">
+                <div class="dash-bar" style="height:40%"></div>
+                <div class="dash-bar" style="height:65%"></div>
+                <div class="dash-bar" style="height:50%"></div>
+                <div class="dash-bar highlight" style="height:85%"></div>
+                <div class="dash-bar" style="height:70%"></div>
+                <div class="dash-bar" style="height:55%"></div>
+                <div class="dash-bar" style="height:45%"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:6px">
+                <span style="font-size:10px;color:var(--text-subtle)">Seg</span>
+                <span style="font-size:10px;color:var(--text-subtle)">Ter</span>
+                <span style="font-size:10px;color:var(--text-subtle)">Qua</span>
+                <span style="font-size:10px;color:var(--brand-light);font-weight:700">Qui</span>
+                <span style="font-size:10px;color:var(--text-subtle)">Sex</span>
+                <span style="font-size:10px;color:var(--text-subtle)">Sáb</span>
+                <span style="font-size:10px;color:var(--text-subtle)">Dom</span>
+              </div>
+            </div>
+            <div class="dash-chart-card">
+              <div class="dash-chart-title">Próximos</div>
+              <div class="dash-list">
+                <div class="dash-list-item"><div class="dash-list-dot"></div> Carlos A. — 09:00</div>
+                <div class="dash-list-item"><div class="dash-list-dot" style="background:#4ade80"></div> Lucas F. — 10:30</div>
+                <div class="dash-list-item"><div class="dash-list-dot"></div> Pedro S. — 14:00</div>
+                <div class="dash-list-item"><div class="dash-list-dot"></div> Mateus R. — 15:30</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agenda Screen -->
+    <div class="demo-screen" id="tab-agenda">
+      <div class="demo-topbar">
+        <div class="demo-dots">
+          <div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div>
+        </div>
+        <span class="demo-title">BarberApp — Agenda</span>
+      </div>
+      <div class="demo-body">
+        <div class="demo-sidebar">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:12px">
+            <div style="width:28px;height:28px;border-radius:7px;background:var(--brand);flex-shrink:0"></div>
+            <span style="font-size:13px;font-weight:700">BarberApp</span>
+          </div>
+          <div class="demo-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>Dashboard</span>
+          </div>
+          <div class="demo-nav active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Agenda</span>
+          </div>
+          <div class="demo-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span>Clientes</span>
+          </div>
+          <div class="demo-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v8l4 4-4 4v4"/><path d="M18 2v8l-4 4 4 4v4"/></svg>
+            <span>Serviços</span>
+          </div>
+        </div>
+        <div class="demo-main">
+          <div class="agenda-header">
+            <span class="agenda-title">Terça-feira, 14 Mar</span>
+            <button class="agenda-btn">+ Novo agendamento</button>
+          </div>
+          <div class="agenda-grid">
+            <div class="agenda-appt">
+              <span class="agenda-time">09:00</span>
+              <div class="agenda-av"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Carlos Alves</div>
+                <div class="agenda-svc">Corte + Barba · João Silva · 55 min</div>
+              </div>
+              <span class="agenda-status pending">Agendado</span>
+            </div>
+            <div class="agenda-appt">
+              <span class="agenda-time">10:30</span>
+              <div class="agenda-av" style="background:rgba(255,255,255,0.06)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Lucas Ferreira</div>
+                <div class="agenda-svc">Degradê · Pedro Costa · 40 min</div>
+              </div>
+              <span class="agenda-status">Concluído</span>
+            </div>
+            <div class="agenda-appt">
+              <span class="agenda-time">14:00</span>
+              <div class="agenda-av" style="background:rgba(255,255,255,0.06)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Pedro Santos</div>
+                <div class="agenda-svc">Corte Navalhado · João Silva · 50 min</div>
+              </div>
+              <span class="agenda-status pending">Agendado</span>
+            </div>
+            <div class="agenda-appt">
+              <span class="agenda-time">15:30</span>
+              <div class="agenda-av" style="background:rgba(255,255,255,0.06)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Mateus Rodrigues</div>
+                <div class="agenda-svc">Pigmentação · Pedro Costa · 60 min</div>
+              </div>
+              <span class="agenda-status pending">Agendado</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     BENEFITS
+──────────────────────────────────────────── -->
+<section class="benefits" id="benefits">
+  <div class="container">
+    <div class="section-header center reveal">
+      <span class="badge section-badge">Benefícios</span>
+      <h2 class="section-title">Por que usar<br/><span class="gradient-text">o BarberApp?</span></h2>
+    </div>
+    <div class="benefits-grid">
+      <div class="benefit-card reveal reveal-delay-1">
+        <div class="benefit-num">01</div>
+        <div class="benefit-body">
+          <h3>Economize horas toda semana</h3>
+          <p>Chega de responder mensagem por mensagem para confirmar horários. O sistema organiza tudo automaticamente, liberando seu tempo para o que importa: cortar cabelo e atender bem.</p>
+        </div>
+      </div>
+      <div class="benefit-card reveal reveal-delay-2">
+        <div class="benefit-num">02</div>
+        <div class="benefit-body">
+          <h3>Zero conflito de horários</h3>
+          <p>O sistema valida automaticamente cada novo agendamento, garantindo que nunca dois clientes sejam marcados para o mesmo barbeiro no mesmo horário.</p>
+        </div>
+      </div>
+      <div class="benefit-card reveal reveal-delay-3">
+        <div class="benefit-num">03</div>
+        <div class="benefit-body">
+          <h3>Aumente seu faturamento</h3>
+          <p>Com relatórios detalhados você descobre quais serviços rendem mais, quais horários são mais movimentados e como crescer seu negócio com inteligência.</p>
+        </div>
+      </div>
+      <div class="benefit-card reveal reveal-delay-4">
+        <div class="benefit-num">04</div>
+        <div class="benefit-body">
+          <h3>Profissionalize sua barbearia</h3>
+          <p>Sistema moderno, visual bonito e organização impecável. Seus clientes e sua equipe vão perceber a diferença desde o primeiro dia de uso.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     TESTIMONIALS
+──────────────────────────────────────────── -->
+<section class="testimonials" id="testimonials">
+  <div class="container">
+    <div class="section-header center reveal">
+      <span class="badge section-badge">Depoimentos</span>
+      <h2 class="section-title">O que dizem as<br/><span class="gradient-text">barbearias que usam</span></h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card reveal reveal-delay-1">
+        <div class="testimonial-stars">
+          <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+        </div>
+        <p class="testimonial-text">"Antes eu controlava tudo no caderno e ainda assim perdia horário quase todo dia. Desde que comecei a usar o BarberApp, zero conflito e muito mais organização."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-av" style="background:rgba(201,137,26,0.2);color:var(--brand-light)">JR</div>
+          <div>
+            <div class="testimonial-name">João Rafael</div>
+            <div class="testimonial-role">Dono da Barbearia JR, São Paulo</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal reveal-delay-2">
+        <div class="testimonial-stars">
+          <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+        </div>
+        <p class="testimonial-text">"O relatório financeiro mudou como eu entendo meu negócio. Agora sei exatamente quais serviços vendem mais e quando o movimento é maior."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-av" style="background:rgba(96,165,250,0.2);color:#93c5fd">MC</div>
+          <div>
+            <div class="testimonial-name">Marcos Conceição</div>
+            <div class="testimonial-role">Barbearia MC Grooming, RJ</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal reveal-delay-3">
+        <div class="testimonial-stars">
+          <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+        </div>
+        <p class="testimonial-text">"Minha equipe tem 4 barbeiros e agora cada um tem seu acesso. O admin vê tudo, cada barbeiro vê sua agenda. Simples e profissional."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-av" style="background:rgba(74,222,128,0.2);color:#86efac">AC</div>
+          <div>
+            <div class="testimonial-name">André Carvalho</div>
+            <div class="testimonial-role">Studio André C., BH</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     CTA
+──────────────────────────────────────────── -->
+<section class="cta" id="cta">
+  <div class="cta-bg"></div>
+  <div class="container">
+    <div class="cta-inner reveal">
+      <span class="badge" style="margin-bottom:20px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Pronto para começar?
+      </span>
+      <h2 class="section-title">
+        Transforme sua barbearia<br/>
+        <span class="gradient-text">a partir de hoje</span>
+      </h2>
+      <p class="section-sub">
+        Sem mensalidade para começar. Configure em minutos e comece a usar agora mesmo.
+      </p>
+      <div class="cta-actions">
+        <a href="/register" class="btn btn-primary btn-lg" style="font-size:18px;padding:18px 40px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Criar conta agora
+        </a>
+        <a href="/login" class="btn btn-outline btn-lg">
+          Já tenho conta — Entrar
+        </a>
+      </div>
+      <p class="cta-note">
+        ✓ Configuração em minutos &nbsp;·&nbsp; ✓ Suporte incluso &nbsp;·&nbsp; ✓ Dados protegidos
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ────────────────────────────────────────────
+     FOOTER
+──────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="#" class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v8l4 4-4 4v4"/><path d="M18 2v8l-4 4 4 4v4"/></svg>
+          </div>
+          BarberApp
+        </a>
+        <p>O sistema de gestão mais moderno para barbearias. Organize sua agenda, clientes e finanças em um só lugar.</p>
+        <div class="footer-socials">
+          <a href="#" class="social-btn" title="Instagram">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          </a>
+          <a href="#" class="social-btn" title="WhatsApp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          </a>
+          <a href="#" class="social-btn" title="Facebook">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4>Produto</h4>
+        <ul>
+          <li><a href="#features">Funcionalidades</a></li>
+          <li><a href="#demo">Demonstração</a></li>
+          <li><a href="#benefits">Benefícios</a></li>
+          <li><a href="/register">Começar grátis</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Sistema</h4>
+        <ul>
+          <li><a href="/login">Entrar</a></li>
+          <li><a href="/register">Criar conta</a></li>
+          <li><a href="/dashboard">Dashboard</a></li>
+          <li><a href="/agenda">Agenda</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Suporte</h4>
+        <ul>
+          <li><a href="#">Central de ajuda</a></li>
+          <li><a href="#">Contato</a></li>
+          <li><a href="#">Política de privacidade</a></li>
+          <li><a href="#">Termos de uso</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>© 2025 BarberApp. Todos os direitos reservados.</p>
+      <div class="footer-links">
+        <a href="#">Privacidade</a>
+        <a href="#">Termos</a>
+        <a href="#">Contato</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+<!-- ────────────────────────────────────────────
+     JS
+──────────────────────────────────────────── -->
+<script>
+  // ── Navbar scroll ──
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // ── Mobile menu ──
+  function toggleMobile() {
+    document.getElementById('mobileMenu').classList.toggle('open');
+  }
+
+  // ── Demo tabs ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.demo-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.demo-screen').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  // ── Scroll reveal ──
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // ── Smooth scroll for anchor links ──
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

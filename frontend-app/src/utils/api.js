@@ -97,6 +97,15 @@ export const Upload = {
   },
 };
 
+// ── Clients ────────────────────────────────────────────────────────────────────
+export const Clients = {
+  getAll:  (params = {}) => { const qs = new URLSearchParams(params).toString(); return request(`/clients${qs ? '?' + qs : ''}`); },
+  get:     (id)          => request(`/clients/${id}`),
+  create:  (data)        => request('/clients',        { method: 'POST',   body: data }),
+  update:  (id, data)    => request(`/clients/${id}`,  { method: 'PUT',    body: data }),
+  delete:  (id)          => request(`/clients/${id}`,  { method: 'DELETE' }),
+};
+
 // ── Reports ────────────────────────────────────────────────────────────────────
 export const Reports = {
   get: (params = {}) => {
@@ -113,5 +122,5 @@ export const Billing = {
   cancel:       ()       => request('/billing/cancel',       { method: 'POST' }),
 };
 
-const API = { Auth, Users, Services, Appointments, Barbershops, Upload, Reports, Billing };
+const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing };
 export default API;
