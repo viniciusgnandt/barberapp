@@ -4,8 +4,6 @@ services:
     image: ghcr.io/viniciusgnandt/backend:latest
     expose:
       - "3000"
-    env_file:
-      - .env
     restart: unless-stopped
     networks:
       - agenda-net
