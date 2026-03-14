@@ -1,0 +1,15 @@
+services:
+  api:
+    container_name: barber-backend-test_${NODE_ENV}
+    image: ghcr.io/viniciusgnandt/backend:latest
+    expose:
+      - "3000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - agenda-net
+
+networks:
+  agenda-net:
+    external: true
