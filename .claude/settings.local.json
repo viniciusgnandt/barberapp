@@ -14,7 +14,8 @@
       "Bash(grep '\"\"xlsx\"\"' package.json)",
       "Bash(npm run:*)",
       "Bash(node -e \"const fs=require\\(''fs''\\);const c=fs.readFileSync\\(''authController.js'',''utf8''\\);console.log\\(c.slice\\(900,1200\\)\\)\")",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(find /c/Users/vinic/Desktop/barberapp/barberapp -name Dockerfile -o -name docker-compose* -o -name *.conf -o -name .github -type d)"
     ]
   }
 }

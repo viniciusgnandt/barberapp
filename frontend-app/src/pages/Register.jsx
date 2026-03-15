@@ -4,7 +4,7 @@ import { Scissors } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Button from '../components/ui/Button';
-import Input, { Select } from '../components/ui/Input';
+import Input from '../components/ui/Input';
 import { toast } from '../components/ui/Toast';
 
 export default function Register() {
@@ -12,7 +12,7 @@ export default function Register() {
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
 
-  const [form, setForm]       = useState({ name: '', email: '', password: '', confirm: '', role: 'admin', barbershopName: '', barbershopId: '' });
+  const [form, setForm]       = useState({ name: '', email: '', password: '', confirm: '', barbershopName: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
@@ -21,18 +21,13 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.name || !form.email || !form.password)         return setError('Preencha todos os campos.');
-    if (form.password !== form.confirm)                       return setError('As senhas não coincidem.');
-    if (form.password.length < 6)                             return setError('Senha mínima: 6 caracteres.');
-    if (form.role === 'admin'    && !form.barbershopName)     return setError('Informe o nome da barbearia.');
-    if (form.role === 'barbeiro' && !form.barbershopId)       return setError('Informe o código da barbearia.');
+    if (!form.name || !form.email || !form.password) return setError('Preencha todos os campos.');
+    if (form.password !== form.confirm)              return setError('As senhas não coincidem.');
+    if (form.password.length < 6)                   return setError('Senha mínima: 6 caracteres.');
+    if (!form.barbershopName)                        return setError('Informe o nome da barbearia.');
 
     setLoading(true);
-    const r = await register(
-      form.name, form.email, form.password, form.role,
-      form.role === 'admin'    ? form.barbershopName : undefined,
-      form.role === 'barbeiro' ? form.barbershopId   : undefined,
-    );
+    const r = await register(form.name, form.email, form.password, 'admin', form.barbershopName, undefined);
     setLoading(false);
 
     if (r.ok) {
@@ -59,37 +54,14 @@ export default function Register() {
             <Scissors size={22} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Criar conta</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Comece gratuitamente</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Comece gratuitamente por 30 dias</p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input label="Nome completo" placeholder="João da Silva" value={form.name} onChange={set('name')} />
             <Input label="E-mail" type="email" placeholder="seu@email.com" value={form.email} onChange={set('email')} />
-
-            <Select label="Tipo de conta" value={form.role} onChange={set('role')}>
-              <option value="admin">Administrador — criar nova barbearia</option>
-              <option value="barbeiro">Barbeiro — entrar em barbearia existente</option>
-            </Select>
-
-            {form.role === 'admin' && (
-              <Input
-                label="Nome da Barbearia"
-                placeholder="Ex: Barbearia do João"
-                value={form.barbershopName}
-                onChange={set('barbershopName')}
-              />
-            )}
-
-            {form.role === 'barbeiro' && (
-              <Input
-                label="Código da Barbearia"
-                placeholder="ID fornecido pelo administrador"
-                value={form.barbershopId}
-                onChange={set('barbershopId')}
-              />
-            )}
-
+            <Input label="Nome da Barbearia" placeholder="Ex: Barbearia do João" value={form.barbershopName} onChange={set('barbershopName')} />
             <Input label="Senha" type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={set('password')} autoComplete="new-password" />
             <Input label="Confirmar senha" type="password" placeholder="Repita a senha" value={form.confirm} onChange={set('confirm')} autoComplete="new-password" />
 
@@ -108,6 +80,10 @@ export default function Register() {
           <Link to="/login" className="text-brand-600 dark:text-brand-400 font-medium hover:underline">
             Entrar
           </Link>
+        </p>
+
+        <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-3">
+          Funcionários são adicionados pelo administrador do estabelecimento.
         </p>
       </div>
     </div>
