@@ -1,13 +1,14 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { UserCircle, Palette, Store, CreditCard } from 'lucide-react';
+import { UserCircle, Palette, Store, CreditCard, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 
 const SETTINGS_NAV = [
-  { to: '/settings/account',       icon: UserCircle, label: 'Conta',            adminOnly: false },
-  { to: '/settings/appearance',    icon: Palette,    label: 'Aparência',         adminOnly: false },
-  { to: '/settings/establishment', icon: Store,      label: 'Estabelecimento',   adminOnly: true  },
-  { to: '/settings/billing',       icon: CreditCard, label: 'Meu Plano',         adminOnly: true  },
+  { to: '/settings/account',       icon: UserCircle, label: 'Conta',           adminOnly: false },
+  { to: '/settings/appearance',    icon: Palette,    label: 'Aparência',       adminOnly: false },
+  { to: '/settings/establishment', icon: Store,      label: 'Estabelecimento', adminOnly: true  },
+  { to: '/settings/team',          icon: Users,      label: 'Equipe',          adminOnly: true  },
+  { to: '/settings/billing',       icon: CreditCard, label: 'Meu Plano',       adminOnly: true  },
 ];
 
 const navLinkClass = (isActive) => cn(

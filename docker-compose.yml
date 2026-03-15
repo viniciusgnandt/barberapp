@@ -1,0 +1,43 @@
+services:
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: barberapp-backend:local
+    container_name: barberapp-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    container_name: barberapp-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: barberapp
+
+  frontend:
+    build:
+      context: ./frontend-app
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api}
+    image: barberapp-frontend:local
+    container_name: barberapp-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

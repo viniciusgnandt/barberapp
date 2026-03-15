@@ -51,12 +51,12 @@ export default function App() {
               <Route path="/reports"   element={<Reports />}   />
               <Route path="/clients"   element={<Clients />}   />
               <Route path="/stock"     element={<Stock />}     />
-              <Route path="/team"      element={<Team />}      />
               <Route path="/settings"  element={<Settings />}>
                 <Route index                element={<SettingsIndex />}  />
                 <Route path="account"       element={<Profile />}        />
                 <Route path="appearance"    element={<Appearance />}     />
                 <Route path="establishment" element={<Establishment />}  />
+                <Route path="team"          element={<Team />}           />
                 <Route path="billing"       element={<Billing />}        />
               </Route>
             </Route>

@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Scissors, LogOut,
   Scissors as ScissorsIcon, Camera, ChevronUp, Check,
-  BarChart2, Settings, Store, Users,
+  BarChart2, Settings,
   PanelLeftClose, PanelLeftOpen, UserRound, Package,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -151,28 +151,6 @@ export default function Sidebar() {
           {!collapsed && 'Relatórios'}
         </NavLink>
 
-        {/* Admin: Estabelecimento + Equipe */}
-        {isAdmin && (
-          <>
-            {!collapsed && (
-              <p className="px-2 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Gestão</p>
-            )}
-            {collapsed && <div className="my-1 border-t border-gray-100 dark:border-gray-800" />}
-            <NavLink to="/settings/establishment" title={collapsed ? 'Estabelecimento' : undefined}
-              className={({ isActive }) => navLinkClass(isActive, collapsed)}>
-              <Store size={16} className="shrink-0" />
-              {!collapsed && 'Estabelecimento'}
-            </NavLink>
-            <NavLink to="/team" title={collapsed ? 'Equipe' : undefined}
-              className={({ isActive }) => cn(
-                navLinkClass(isActive, collapsed),
-                !collapsed && 'pl-7',
-              )}>
-              <Users size={16} className="shrink-0" />
-              {!collapsed && 'Equipe'}
-            </NavLink>
-          </>
-        )}
       </nav>
 
       {/* Bottom */}
