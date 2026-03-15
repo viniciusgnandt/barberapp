@@ -20,6 +20,7 @@ const openingHourSchema = new mongoose.Schema({
 const barbershopSchema = new mongoose.Schema({
   name:         { type: String, required: true, trim: true },
   email:        { type: String, required: true, lowercase: true, trim: true },
+  document:     { type: String, trim: true }, // CPF ou CNPJ
   phone:        { type: String, trim: true },
   address:      { type: String, trim: true },
   city:         { type: String, trim: true },

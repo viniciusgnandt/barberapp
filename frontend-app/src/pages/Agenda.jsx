@@ -790,6 +790,21 @@ export default function Agenda() {
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <ChevronRight size={16} />
           </button>
+          {/* Date picker */}
+          <div className="relative">
+            <button
+              title="Escolher data"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <Calendar size={15} />
+            </button>
+            <input
+              type="date"
+              value={navDate}
+              onChange={e => e.target.value && setNavDate(e.target.value)}
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+            />
+          </div>
         </div>
 
         {/* Today shortcut */}

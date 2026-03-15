@@ -1,6 +1,6 @@
 // utils/api.js — Centralizador de requisições HTTP
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
@@ -84,8 +84,19 @@ export const Barbershops = {
   create:         (data)       => request('/barbershops',                         { method: 'POST',   body: data }),
   update:         (id, data)   => request(`/barbershops/${id}`,                   { method: 'PUT',    body: data }),
   delete:         (id)         => request(`/barbershops/${id}`,                   { method: 'DELETE' }),
-  getEmployees:   (id)         => request(`/barbershops/${id}/employees`),
-  removeEmployee: (id, userId) => request(`/barbershops/${id}/employees/${userId}`,{ method: 'DELETE' }),
+  getEmployees:         (id)              => request(`/barbershops/${id}/employees`),
+  createEmployee:       (id, data)        => request(`/barbershops/${id}/employees`,                         { method: 'POST',   body: data }),
+  resetEmployeePassword:(id, uid, pwd)    => request(`/barbershops/${id}/employees/${uid}/reset-password`,   { method: 'PUT',    body: { password: pwd } }),
+  updateEmployeeRole:   (id, uid, data)   => request(`/barbershops/${id}/employees/${uid}/role`,             { method: 'PUT',    body: data }),
+  removeEmployee:       (id, userId)      => request(`/barbershops/${id}/employees/${userId}`,               { method: 'DELETE' }),
+};
+
+// ── Roles (Funções personalizadas) ─────────────────────────────────────────────
+export const Roles = {
+  getAll:  ()          => request('/roles'),
+  create:  (data)      => request('/roles',        { method: 'POST',   body: data }),
+  update:  (id, data)  => request(`/roles/${id}`,  { method: 'PUT',    body: data }),
+  delete:  (id)        => request(`/roles/${id}`,  { method: 'DELETE' }),
 };
 
 // ── Upload ─────────────────────────────────────────────────────────────────────

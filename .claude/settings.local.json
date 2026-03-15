@@ -12,7 +12,9 @@
       "Bash(node seed-categories.js)",
       "Bash(node -e \"require\\(''xlsx''\\)\")",
       "Bash(grep '\"\"xlsx\"\"' package.json)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(node -e \"const fs=require\\(''fs''\\);const c=fs.readFileSync\\(''authController.js'',''utf8''\\);console.log\\(c.slice\\(900,1200\\)\\)\")",
+      "Bash(node -e \":*)"
     ]
   }
 }

@@ -30,23 +30,10 @@ const register = async (req, res) => {
     let barbershop = null;
 
     if (barbershopId) {
-      barbershop = await Barbershop.findById(barbershopId);
-      if (!barbershop)
-        return res.status(400).json({ success: false, message: 'Barbearia não encontrada.' });
-
-      if (await User.findOne({ email, barbershop: barbershop._id }))
-        return res.status(400).json({ success: false, message: 'Email já cadastrado nesta barbearia.' });
-
-      const user = await User.create({
-        name, email, password,
-        role: role || 'barbeiro',
-        barbershop: barbershop._id,
-      });
-
-      return res.status(201).json({
-        success: true,
-        token: makeToken(user._id),
-        user:  formatUser(user, barbershop),
+      // Funcionários agora são criados apenas pelo admin via painel
+      return res.status(403).json({
+        success: false,
+        message: 'O cadastro de funcionários é realizado pelo administrador do estabelecimento.',
       });
     }
 

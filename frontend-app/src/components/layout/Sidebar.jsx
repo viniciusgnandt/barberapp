@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Scissors, LogOut,
   Scissors as ScissorsIcon, Camera, ChevronUp, Check,
-  BarChart2, Settings,
+  BarChart2, Settings, Store, Users,
   PanelLeftClose, PanelLeftOpen, UserRound, Package,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
