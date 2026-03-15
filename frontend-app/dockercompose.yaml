@@ -1,6 +1,6 @@
 services:
   frontend:
-    container_name: barber-frontend-app-test_${NODE_ENV}
+    container_name: barber-frontend-app-${NODE_ENV}
     image: ghcr.io/viniciusgnandt/frontend-app:latest
     expose:
       - "5173"

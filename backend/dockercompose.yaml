@@ -1,6 +1,6 @@
 services:
   api:
-    container_name: barber-backend-test_${NODE_ENV}
+    container_name: barber-backend-${NODE_ENV}
     image: ghcr.io/viniciusgnandt/backend:latest
     expose:
       - "3000"
