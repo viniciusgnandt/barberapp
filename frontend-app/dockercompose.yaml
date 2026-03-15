@@ -6,7 +6,7 @@ services:
       - "80"
     environment:
       NODE_ENV: ${NODE_ENV}
-      VITE_API_URL: ${VITE_API_URL}
+      BACKEND_URL: ${BACKEND_URL}
       
     restart: unless-stopped
     networks:
