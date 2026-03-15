@@ -8,7 +8,7 @@ RUN npm install
 
 COPY . .
 
-RUN npm run build
+RUN npm run build && sed -i "s/__BUILD_TIME__/$(date +%s)/g" dist/index.html
 
 # ===== RUNTIME STAGE =====
 FROM nginx:1.27-alpine

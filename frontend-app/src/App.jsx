@@ -11,6 +11,9 @@ function ThemeSync() {
   const { user }      = useAuth();
   const { loadFromDB } = useTheme();
   useEffect(() => { if (user) loadFromDB(); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    document.title = user?.barbershopName || 'BarberApp';
+  }, [user?.barbershopName]);
   return null;
 }
 import Login from './pages/Login';
