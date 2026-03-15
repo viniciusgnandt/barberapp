@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   DollarSign, TrendingUp, Users, Download, Search,
-  BarChart2, Award,
+  BarChart2, Award, Scissors, Store, Wallet,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -18,7 +18,7 @@ const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 const fmtDate = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const fmtShort = iso => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
-function KpiCard({ label, value, icon: Icon, color, sub, highlight }) {
+function KpiCard({ label, value, icon: Icon, color, sub, highlight, note }) {
   return (
     <div className={cn(
       'bg-white dark:bg-gray-900 rounded-xl border p-5 flex items-start gap-4',
@@ -29,10 +29,11 @@ function KpiCard({ label, value, icon: Icon, color, sub, highlight }) {
       <div className={cn('p-2.5 rounded-xl shrink-0', color)}>
         <Icon size={18} className="text-white" />
       </div>
-      <div>
+      <div className="min-w-0">
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{label}</p>
         <p className={cn('text-2xl font-bold', highlight ? 'text-brand-600 dark:text-brand-400' : 'text-gray-900 dark:text-gray-100')}>{value}</p>
         {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        {note && <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 leading-snug italic">{note}</p>}
       </div>
     </div>
   );
@@ -108,9 +109,11 @@ function generatePDF({ data, filters, isAdmin, barberName }) {
     startY: y,
     head: [['Métrica', 'Valor']],
     body: [
-      ['Faturamento total', fmt(summary.revenue)],
-      ['Ticket médio', summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'],
-      ['Serviços concluídos', summary.completed],
+      ['Faturamento total',      fmt(summary.revenue)],
+      ['Comissão profissionais', fmt(summary.barberCommission)],
+      ['Receita estabelecimento',fmt(summary.shopRevenue)],
+      ['Ticket médio',           summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'],
+      ['Serviços concluídos',    summary.completed],
     ],
     styles: { fontSize: 9 },
     headStyles: { fillColor: [20, 184, 166] },
@@ -138,8 +141,8 @@ function generatePDF({ data, filters, isAdmin, barberName }) {
     doc.text('Por Profissional', 14, y); y += 6;
     autoTable(doc, {
       startY: y,
-      head: [['Profissional', 'Total', 'Concluídos', 'Faturamento']],
-      body: byBarber.map(b => [b.name, b.count, b.completed, fmt(b.revenue)]),
+      head: [['Profissional', 'Total', 'Concluídos', 'Faturamento', 'Comissão']],
+      body: byBarber.map(b => [b.name, b.count, b.completed, fmt(b.revenue), fmt(b.barberCommission)]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [20, 184, 166] },
       alternateRowStyles: { fillColor: [248, 249, 250] },
@@ -153,8 +156,8 @@ function generatePDF({ data, filters, isAdmin, barberName }) {
     doc.text('Faturamento por Serviço', 14, y); y += 6;
     autoTable(doc, {
       startY: y,
-      head: [['Serviço', 'Concluídos', 'Faturamento']],
-      body: byService.map(s => [s.name, s.completed, fmt(s.revenue)]),
+      head: [['Serviço', 'Concluídos', 'Faturamento', 'Comissão Prof.', 'Receita Est.']],
+      body: byService.map(s => [s.name, s.completed, fmt(s.revenue), fmt(s.barberCommission), fmt(s.shopRevenue)]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [20, 184, 166] },
       alternateRowStyles: { fillColor: [248, 249, 250] },
@@ -203,7 +206,7 @@ export default function ReportFinancial() {
     else setError(r.data?.message || 'Erro ao carregar relatório.');
   };
 
-  useEffect(() => { handleSearch(); }, []); // eslint-disable-line react-hooks/exhaustive_deps
+  useEffect(() => { handleSearch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { summary, byBarber, byService, timeline } = data || {};
 
@@ -211,7 +214,6 @@ export default function ReportFinancial() {
   const bestDay      = timeline?.length ? timeline.reduce((a, b) => b.revenue > a.revenue ? b : a, timeline[0]) : null;
   const bestBarber   = byBarber?.length  ? byBarber.reduce((a, b) => b.revenue > a.revenue ? b : a, byBarber[0]) : null;
 
-  // Timeline data enriched with count for secondary line
   const timelineChart = timeline?.map(t => ({
     date:      t.date,
     revenue:   t.revenue,
@@ -262,31 +264,106 @@ export default function ReportFinancial() {
 
       {data && !loading && (
         <>
-          {/* KPIs */}
-          <div className={cn('grid gap-4', isAdmin && bestBarber ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3')}>
-            <KpiCard label="Faturamento total" value={fmt(summary.revenue)}
-              icon={DollarSign} color="bg-teal-500" highlight
-              sub={`${summary.completed} serviços concluídos`} />
-            <KpiCard label="Ticket médio" value={ticketMedio > 0 ? fmt(ticketMedio) : '—'}
-              icon={TrendingUp} color="bg-violet-500" />
-            {bestDay && (
-              <KpiCard label="Melhor dia" value={fmt(bestDay.revenue)}
-                icon={Award} color="bg-amber-500"
-                sub={fmtShort(bestDay.date)} />
-            )}
-            {isAdmin && bestBarber && (
-              <KpiCard label="Top profissional" value={bestBarber.name}
-                icon={Users} color="bg-brand-500"
-                sub={fmt(bestBarber.revenue)} />
-            )}
-          </div>
+          {/* ── KPIs — Admin ────────────────────────────────────────────────── */}
+          {isAdmin && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <KpiCard label="Faturamento total" value={fmt(summary.revenue)}
+                icon={DollarSign} color="bg-teal-500" highlight
+                sub={`${summary.completed} serviços concluídos`} />
+              <KpiCard label="Lucro bruto" value={fmt(summary.shopRevenue)}
+                icon={Store} color="bg-violet-500"
+                sub={summary.revenue > 0 ? `${Math.round(summary.shopRevenue / summary.revenue * 100)}% do faturamento` : undefined} />
+              <KpiCard label="Comissão a pagar" value={fmt(summary.barberCommission)}
+                icon={Wallet} color="bg-brand-500"
+                sub={summary.revenue > 0 ? `${Math.round(summary.barberCommission / summary.revenue * 100)}% do faturamento` : undefined} />
+              <KpiCard label="Ticket médio" value={ticketMedio > 0 ? fmt(ticketMedio) : '—'}
+                icon={TrendingUp} color="bg-amber-500"
+                sub={bestDay ? `Melhor dia: ${fmtShort(bestDay.date)}` : undefined}
+                note="Valor médio faturado por serviço concluído no período" />
+            </div>
+          )}
+
+          {/* ── KPIs — Barbeiro ─────────────────────────────────────────────── */}
+          {!isAdmin && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <KpiCard label="Comissão a receber" value={fmt(summary.barberCommission)}
+                icon={Wallet} color="bg-brand-500" highlight
+                sub={`${summary.completed} serviços concluídos`} />
+              <KpiCard label="Ticket médio" value={ticketMedio > 0 ? fmt(ticketMedio) : '—'}
+                icon={TrendingUp} color="bg-amber-500" />
+              {bestDay && (
+                <KpiCard label="Melhor dia" value={fmt(bestDay.revenue)}
+                  icon={Award} color="bg-rose-500"
+                  sub={fmtShort(bestDay.date)} />
+              )}
+            </div>
+          )}
+
+          {/* ── Comissão a pagar por profissional (admin) ───────────────────── */}
+          {isAdmin && byBarber?.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-brand-100 dark:border-brand-900/40 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 rounded-xl bg-brand-500 shrink-0">
+                  <Wallet size={15} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissão a pagar por profissional</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Valor a ser repassado para cada profissional no período</p>
+                </div>
+                <div className="ml-auto text-right">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
+                  <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{fmt(summary.barberCommission)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {[...byBarber].sort((a, b) => b.barberCommission - a.barberCommission).map(b => (
+                  <div key={b.name} className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate mb-1">{b.name}</p>
+                    <p className="text-base font-bold text-brand-600 dark:text-brand-400">{fmt(b.barberCommission)}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-0.5">
+                      {b.completed} serviço{b.completed !== 1 ? 's' : ''} · fat. {fmt(b.revenue)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Revenue split visual bar — admin only */}
+          {isAdmin && summary.revenue > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">Distribuição do faturamento</p>
+              <div className="flex rounded-xl overflow-hidden h-8 text-sm font-semibold">
+                <div
+                  className="flex items-center justify-center bg-brand-500 text-white gap-1.5 transition-all"
+                  style={{ width: `${Math.round(summary.barberCommission / summary.revenue * 100)}%` }}
+                >
+                  <Scissors size={13} />
+                  {fmt(summary.barberCommission)}
+                </div>
+                <div
+                  className="flex items-center justify-center bg-violet-500 text-white gap-1.5 transition-all"
+                  style={{ width: `${Math.round(summary.shopRevenue / summary.revenue * 100)}%` }}
+                >
+                  <Store size={13} />
+                  {fmt(summary.shopRevenue)}
+                </div>
+              </div>
+              <div className="flex justify-between mt-1.5 text-xs text-gray-400 dark:text-gray-600">
+                <span>Comissão a pagar</span>
+                <span>Lucro bruto</span>
+              </div>
+            </div>
+          )}
 
           {/* Revenue timeline */}
           {timelineChart.length > 0 && (
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5">
               <div className="flex items-center gap-2 mb-5">
                 <TrendingUp size={15} className="text-teal-500" />
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Faturamento por dia</h2>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {isAdmin ? 'Faturamento por dia' : 'Comissão por dia'}
+                </h2>
               </div>
               <AreaChart
                 data={timelineChart}
@@ -305,32 +382,48 @@ export default function ReportFinancial() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue by service */}
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5">
-              <div className="flex items-center gap-2 mb-5">
+              <div className="flex items-center gap-2 mb-4">
                 <DollarSign size={15} className="text-teal-500" />
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Faturamento por serviço</h2>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Por serviço</h2>
               </div>
-              <HBarChart
-                items={[...( byService || [])].sort((a, b) => b.revenue - a.revenue)}
-                getLabel={s => s.name}
-                getValue={s => s.completed}
-                getTooltipMain={s => fmt(s.revenue)}
-                getTooltipSub={s => `${s.completed} × ${fmt(s.price)}`}
-                colorClass="bg-teal-500"
-              />
+              <div className="space-y-3">
+                {[...(byService || [])].sort((a, b) => b.revenue - a.revenue).map(s => (
+                  <div key={s.name} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{s.name}</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{fmt(s.revenue)}</span>
+                    </div>
+                    <div className="flex rounded-md overflow-hidden h-4 text-[10px] font-semibold">
+                      <div className="flex items-center justify-center bg-brand-400 text-white"
+                        style={{ width: `${s.revenue > 0 ? Math.round(s.barberCommission / s.revenue * 100) : 0}%` }}
+                        title={`Prof.: ${fmt(s.barberCommission)}`}>
+                      </div>
+                      <div className="flex items-center justify-center bg-violet-400 text-white"
+                        style={{ width: `${s.revenue > 0 ? Math.round(s.shopRevenue / s.revenue * 100) : 0}%` }}
+                        title={`Est.: ${fmt(s.shopRevenue)}`}>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-600">
+                      <span>Prof. {fmt(s.barberCommission)} ({s.completed}×)</span>
+                      <span>Est. {fmt(s.shopRevenue)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* By barber (admin only) */}
             {isAdmin && (
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5">
-                <div className="flex items-center gap-2 mb-5">
+                <div className="flex items-center gap-2 mb-4">
                   <Users size={15} className="text-brand-500" />
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Faturamento por profissional</h2>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Por profissional</h2>
                 </div>
                 <HBarChart
                   items={[...(byBarber || [])].sort((a, b) => b.revenue - a.revenue)}
                   getLabel={b => b.name}
                   getValue={b => b.completed}
-                  getTooltipMain={b => fmt(b.revenue)}
+                  getTooltipMain={b => `Fat. ${fmt(b.revenue)} | Com. ${fmt(b.barberCommission)}`}
                   getTooltipSub={b => `${b.completed} concluídos`}
                   colorClass="bg-brand-500"
                 />
@@ -349,7 +442,7 @@ export default function ReportFinancial() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 dark:border-gray-800">
-                      {['Data', 'Agendamentos', 'Concluídos', 'Cancelados', 'Faturamento'].map(h => (
+                      {['Data', 'Agendamentos', 'Concluídos', isAdmin ? 'Faturamento' : 'Comissão'].map(h => (
                         <th key={h} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 py-2 px-2">{h}</th>
                       ))}
                     </tr>
@@ -360,15 +453,58 @@ export default function ReportFinancial() {
                         <td className="py-2 px-2 font-medium text-gray-700 dark:text-gray-300">{fmtShort(t.date)}</td>
                         <td className="py-2 px-2 text-gray-500 dark:text-gray-400">{t.count}</td>
                         <td className="py-2 px-2 text-emerald-600 dark:text-emerald-400 font-medium">{t.completed}</td>
-                        <td className="py-2 px-2 text-red-400">{t.cancelled ?? '—'}</td>
-                        <td className="py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">{fmt(t.revenue)}</td>
+                        <td className="py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">
+                          {isAdmin ? fmt(t.revenue) : fmt(t.barberCommission ?? t.revenue)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 dark:border-gray-700">
-                      <td className="py-2 px-2 text-sm font-bold text-gray-700 dark:text-gray-300" colSpan={4}>Total</td>
+                      <td className="py-2 px-2 text-sm font-bold text-gray-700 dark:text-gray-300" colSpan={3}>Total</td>
+                      <td className="py-2 px-2 font-bold text-teal-600 dark:text-teal-400">
+                        {isAdmin ? fmt(summary.revenue) : fmt(summary.barberCommission)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Commission by barber table (admin only) */}
+          {isAdmin && byBarber?.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Scissors size={15} className="text-brand-500" />
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissão por profissional</h2>
+              </div>
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-gray-800">
+                      {['Profissional', 'Concluídos', 'Faturamento', 'Comissão', 'Estabelecimento'].map(h => (
+                        <th key={h} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 py-2 px-2">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {[...byBarber].sort((a, b) => b.revenue - a.revenue).map(b => (
+                      <tr key={b.name} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="py-2 px-2 font-medium text-gray-700 dark:text-gray-300">{b.name}</td>
+                        <td className="py-2 px-2 text-gray-500 dark:text-gray-400">{b.completed}</td>
+                        <td className="py-2 px-2 font-semibold text-gray-900 dark:text-gray-100">{fmt(b.revenue)}</td>
+                        <td className="py-2 px-2 font-semibold text-brand-600 dark:text-brand-400">{fmt(b.barberCommission)}</td>
+                        <td className="py-2 px-2 font-semibold text-violet-600 dark:text-violet-400">{fmt(b.revenue - b.barberCommission)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-200 dark:border-gray-700">
+                      <td className="py-2 px-2 text-xs font-bold text-gray-700 dark:text-gray-300" colSpan={2}>Total</td>
                       <td className="py-2 px-2 font-bold text-teal-600 dark:text-teal-400">{fmt(summary.revenue)}</td>
+                      <td className="py-2 px-2 font-bold text-brand-600 dark:text-brand-400">{fmt(summary.barberCommission)}</td>
+                      <td className="py-2 px-2 font-bold text-violet-600 dark:text-violet-400">{fmt(summary.shopRevenue)}</td>
                     </tr>
                   </tfoot>
                 </table>

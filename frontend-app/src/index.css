@@ -2,11 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
+  :root {
+    /* Default font */
+    --font-body: 'Inter', system-ui, sans-serif;
+
+    /* Default brand color: Âmbar */
+    --brand-50:  253 249 239;
+    --brand-100: 250 240 210;
+    --brand-200: 243 222 160;
+    --brand-300: 234 199 100;
+    --brand-400: 224 169 48;
+    --brand-500: 201 137 26;
+    --brand-600: 172 108 20;
+    --brand-700: 139 80 20;
+    --brand-800: 114 64 23;
+    --brand-900: 94 53 23;
+    --brand-950: 53 26 8;
+  }
+
   * { box-sizing: border-box; }
-  html { font-family: 'Inter', system-ui, sans-serif; }
+  html { font-family: var(--font-body); }
   body { margin: 0; -webkit-font-smoothing: antialiased; }
   #root { min-height: 100vh; }
 }

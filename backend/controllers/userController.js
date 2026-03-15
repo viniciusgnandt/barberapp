@@ -41,6 +41,7 @@ const updateMe = async (req, res) => {
         email:        user.email,
         role:         user.role,
         profileImage: user.profileImage,
+        preferences:  user.preferences,
       },
     });
   } catch (err) {
@@ -48,4 +49,24 @@ const updateMe = async (req, res) => {
   }
 };
 
-module.exports = { getMe, updateMe };
+// PUT /api/users/me/preferences — Salva preferências de aparência
+const savePreferences = async (req, res) => {
+  try {
+    const { themeMode, themeColor, themeFont } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user.preferences) user.preferences = {};
+    if (themeMode  !== undefined) user.preferences.themeMode  = themeMode;
+    if (themeColor !== undefined) user.preferences.themeColor = themeColor;
+    if (themeFont  !== undefined) user.preferences.themeFont  = themeFont;
+
+    user.markModified('preferences');
+    await user.save();
+
+    res.json({ success: true, data: user.preferences });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getMe, updateMe, savePreferences };

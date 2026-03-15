@@ -408,11 +408,13 @@ function AppointmentRow({ appt, onEdit, onDelete, onStatusChange, isAdmin, chang
         )}
       </div>
 
-      {/* barber (admin only) */}
-      {isAdmin && (
+      {/* barber */}
+      {appt.barber && (
         <div className="hidden sm:flex items-center gap-2 w-32 shrink-0">
           <BarberAvatar barber={appt.barber} sz="w-6 h-6" />
-          <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{appt.barber?.name || '—'}</span>
+          {isAdmin && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{appt.barber.name}</span>
+          )}
         </div>
       )}
 
@@ -483,11 +485,7 @@ export default function Agenda() {
   const [filterBarber,  setFilterBarber]  = useState('');
 
   const [period,  setPeriod]  = useState('day');
-  const [navDate, setNavDate] = useState(() => {
-    const d = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  });
+  const [navDate, setNavDate] = useState(() => new Date().toLocaleDateString('sv'));
 
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy,   setSortBy]   = useState('date-asc');
@@ -669,7 +667,7 @@ export default function Agenda() {
     }
   };
 
-  const todayStr = (() => { const d = new Date(); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; })();
+  const todayStr = new Date().toLocaleDateString('sv');
   const isToday  = navDate === todayStr;
 
   function getPeriodRange() {

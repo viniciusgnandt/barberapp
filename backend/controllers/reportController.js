@@ -29,7 +29,7 @@ const getReport = async (req, res) => {
 
     // ── Busca todos os agendamentos do período ────────────────────────────
     const appointments = await Appointment.find(match)
-      .populate('service', 'name price duration')
+      .populate('service', 'name price duration commission')
       .populate('barber', 'name email')
       .sort({ date: 1 });
 
@@ -41,15 +41,29 @@ const getReport = async (req, res) => {
     const revenue   = appointments
       .filter(a => a.status === 'concluído')
       .reduce((sum, a) => sum + (a.service?.price || 0), 0);
+    const barberCommission = appointments
+      .filter(a => a.status === 'concluído')
+      .reduce((sum, a) => {
+        const pct = a.service?.commission ?? 50;
+        return sum + (a.service?.price || 0) * pct / 100;
+      }, 0);
+    const shopRevenue = revenue - barberCommission;
 
     // ── By service ────────────────────────────────────────────────────────
     const serviceMap = {};
     appointments.forEach(a => {
       if (!a.service) return;
       const id = String(a.service._id);
-      if (!serviceMap[id]) serviceMap[id] = { name: a.service.name, price: a.service.price, count: 0, completed: 0, revenue: 0 };
+      if (!serviceMap[id]) serviceMap[id] = { name: a.service.name, price: a.service.price, commission: a.service.commission ?? 50, count: 0, completed: 0, revenue: 0, barberCommission: 0, shopRevenue: 0 };
       serviceMap[id].count++;
-      if (a.status === 'concluído') { serviceMap[id].completed++; serviceMap[id].revenue += a.service.price || 0; }
+      if (a.status === 'concluído') {
+        const price = a.service.price || 0;
+        const pct   = a.service.commission ?? 50;
+        serviceMap[id].completed++;
+        serviceMap[id].revenue           += price;
+        serviceMap[id].barberCommission  += price * pct / 100;
+        serviceMap[id].shopRevenue       += price * (100 - pct) / 100;
+      }
     });
     const byService = Object.values(serviceMap).sort((a, b) => b.count - a.count);
 
@@ -60,9 +74,15 @@ const getReport = async (req, res) => {
       appointments.forEach(a => {
         if (!a.barber) return;
         const id = String(a.barber._id);
-        if (!barberMap[id]) barberMap[id] = { name: a.barber.name, count: 0, completed: 0, revenue: 0 };
+        if (!barberMap[id]) barberMap[id] = { name: a.barber.name, count: 0, completed: 0, revenue: 0, barberCommission: 0 };
         barberMap[id].count++;
-        if (a.status === 'concluído') { barberMap[id].completed++; barberMap[id].revenue += a.service?.price || 0; }
+        if (a.status === 'concluído') {
+          const price = a.service?.price || 0;
+          const pct   = a.service?.commission ?? 50;
+          barberMap[id].completed++;
+          barberMap[id].revenue          += price;
+          barberMap[id].barberCommission += price * pct / 100;
+        }
       });
       byBarber = Object.values(barberMap).sort((a, b) => b.revenue - a.revenue);
     }
@@ -91,7 +111,7 @@ const getReport = async (req, res) => {
 
     res.json({
       success: true,
-      data: { summary: { total, completed, cancelled, pending, revenue }, byService, byBarber, timeline, list },
+      data: { summary: { total, completed, cancelled, pending, revenue, barberCommission, shopRevenue }, byService, byBarber, timeline, list },
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

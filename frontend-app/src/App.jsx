@@ -1,9 +1,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Toaster } from './components/ui/Toast';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
+
+// Re-loads theme preferences from DB each time the logged-in user changes
+function ThemeSync() {
+  const { user }      = useAuth();
+  const { loadFromDB } = useTheme();
+  useEffect(() => { if (user) loadFromDB(); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -14,12 +23,16 @@ import Establishment from './pages/Establishment';
 import Reports from './pages/Reports';
 import Billing from './pages/Billing';
 import Clients from './pages/Clients';
+import Stock from './pages/Stock';
+import Appearance from './pages/Appearance';
+import Settings, { SettingsIndex } from './pages/Settings';
 import Landing from './pages/Landing';
 
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <ThemeSync />
         <BrowserRouter>
           <Routes>
             {/* Landing page */}
@@ -29,16 +42,21 @@ export default function App() {
             <Route path="/login"    element={<Login />}    />
             <Route path="/register" element={<Register />} />
 
-            {/* Protected */}
+            {/* Protected — main app */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/dashboard"     element={<Dashboard />}     />
-              <Route path="/agenda"        element={<Agenda />}        />
-              <Route path="/services"      element={<Services />}      />
-              <Route path="/profile"       element={<Profile />}       />
-              <Route path="/establishment" element={<Establishment />} />
-              <Route path="/reports"       element={<Reports />}       />
-              <Route path="/clients"       element={<Clients />}       />
-              <Route path="/billing"       element={<Billing />}       />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/agenda"    element={<Agenda />}    />
+              <Route path="/services"  element={<Services />}  />
+              <Route path="/reports"   element={<Reports />}   />
+              <Route path="/clients"   element={<Clients />}   />
+              <Route path="/stock"     element={<Stock />}     />
+              <Route path="/settings"  element={<Settings />}>
+                <Route index                element={<SettingsIndex />}  />
+                <Route path="account"       element={<Profile />}        />
+                <Route path="appearance"    element={<Appearance />}     />
+                <Route path="establishment" element={<Establishment />}  />
+                <Route path="billing"       element={<Billing />}        />
+              </Route>
             </Route>
 
             {/* Qualquer rota desconhecida → landing */}

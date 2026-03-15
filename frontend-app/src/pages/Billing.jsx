@@ -200,7 +200,6 @@ export default function Billing() {
   };
 
   const isCancelled = billing?.planStatus === 'cancelled';
-  const isExpired   = billing?.planStatus === 'expired';
   const canPay      = !isCancelled;
 
   if (loading) {
@@ -214,7 +213,7 @@ export default function Billing() {
   return (
     <div className="max-w-2xl space-y-6 animate-fade-up">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Cobrança</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meu Plano</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie seu plano e faturas</p>
       </div>
 
@@ -243,12 +242,12 @@ export default function Billing() {
         </div>
 
         {!isCancelled && (
-          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
             {billing?.daysLeft > 0 ? (
               <div className="flex items-center gap-2">
                 <Clock size={14} className={billing.daysLeft <= 7 ? 'text-red-500' : 'text-green-500'} />
                 <span className={`text-sm font-medium ${billing.daysLeft <= 7 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                  {billing.daysLeft} {billing.daysLeft === 1 ? 'dia restante' : 'dias restantes'}
+                  {billing.daysLeft} {billing.daysLeft === 1 ? 'dia restante' : 'dias restantes'} até a próxima renovação
                 </span>
               </div>
             ) : (
@@ -257,6 +256,19 @@ export default function Billing() {
                 <span className="text-sm font-medium">Plano vencido</span>
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <CheckCircle size={13} className="text-green-500" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Renovação automática ativa · próxima em {fmtDate(billing?.planExpiresAt)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {isCancelled && (
+          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
+            <XCircle size={13} className="text-gray-400" />
+            <span className="text-xs text-gray-500 dark:text-gray-400">Renovação automática cancelada</span>
           </div>
         )}
 
@@ -267,13 +279,10 @@ export default function Billing() {
           </div>
         )}
 
-        {(isExpired || (billing?.daysLeft <= 7 && billing?.daysLeft > 0)) && !isCancelled && (
-          <div className={`mt-4 flex items-center gap-2 p-3 rounded-lg text-sm ${isExpired ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'}`}>
+        {billing?.daysLeft <= 7 && billing?.daysLeft > 0 && !isCancelled && (
+          <div className="mt-4 flex items-center gap-2 p-3 rounded-lg text-sm bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400">
             <AlertTriangle size={14} className="shrink-0" />
-            {isExpired
-              ? 'Seu plano expirou. Renove para continuar usando o sistema.'
-              : `Seu plano vence em ${billing.daysLeft} dias. Renove para não perder o acesso.`
-            }
+            Renovação automática em {billing.daysLeft} {billing.daysLeft === 1 ? 'dia' : 'dias'}.
           </div>
         )}
       </div>

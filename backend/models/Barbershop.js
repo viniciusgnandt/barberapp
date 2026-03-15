@@ -51,13 +51,5 @@ const barbershopSchema = new mongoose.Schema({
   updatedAt:    { type: Date, default: Date.now },
 });
 
-// Set planExpiresAt to 30 days from creation when not already set
-barbershopSchema.pre('save', function (next) {
-  if (!this.planExpiresAt) {
-    const base = this.createdAt || new Date();
-    this.planExpiresAt = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
-  }
-  next();
-});
 
 module.exports = mongoose.model('Barbershop', barbershopSchema);

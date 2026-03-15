@@ -1,42 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, CalendarDays, Scissors, LogOut, Moon, Sun,
-  Scissors as ScissorsIcon, Camera, ChevronUp, ChevronDown, Check,
-  UserCircle, Store, BarChart2, CreditCard, Clock, Users,
-  PanelLeftClose, PanelLeftOpen, TrendingUp, DollarSign, UserRound,
+  LayoutDashboard, CalendarDays, Scissors, LogOut,
+  Scissors as ScissorsIcon, Camera, ChevronUp, Check,
+  BarChart2, Settings,
+  PanelLeftClose, PanelLeftOpen, UserRound, Package,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { Upload as UploadAPI } from '../../utils/api';
 import { cn } from '../../utils/cn';
 import Badge from '../ui/Badge';
 import { toast } from '../ui/Toast';
 
+// ── Navigation structure ───────────────────────────────────────────────────────
 const NAV_MAIN = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/agenda',    icon: CalendarDays,    label: 'Agenda'    },
-  { to: '/services',  icon: Scissors,        label: 'Serviços'  },
-  { to: '/clients',   icon: UserRound,       label: 'Clientes'  },
-];
-
-const REPORTS_SUBS = [
-  { to: '/reports?tab=services',  label: 'Serviços',          icon: Scissors    },
-  { to: '/reports?tab=financial', label: 'Gestão Financeira', icon: DollarSign  },
-];
-
-const ESTAB_SUBS = [
-  { to: '/establishment?tab=info',      label: 'Informações', icon: Store },
-  { to: '/establishment?tab=hours',     label: 'Horários',    icon: Clock },
-  { to: '/establishment?tab=employees', label: 'Equipe',      icon: Users },
-];
-
-const NAV_ADMIN_EXTRA = [
-  { to: '/billing', icon: CreditCard, label: 'Cobrança' },
-];
-
-const NAV_USER = [
-  { to: '/profile', icon: UserCircle, label: 'Meu Perfil' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',  adminOnly: false },
+  { to: '/agenda',    icon: CalendarDays,    label: 'Agenda',     adminOnly: false },
+  { to: '/services',  icon: Scissors,        label: 'Serviços',   adminOnly: false },
+  { to: '/clients',   icon: UserRound,       label: 'Clientes',   adminOnly: false },
+  { to: '/stock',     icon: Package,         label: 'Estoque',    adminOnly: true  },
 ];
 
 const navLinkClass = (isActive, collapsed) => cn(
@@ -49,8 +31,7 @@ const navLinkClass = (isActive, collapsed) => cn(
 
 export default function Sidebar() {
   const { user, logout, isAdmin, updateUser, profiles, switchProfile } = useAuth();
-  const { dark, toggle } = useTheme();
-  const location = useLocation();
+  const navigate = useNavigate();
 
   const logoInputRef   = useRef(null);
   const avatarInputRef = useRef(null);
@@ -59,16 +40,6 @@ export default function Sidebar() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [switching,       setSwitching]       = useState(null);
   const [collapsed,       setCollapsed]       = useState(false);
-
-  // Auto-expand estab sub-menu when on /establishment
-  const onEstab = location.pathname === '/establishment';
-  const [estabOpen, setEstabOpen] = useState(onEstab);
-  useEffect(() => { if (onEstab) setEstabOpen(true); }, [onEstab]);
-
-  // Auto-expand reports sub-menu when on /reports
-  const onReports = location.pathname === '/reports';
-  const [reportsOpen, setReportsOpen] = useState(onReports);
-  useEffect(() => { if (onReports) setReportsOpen(true); }, [onReports]);
 
   const initials = user?.name
     ?.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() || '?';
@@ -106,22 +77,21 @@ export default function Sidebar() {
     else      toast(r.data?.message || 'Erro ao trocar perfil.', 'error');
   };
 
+  const visibleMain = NAV_MAIN.filter(n => !n.adminOnly || isAdmin);
+
   return (
     <aside className={cn(
       'relative flex flex-col shrink-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 transition-all duration-300',
       collapsed ? 'w-16' : 'w-60',
     )}>
 
-      {/* Collapse toggle button */}
+      {/* Collapse toggle */}
       <button
         onClick={() => { setCollapsed(c => !c); setProfileMenuOpen(false); }}
         title={collapsed ? 'Expandir menu' : 'Recolher menu'}
         className="absolute -right-3 top-6 z-30 w-6 h-6 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-brand-500 shadow-sm transition-colors"
       >
-        {collapsed
-          ? <PanelLeftOpen  size={12} />
-          : <PanelLeftClose size={12} />
-        }
+        {collapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
       </button>
 
       {/* Brand / Logo */}
@@ -147,9 +117,7 @@ export default function Sidebar() {
                 }
               </div>
             )}
-            {isAdmin && (
-              <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
-            )}
+            {isAdmin && <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />}
           </div>
 
           {!collapsed && (
@@ -168,7 +136,7 @@ export default function Sidebar() {
         {!collapsed && (
           <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Menu</p>
         )}
-        {NAV_MAIN.map(({ to, icon: Icon, label }) => (
+        {visibleMain.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} title={collapsed ? label : undefined}
             className={({ isActive }) => navLinkClass(isActive, collapsed)}>
             <Icon size={16} className="shrink-0" />
@@ -176,166 +144,22 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        {/* Relatórios — collapsible group (all users) */}
-        {collapsed ? (
-          <NavLink
-            to="/reports?tab=services"
-            title="Relatórios"
-            className={({ isActive }) => navLinkClass(isActive, true)}
-          >
-            <BarChart2 size={16} className="shrink-0" />
-          </NavLink>
-        ) : (
-          <>
-            <button
-              onClick={() => setReportsOpen(o => !o)}
-              className={cn(
-                'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                onReports
-                  ? 'text-brand-600 dark:text-brand-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
-              )}
-            >
-              <BarChart2 size={16} className="shrink-0" />
-              <span className="flex-1 text-left">Relatórios</span>
-              <ChevronDown size={13} className={cn('text-gray-400 shrink-0 transition-transform', !reportsOpen && '-rotate-90')} />
-            </button>
-
-            {reportsOpen && (
-              <div className="ml-4 pl-3 border-l border-gray-100 dark:border-gray-800 space-y-0.5">
-                {REPORTS_SUBS.map(({ to, label, icon: Icon }) => {
-                  const [path, qs] = to.split('?');
-                  const tabParam = new URLSearchParams(qs).get('tab');
-                  const isActive = location.pathname === path &&
-                    (location.search === `?tab=${tabParam}` || (!location.search && tabParam === 'services'));
-                  return (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      className={cn(
-                        'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors',
-                        isActive
-                          ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
-                          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
-                      )}
-                    >
-                      <Icon size={13} className="shrink-0" />
-                      {label}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-
-        {isAdmin && (
-          <>
-            {!collapsed && (
-              <p className="px-2 mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Administração</p>
-            )}
-            {collapsed && <div className="mt-3" />}
-
-            {/* Estabelecimento — collapsible group */}
-            {collapsed ? (
-              /* Collapsed: show Store icon linking to /establishment */
-              <NavLink
-                to="/establishment"
-                title="Estabelecimento"
-                className={({ isActive }) => navLinkClass(isActive, true)}
-              >
-                <Store size={16} className="shrink-0" />
-              </NavLink>
-            ) : (
-              <>
-                <button
-                  onClick={() => setEstabOpen(o => !o)}
-                  className={cn(
-                    'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    onEstab
-                      ? 'text-brand-600 dark:text-brand-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
-                  )}
-                >
-                  <Store size={16} className="shrink-0" />
-                  <span className="flex-1 text-left">Estabelecimento</span>
-                  {estabOpen
-                    ? <ChevronDown size={13} className="text-gray-400 shrink-0" />
-                    : <ChevronDown size={13} className="text-gray-400 shrink-0 -rotate-90" />
-                  }
-                </button>
-
-                {estabOpen && (
-                  <div className="ml-4 pl-3 border-l border-gray-100 dark:border-gray-800 space-y-0.5">
-                    {ESTAB_SUBS.map(({ to, label, icon: Icon }) => {
-                      const [path, qs] = to.split('?');
-                      const tabParam = new URLSearchParams(qs).get('tab');
-                      const isActive = location.pathname === path &&
-                        (location.search === `?tab=${tabParam}` || (!location.search && tabParam === 'info'));
-                      return (
-                        <NavLink
-                          key={to}
-                          to={to}
-                          className={cn(
-                            'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors',
-                            isActive
-                              ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
-                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
-                          )}
-                        >
-                          <Icon size={13} className="shrink-0" />
-                          {label}
-                        </NavLink>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-
-            {NAV_ADMIN_EXTRA.map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} title={collapsed ? label : undefined}
-                className={({ isActive }) => navLinkClass(isActive, collapsed)}>
-                <Icon size={16} className="shrink-0" />
-                {!collapsed && label}
-              </NavLink>
-            ))}
-          </>
-        )}
-
-        {!collapsed && (
-          <p className="px-2 mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Conta</p>
-        )}
-        {collapsed && <div className="mt-3" />}
-        {NAV_USER.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} title={collapsed ? label : undefined}
-            className={({ isActive }) => navLinkClass(isActive, collapsed)}>
-            <Icon size={16} className="shrink-0" />
-            {!collapsed && label}
-          </NavLink>
-        ))}
+        {/* Relatórios */}
+        <NavLink to="/reports" title={collapsed ? 'Relatórios' : undefined}
+          className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+          <BarChart2 size={16} className="shrink-0" />
+          {!collapsed && 'Relatórios'}
+        </NavLink>
       </nav>
 
       {/* Bottom */}
-      <div className={cn('py-4 border-t border-gray-100 dark:border-gray-800 space-y-1', collapsed ? 'px-2' : 'px-3')}>
-        {/* Theme toggle */}
-        <button
-          onClick={toggle}
-          title={collapsed ? (dark ? 'Modo Claro' : 'Modo Escuro') : undefined}
-          className={cn(
-            'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
-            collapsed && 'justify-center px-2',
-          )}
-        >
-          {dark ? <Sun size={16} className="shrink-0" /> : <Moon size={16} className="shrink-0" />}
-          {!collapsed && (dark ? 'Modo Claro' : 'Modo Escuro')}
-        </button>
+      <div className={cn('py-3 border-t border-gray-100 dark:border-gray-800 space-y-1', collapsed ? 'px-2' : 'px-3')}>
 
         {/* Profile switcher popup */}
         {profileMenuOpen && otherProfiles.length > 0 && !collapsed && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setProfileMenuOpen(false)} />
-            <div className="absolute bottom-20 left-3 right-3 z-20 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl p-2 space-y-1 animate-scale-in">
+            <div className="absolute bottom-28 left-3 right-3 z-20 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl p-2 space-y-1 animate-scale-in">
               <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">
                 Trocar perfil
               </p>
@@ -382,6 +206,19 @@ export default function Sidebar() {
           </>
         )}
 
+        {/* Settings button */}
+        <button
+          onClick={() => navigate('/settings')}
+          title={collapsed ? 'Configurações' : undefined}
+          className={cn(
+            'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+            collapsed && 'justify-center px-2',
+          )}
+        >
+          <Settings size={16} className="shrink-0" />
+          {!collapsed && 'Configurações'}
+        </button>
+
         {/* User row */}
         <div className={cn('relative flex items-center gap-3 px-3 py-2 rounded-lg', collapsed && 'justify-center px-2')}>
           <div
@@ -412,41 +249,24 @@ export default function Sidebar() {
                 <div className="flex items-center gap-1">
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.name}</p>
                   {otherProfiles.length > 0 && (
-                    <ChevronUp
-                      size={12}
-                      className={cn('text-gray-400 shrink-0 transition-transform', !profileMenuOpen && 'rotate-180')}
-                    />
+                    <ChevronUp size={12} className={cn('text-gray-400 shrink-0 transition-transform', !profileMenuOpen && 'rotate-180')} />
                   )}
                 </div>
                 <Badge variant={user?.role} className="mt-0.5" />
               </button>
 
-              <button
-                onClick={logout}
-                title="Sair"
-                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
+              <button onClick={logout} title="Sair"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                 <LogOut size={15} />
               </button>
             </>
           )}
-
-          {collapsed && (
-            <button
-              onClick={logout}
-              title="Sair"
-              className="absolute -top-8 left-1/2 -translate-x-1/2 hidden" // hidden when collapsed; logout via profile page
-            />
-          )}
         </div>
 
-        {/* Logout button when collapsed */}
+        {/* Logout when collapsed */}
         {collapsed && (
-          <button
-            onClick={logout}
-            title="Sair"
-            className="flex items-center justify-center w-full px-2 py-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-          >
+          <button onClick={logout} title="Sair"
+            className="flex items-center justify-center w-full px-2 py-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
             <LogOut size={16} />
           </button>
         )}

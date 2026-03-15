@@ -51,7 +51,21 @@ const register = async (req, res) => {
     }
 
     if (barbershopName) {
-      barbershop = await Barbershop.create({ name: barbershopName, email });
+      const now     = new Date();
+      const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      barbershop = await Barbershop.create({
+        name: barbershopName,
+        email,
+        plan:          'trial',
+        planStatus:    'active',
+        planExpiresAt: expires,
+        invoices: [{
+          description: 'Período Gratuito — 30 dias',
+          amount:      0,
+          status:      'paid',
+          paidAt:      now,
+        }],
+      });
 
       try {
         const user = await User.create({

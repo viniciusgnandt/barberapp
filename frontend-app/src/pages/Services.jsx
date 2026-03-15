@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Edit2, Trash2, Clock, DollarSign, Upload, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Clock, DollarSign, Upload, Check, Percent, Tag, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Services as ServicesAPI, Upload as UploadAPI } from '../utils/api';
+import { Services as ServicesAPI, ServiceCategories as CategoriesAPI, Upload as UploadAPI } from '../utils/api';
 import { PRESET_ICONS, ServiceIcon } from '../utils/serviceIcons';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -9,7 +9,13 @@ import Input from '../components/ui/Input';
 import { toast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
 
-const EMPTY_FORM = { name: '', price: '', duration: '', description: '', icon: '' };
+const EMPTY_FORM = { name: '', price: '', duration: '', description: '', icon: '', commission: '50', category: '' };
+
+const PRESET_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
+  '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6',
+  '#64748b', '#1f2937',
+];
 
 // ── Icon Picker ───────────────────────────────────────────────────────────────
 function IconPicker({ value, onChange }) {
@@ -40,7 +46,6 @@ function IconPicker({ value, onChange }) {
         Ícone do serviço
       </label>
 
-      {/* Presets grid */}
       <div className="grid grid-cols-7 gap-1.5">
         {PRESET_ICONS.map(({ key, label, Icon }) => {
           const presetVal = `preset:${key}`;
@@ -66,7 +71,6 @@ function IconPicker({ value, onChange }) {
         })}
       </div>
 
-      {/* Custom upload */}
       <div className="flex items-center gap-2 pt-1">
         <button
           type="button"
@@ -106,25 +110,39 @@ function IconPicker({ value, onChange }) {
 }
 
 // ── Service Card ──────────────────────────────────────────────────────────────
-function ServiceCard({ service, onEdit, onDelete, isAdmin }) {
+function ServiceCard({ service, onEdit, onDelete, isAdmin, categories }) {
+  const commission = service.commission ?? 50;
+  const shopPct    = 100 - commission;
+  const cat = categories.find(c => c._id === (service.category?._id || service.category));
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5 hover:border-brand-200 dark:hover:border-brand-800 transition-colors group">
       <div className="flex items-start justify-between gap-3">
         <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center shrink-0 overflow-hidden text-brand-600 dark:text-brand-400">
           <ServiceIcon icon={service.icon} size={20} />
         </div>
-        {isAdmin && (
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={() => onEdit(service)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
-              <Edit2 size={13} />
-            </button>
-            <button onClick={() => onDelete(service)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-              <Trash2 size={13} />
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          {cat && (
+            <span
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white shrink-0"
+              style={{ backgroundColor: cat.color }}
+            >
+              {cat.name}
+            </span>
+          )}
+          {isAdmin && (
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => onEdit(service)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                <Edit2 size={13} />
+              </button>
+              <button onClick={() => onDelete(service)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-3">
@@ -146,7 +164,173 @@ function ServiceCard({ service, onEdit, onDelete, isAdmin }) {
           </span>
         )}
       </div>
+
+      <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-800">
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+          <span className="flex items-center gap-1"><Percent size={10} /> Comissão</span>
+        </div>
+        <div className="flex rounded-lg overflow-hidden h-5 text-[10px] font-semibold">
+          <div
+            className="flex items-center justify-center bg-brand-500 text-white transition-all"
+            style={{ width: `${commission}%` }}
+            title={`Profissional: ${commission}%`}
+          >
+            {commission >= 20 ? `${commission}%` : ''}
+          </div>
+          <div
+            className="flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 transition-all"
+            style={{ width: `${shopPct}%` }}
+            title={`Estabelecimento: ${shopPct}%`}
+          >
+            {shopPct >= 20 ? `${shopPct}%` : ''}
+          </div>
+        </div>
+        <div className="flex justify-between mt-1 text-[10px] text-gray-400 dark:text-gray-600">
+          <span>Profissional</span>
+          <span>Estabelecimento</span>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// ── Category Management Modal ─────────────────────────────────────────────────
+function CategoryModal({ open, onClose, categories, onChanged }) {
+  const [newName,    setNewName]    = useState('');
+  const [newColor,   setNewColor]   = useState(PRESET_COLORS[0]);
+  const [creating,   setCreating]   = useState(false);
+  const [editingId,  setEditingId]  = useState(null);
+  const [editName,   setEditName]   = useState('');
+  const [editColor,  setEditColor]  = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    setCreating(true);
+    const r = await CategoriesAPI.create({ name: newName.trim(), color: newColor });
+    setCreating(false);
+    if (r.ok) { setNewName(''); onChanged(); toast('Categoria criada!'); }
+    else toast(r.data?.message || 'Erro ao criar categoria.', 'error');
+  };
+
+  const startEdit = (cat) => {
+    setEditingId(cat._id);
+    setEditName(cat.name);
+    setEditColor(cat.color);
+  };
+
+  const handleUpdate = async (id) => {
+    if (!editName.trim()) return;
+    setSaving(true);
+    const r = await CategoriesAPI.update(id, { name: editName.trim(), color: editColor });
+    setSaving(false);
+    if (r.ok) { setEditingId(null); onChanged(); toast('Categoria atualizada!'); }
+    else toast(r.data?.message || 'Erro ao atualizar.', 'error');
+  };
+
+  const handleDelete = async (id) => {
+    setDeletingId(id);
+    const r = await CategoriesAPI.remove(id);
+    setDeletingId(null);
+    if (r.ok) { onChanged(); toast('Categoria removida.'); }
+    else toast(r.data?.message || 'Erro ao remover.', 'error');
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Gerenciar Categorias" size="md">
+      <div className="space-y-4">
+        {/* Create new */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nova categoria</p>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Input
+                placeholder="Nome da categoria"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+            <div className="flex gap-1 flex-wrap mb-1">
+              {PRESET_COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setNewColor(c)}
+                  className={cn('w-5 h-5 rounded-full border-2 transition-all', newColor === c ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent')}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+            <Button onClick={handleCreate} loading={creating} size="sm" className="mb-1">
+              <Plus size={14} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Existing categories */}
+        {categories.length > 0 && (
+          <div className="space-y-1 border-t border-gray-100 dark:border-gray-800 pt-4">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Categorias existentes</p>
+            {categories.map(cat => (
+              <div key={cat._id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                {editingId === cat._id ? (
+                  <>
+                    <div className="flex gap-1 flex-wrap shrink-0">
+                      {PRESET_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setEditColor(c)}
+                          className={cn('w-4 h-4 rounded-full border-2 transition-all', editColor === c ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent')}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                    <input
+                      className="flex-1 text-sm bg-transparent border-b border-brand-400 outline-none text-gray-900 dark:text-gray-100"
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleUpdate(cat._id); if (e.key === 'Escape') setEditingId(null); }}
+                      autoFocus
+                    />
+                    <button onClick={() => handleUpdate(cat._id)} disabled={saving}
+                      className="text-green-600 hover:text-green-700 p-1">
+                      <Check size={14} />
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                      <X size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                    <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{cat.name}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-600">{cat.serviceCount ?? ''}</span>
+                    <button onClick={() => startEdit(cat)}
+                      className="p-1 text-gray-400 hover:text-brand-600 transition-colors">
+                      <Edit2 size={13} />
+                    </button>
+                    <button onClick={() => handleDelete(cat._id)} disabled={deletingId === cat._id}
+                      className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+                      {deletingId === cat._id
+                        ? <div className="w-3 h-3 border border-gray-400 border-t-red-500 rounded-full animate-spin" />
+                        : <Trash2 size={13} />
+                      }
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <Button variant="secondary" onClick={onClose}>Fechar</Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -154,24 +338,32 @@ function ServiceCard({ service, onEdit, onDelete, isAdmin }) {
 export default function Services() {
   const { isAdmin } = useAuth();
 
-  const [services,     setServices]     = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [modal,        setModal]        = useState(false);
-  const [editing,      setEditing]      = useState(null);
-  const [form,         setForm]         = useState(EMPTY_FORM);
-  const [saving,       setSaving]       = useState(false);
-  const [formErr,      setFormErr]      = useState('');
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting,     setDeleting]     = useState(false);
+  const [services,      setServices]      = useState([]);
+  const [categories,    setCategories]    = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [modal,         setModal]         = useState(false);
+  const [catModal,      setCatModal]      = useState(false);
+  const [editing,       setEditing]       = useState(null);
+  const [form,          setForm]          = useState(EMPTY_FORM);
+  const [saving,        setSaving]        = useState(false);
+  const [formErr,       setFormErr]       = useState('');
+  const [deleteTarget,  setDeleteTarget]  = useState(null);
+  const [deleting,      setDeleting]      = useState(false);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
+  const loadCategories = useCallback(async () => {
+    const r = await CategoriesAPI.getAll();
+    if (r.ok) setCategories(r.data?.data || []);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await ServicesAPI.getAll();
-    if (r.ok) setServices(r.data?.data || []);
+    const [sr] = await Promise.all([ServicesAPI.getAll(), loadCategories()]);
+    if (sr.ok) setServices(sr.data?.data || []);
     setLoading(false);
-  }, []);
+  }, [loadCategories]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -190,6 +382,8 @@ export default function Services() {
       duration:    svc.duration    ?? '',
       description: svc.description || '',
       icon:        svc.icon        || '',
+      commission:  String(svc.commission ?? 50),
+      category:    svc.category?._id || svc.category || '',
     });
     setFormErr('');
     setModal(true);
@@ -198,6 +392,8 @@ export default function Services() {
   const handleSave = async () => {
     if (!form.name || form.price === '') return setFormErr('Nome e preço são obrigatórios.');
     if (isNaN(Number(form.price)) || Number(form.price) < 0) return setFormErr('Preço inválido.');
+    const comm = Number(form.commission);
+    if (isNaN(comm) || comm < 0 || comm > 100) return setFormErr('Comissão deve ser entre 0 e 100%.');
 
     setFormErr('');
     setSaving(true);
@@ -208,6 +404,8 @@ export default function Services() {
       duration:    form.duration ? Number(form.duration) : undefined,
       description: form.description || undefined,
       icon:        form.icon        || undefined,
+      commission:  comm,
+      category:    form.category    || undefined,
     };
 
     const r = editing
@@ -238,8 +436,17 @@ export default function Services() {
     }
   };
 
+  const commVal  = Number(form.commission) || 0;
+  const shopVal  = 100 - commVal;
+  const price    = Number(form.price) || 0;
+
+  const filteredServices = activeCategory
+    ? services.filter(s => String(s.category?._id || s.category) === activeCategory)
+    : services;
+
   return (
     <div className="space-y-6 animate-fade-up">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Serviços</h1>
@@ -247,26 +454,76 @@ export default function Services() {
             {services.length} serviço{services.length !== 1 ? 's' : ''} cadastrado{services.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={openCreate}>
-            <Plus size={16} className="mr-1.5" /> Novo serviço
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setCatModal(true)}>
+              <Tag size={14} className="mr-1.5" /> Categorias
+            </Button>
+          )}
+          {isAdmin && (
+            <Button onClick={openCreate}>
+              <Plus size={16} className="mr-1.5" /> Novo serviço
+            </Button>
+          )}
+        </div>
       </div>
 
+      {/* Category filter tabs */}
+      {categories.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setActiveCategory(null)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-sm font-medium transition-all',
+              activeCategory === null
+                ? 'bg-brand-500 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700',
+            )}
+          >
+            Todos ({services.length})
+          </button>
+          {categories.map(cat => {
+            const count = services.filter(s => String(s.category?._id || s.category) === cat._id).length;
+            return (
+              <button
+                key={cat._id}
+                onClick={() => setActiveCategory(activeCategory === cat._id ? null : cat._id)}
+                className={cn(
+                  'px-3 py-1.5 rounded-full text-sm font-medium transition-all',
+                  activeCategory === cat._id
+                    ? 'text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:opacity-80',
+                )}
+                style={
+                  activeCategory === cat._id
+                    ? { backgroundColor: cat.color }
+                    : { backgroundColor: cat.color + '22', color: cat.color }
+                }
+              >
+                {cat.name} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-36 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+            <div key={i} className="h-44 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
           ))}
         </div>
-      ) : services.length === 0 ? (
+      ) : filteredServices.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <ServiceIcon size={40} className="text-gray-300 dark:text-gray-700 mb-3" />
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {isAdmin ? 'Nenhum serviço cadastrado. Crie o primeiro!' : 'Nenhum serviço disponível.'}
+            {services.length === 0
+              ? (isAdmin ? 'Nenhum serviço cadastrado. Crie o primeiro!' : 'Nenhum serviço disponível.')
+              : 'Nenhum serviço nesta categoria.'
+            }
           </p>
-          {isAdmin && (
+          {isAdmin && services.length === 0 && (
             <Button className="mt-4" size="sm" onClick={openCreate}>
               <Plus size={14} className="mr-1.5" /> Criar serviço
             </Button>
@@ -274,12 +531,20 @@ export default function Services() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {services.map(svc => (
-            <ServiceCard key={svc._id} service={svc} onEdit={openEdit} onDelete={setDeleteTarget} isAdmin={isAdmin} />
+          {filteredServices.map(svc => (
+            <ServiceCard
+              key={svc._id}
+              service={svc}
+              onEdit={openEdit}
+              onDelete={setDeleteTarget}
+              isAdmin={isAdmin}
+              categories={categories}
+            />
           ))}
         </div>
       )}
 
+      {/* Service form modal */}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Editar serviço' : 'Novo serviço'} size="full">
         <div className="space-y-4">
           <Input label="Nome do serviço *" placeholder="Ex: Corte + Barba" value={form.name} onChange={set('name')} />
@@ -289,7 +554,88 @@ export default function Services() {
             <Input label="Duração (min)" type="number" min="0" placeholder="30"
               value={form.duration} onChange={set('duration')} />
           </div>
+
+          {/* Category selector */}
+          {categories.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, category: '' }))}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-sm font-medium border transition-all',
+                    !form.category
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400',
+                  )}
+                >
+                  Sem categoria
+                </button>
+                {categories.map(cat => (
+                  <button
+                    key={cat._id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, category: cat._id }))}
+                    className={cn(
+                      'px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all',
+                      form.category === cat._id ? 'text-white border-transparent' : 'border-transparent text-gray-600 dark:text-gray-400',
+                    )}
+                    style={
+                      form.category === cat._id
+                        ? { backgroundColor: cat.color }
+                        : { backgroundColor: cat.color + '22', color: cat.color }
+                    }
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Input label="Descrição" placeholder="Descrição opcional..." value={form.description} onChange={set('description')} />
+
+          {isAdmin && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Comissão do profissional
+                </label>
+                <span className="text-sm font-bold text-brand-600 dark:text-brand-400">{commVal}%</span>
+              </div>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={form.commission}
+                onChange={set('commission')}
+                className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-brand-500 bg-gray-200 dark:bg-gray-700"
+              />
+              <div className="flex rounded-lg overflow-hidden h-7 text-xs font-semibold">
+                <div className="flex items-center justify-center bg-brand-500 text-white transition-all gap-1"
+                  style={{ width: `${commVal}%` }}>
+                  {commVal >= 15 && (
+                    <>
+                      {commVal}%
+                      {price > 0 && <span className="opacity-75">(R$ {(price * commVal / 100).toFixed(2)})</span>}
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 transition-all gap-1"
+                  style={{ width: `${shopVal}%` }}>
+                  {shopVal >= 15 && (
+                    <>
+                      {shopVal}%
+                      {price > 0 && <span className="opacity-75">(R$ {(price * shopVal / 100).toFixed(2)})</span>}
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-600">
+                <span>Profissional</span>
+                <span>Estabelecimento</span>
+              </div>
+            </div>
+          )}
 
           {isAdmin && (
             <IconPicker value={form.icon} onChange={v => setForm(f => ({ ...f, icon: v }))} />
@@ -305,6 +651,7 @@ export default function Services() {
         </div>
       </Modal>
 
+      {/* Delete modal */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Remover serviço">
         <div className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -316,6 +663,14 @@ export default function Services() {
           </div>
         </div>
       </Modal>
+
+      {/* Category management modal */}
+      <CategoryModal
+        open={catModal}
+        onClose={() => setCatModal(false)}
+        categories={categories}
+        onChanged={() => { loadCategories(); load(); }}
+      />
     </div>
   );
 }

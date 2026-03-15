@@ -29,9 +29,12 @@ const getAppointments = async (req, res) => {
     if (startDate && endDate) {
       filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
     } else if (date) {
-      const s = new Date(date); s.setHours(0,  0,  0,   0);
-      const e = new Date(date); e.setHours(23, 59, 59, 999);
-      filter.date = { $gte: s, $lte: e };
+      // Brazil is UTC-3: midnight BRT = 03:00 UTC, end-of-day BRT = next day 02:59:59 UTC
+      const BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
+      filter.date = {
+        $gte: new Date(new Date(date + 'T00:00:00.000Z').getTime() + BRT_OFFSET_MS),
+        $lte: new Date(new Date(date + 'T23:59:59.999Z').getTime() + BRT_OFFSET_MS),
+      };
     }
 
     const data = await populate(Appointment.find(filter).sort({ date: 1 }));
@@ -100,31 +103,46 @@ const createAppointment = async (req, res) => {
       return res.status(201).json({ success: true, data: block });
     }
 
-    // Regular appointment(s)
-    const dt  = new Date(date);
-    const gap = 30 * 60 * 1000;
+        // Regular appointment(s)
+    const dt = new Date(date);
 
-    // Conflict detection helper
-    const checkConflict = async (targetDate) => {
-      const td = new Date(targetDate);
+    // Load service to get duration
+    const Service = require('../models/Service');
+    const svc = await Service.findById(service);
+    const durationMs = (svc?.duration || 30) * 60 * 1000;
 
-      const apptConflict = await Appointment.findOne({
+    // Conflict detection: checks if [newStart, newEnd) overlaps any existing appointment or block
+    const checkConflict = async (newStart, excludeId = null) => {
+      const newEnd = new Date(+newStart + durationMs);
+
+      // Regular appointment overlap: existing.start < newEnd AND existing.end > newStart
+      const apptFilter = {
         barbershop: req.user.barbershop._id,
         barber,
         type: { $ne: 'block' },
         status: 'agendado',
-        date: { $gte: new Date(td - gap), $lte: new Date(+td + gap) },
+        date: { $lt: newEnd },
+      };
+      if (excludeId) apptFilter._id = { $ne: excludeId };
+
+      const existingAppts = await Appointment.find(apptFilter).populate('service', 'duration');
+      const apptConflict = existingAppts.find(a => {
+        const aDur = (a.service?.duration || 30) * 60 * 1000;
+        const aEnd = new Date(+a.date + aDur);
+        return aEnd > newStart;
       });
 
-      const activeBlocks = await Appointment.find({
+      // Block overlap
+      const blocks = await Appointment.find({
         barbershop: req.user.barbershop._id,
         barber,
         type: 'block',
-        date: { $lte: new Date(+td + gap) },
+        date: { $lt: newEnd },
+        ...(excludeId ? { _id: { $ne: excludeId } } : {}),
       });
-      const blockConflict = activeBlocks.find(b => {
-        const blockEnd = b.endDate ? b.endDate.getTime() : b.date.getTime() + gap;
-        return td.getTime() >= b.date.getTime() && td.getTime() <= blockEnd;
+      const blockConflict = blocks.find(b => {
+        const bEnd = b.endDate ? b.endDate.getTime() : b.date.getTime() + durationMs;
+        return bEnd > newStart.getTime();
       });
 
       return apptConflict || blockConflict;
@@ -145,9 +163,11 @@ const createAppointment = async (req, res) => {
       }
     }
 
-    // Check first date conflict
-    if (await checkConflict(dates[0]))
-      return res.status(400).json({ success: false, message: 'Horário indisponível para este barbeiro.' });
+    // Check conflicts for all occurrences
+    for (const d of dates) {
+      if (await checkConflict(d))
+        return res.status(400).json({ success: false, message: 'Horário indisponível para este barbeiro.' });
+    }
 
     // Create all occurrences
     const groupId = rec !== 'none' ? crypto.randomUUID() : undefined;
@@ -188,6 +208,50 @@ const updateAppointment = async (req, res) => {
     });
     if (!apt)
       return res.status(404).json({ success: false, message: 'Agendamento não encontrado.' });
+
+    // Conflict check when date or barber changes (skip for blocks and non-pending)
+    const isBlock = (req.body.type || apt.type) === 'block';
+    if (!isBlock && (req.body.date || req.body.barber)) {
+      const Service = require('../models/Service');
+      const newDate    = req.body.date   ? new Date(req.body.date)   : apt.date;
+      const newBarber  = req.body.barber || apt.barber?.toString();
+      const newService = req.body.service || apt.service?.toString();
+      const svc        = await Service.findById(newService);
+      const durationMs = (svc?.duration || 30) * 60 * 1000;
+      const newEnd     = new Date(+newDate + durationMs);
+
+      // Check overlapping appointments (exclude self)
+      const existingAppts = await Appointment.find({
+        barbershop: req.user.barbershop._id,
+        barber:     newBarber,
+        type:       { $ne: 'block' },
+        status:     'agendado',
+        date:       { $lt: newEnd },
+        _id:        { $ne: apt._id },
+      }).populate('service', 'duration');
+      const apptConflict = existingAppts.find(a => {
+        const aDur = (a.service?.duration || 30) * 60 * 1000;
+        return new Date(+a.date + aDur) > newDate;
+      });
+
+      if (!apptConflict) {
+        const blocks = await Appointment.find({
+          barbershop: req.user.barbershop._id,
+          barber:     newBarber,
+          type:       'block',
+          date:       { $lt: newEnd },
+          _id:        { $ne: apt._id },
+        });
+        const blockConflict = blocks.find(b => {
+          const bEnd = b.endDate ? b.endDate.getTime() : b.date.getTime() + durationMs;
+          return bEnd > newDate.getTime();
+        });
+        if (blockConflict)
+          return res.status(400).json({ success: false, message: 'Horário indisponível para este barbeiro.' });
+      } else {
+        return res.status(400).json({ success: false, message: 'Horário indisponível para este barbeiro.' });
+      }
+    }
 
     Object.assign(apt, req.body);
     await apt.save();

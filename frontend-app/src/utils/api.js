@@ -71,8 +71,9 @@ export const Appointments = {
 
 // ── Users ──────────────────────────────────────────────────────────────────────
 export const Users = {
-  getMe:    ()      => request('/users/me'),
-  updateMe: (data)  => request('/users/me', { method: 'PUT', body: data }),
+  getMe:           ()      => request('/users/me'),
+  updateMe:        (data)  => request('/users/me',             { method: 'PUT', body: data }),
+  savePreferences: (data)  => request('/users/me/preferences', { method: 'PUT', body: data }),
 };
 
 // ── Barbershops ────────────────────────────────────────────────────────────────
@@ -114,6 +115,25 @@ export const Reports = {
   },
 };
 
+// ── Products / Stock ───────────────────────────────────────────────────────────
+export const Products = {
+  getAll:       (params = {}) => { const qs = new URLSearchParams(params).toString(); return request(`/products${qs ? '?' + qs : ''}`); },
+  create:       (data)        => request('/products',                    { method: 'POST',   body: data }),
+  update:       (id, data)    => request(`/products/${id}`,              { method: 'PUT',    body: data }),
+  delete:       (id)          => request(`/products/${id}`,              { method: 'DELETE' }),
+  addMovement:  (id, data)    => request(`/products/${id}/movement`,     { method: 'POST',   body: data }),
+  getMovements: (params = {}) => { const qs = new URLSearchParams(params).toString(); return request(`/products/movements${qs ? '?' + qs : ''}`); },
+  getReport:    (params = {}) => { const qs = new URLSearchParams(params).toString(); return request(`/products/report${qs ? '?' + qs : ''}`); },
+};
+
+// ── Service Categories ─────────────────────────────────────────────────────────
+export const ServiceCategories = {
+  getAll:  ()           => request('/service-categories'),
+  create:  (data)       => request('/service-categories',        { method: 'POST',   body: data }),
+  update:  (id, data)   => request(`/service-categories/${id}`,  { method: 'PUT',    body: data }),
+  remove:  (id)         => request(`/service-categories/${id}`,  { method: 'DELETE' }),
+};
+
 // ── Billing ────────────────────────────────────────────────────────────────────
 export const Billing = {
   get:          ()       => request('/billing'),
@@ -122,5 +142,5 @@ export const Billing = {
   cancel:       ()       => request('/billing/cancel',       { method: 'POST' }),
 };
 
-const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing };
+const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories };
 export default API;

@@ -6,7 +6,13 @@
       "Bash(npm install:*)",
       "Bash(npx tailwindcss:*)",
       "Bash(sed -i \"s/    if \\(r.ok\\) toast\\(''Logo atualizada!''\\);/    if \\(r.ok\\) { updateUser\\({ barbershopLogo: r.data?.data?.url }\\); toast\\(''Logo atualizada!''\\); }/\" \"/c/Users/vinic/Desktop/barberapp/barberapp/frontend-app/src/components/layout/Sidebar.jsx\")",
-      "Bash(sed -i \"s/    if \\(r.ok\\) toast\\(''Foto atualizada!''\\);/    if \\(r.ok\\) { updateUser\\({ profileImage: r.data?.data?.url }\\); toast\\(''Foto atualizada!''\\); }/\" \"/c/Users/vinic/Desktop/barberapp/barberapp/frontend-app/src/components/layout/Sidebar.jsx\")"
+      "Bash(sed -i \"s/    if \\(r.ok\\) toast\\(''Foto atualizada!''\\);/    if \\(r.ok\\) { updateUser\\({ profileImage: r.data?.data?.url }\\); toast\\(''Foto atualizada!''\\); }/\" \"/c/Users/vinic/Desktop/barberapp/barberapp/frontend-app/src/components/layout/Sidebar.jsx\")",
+      "Bash(npm list:*)",
+      "Bash(node seed.js)",
+      "Bash(node seed-categories.js)",
+      "Bash(node -e \"require\\(''xlsx''\\)\")",
+      "Bash(grep '\"\"xlsx\"\"' package.json)",
+      "Bash(npm run:*)"
     ]
   }
 }

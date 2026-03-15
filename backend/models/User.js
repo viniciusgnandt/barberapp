@@ -10,6 +10,11 @@ const userSchema = new mongoose.Schema({
   role:         { type: String, enum: ['admin', 'barbeiro'], default: 'barbeiro' },
   barbershop:   { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   profileImage: { type: String },
+  preferences: {
+    themeMode:  { type: String, enum: ['light', 'dark', 'auto'], default: 'light' },
+    themeColor: { type: String, default: 'amber' },
+    themeFont:  { type: String, default: 'inter' },
+  },
   createdAt:    { type: Date, default: Date.now },
 });
 

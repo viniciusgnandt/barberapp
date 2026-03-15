@@ -10,9 +10,25 @@ const getBilling = async (req, res) => {
       .select('name plan planStatus planExpiresAt invoices createdAt');
     if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
-    // Auto-expire if past expiry date
+    // Auto-initialize trial if planExpiresAt was never set (legacy accounts)
+    if (!shop.planExpiresAt) {
+      const base    = shop.createdAt || new Date();
+      shop.planExpiresAt = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+      if (!shop.invoices?.length) {
+        shop.invoices.push({ description: 'Período Gratuito — 30 dias', amount: 0, status: 'paid', paidAt: base });
+      }
+      await shop.save();
+    }
+
+    // Auto-renew if past expiry date (unless cancelled)
     if (shop.planStatus === 'active' && shop.planExpiresAt && new Date() > shop.planExpiresAt) {
-      shop.planStatus = 'expired';
+      const amount = shop.plan === 'trial' ? 0 : 49.90;
+      const desc   = shop.plan === 'trial'
+        ? 'Renovação Automática — Período Gratuito 30 dias'
+        : 'Renovação Automática — Plano Básico 30 dias';
+      if (shop.plan === 'trial') shop.plan = 'basic';
+      shop.planExpiresAt = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000);
+      shop.invoices.push({ description: desc, amount, status: 'paid', paidAt: new Date() });
       await shop.save();
     }
 
