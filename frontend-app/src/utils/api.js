@@ -1,6 +1,6 @@
 // utils/api.js — Centralizador de requisições HTTP
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = window.__APP_CONFIG__?.apiUrl || import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');

@@ -8,10 +8,6 @@ RUN npm install
 
 COPY . .
 
-# VITE_API_URL can be overridden at build time via --build-arg
-ARG VITE_API_URL=http://localhost:3000/api
-ENV VITE_API_URL=$VITE_API_URL
-
 RUN npm run build
 
 # ===== RUNTIME STAGE =====
@@ -19,6 +15,10 @@ FROM nginx:1.27-alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Script de runtime: gera env-config.js com VITE_API_URL do container
+COPY docker-entrypoint.d/40-env-config.sh /docker-entrypoint.d/40-env-config.sh
+RUN chmod +x /docker-entrypoint.d/40-env-config.sh
 
 EXPOSE 80
 
