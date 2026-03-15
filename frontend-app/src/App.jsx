@@ -27,6 +27,7 @@ import Stock from './pages/Stock';
 import Appearance from './pages/Appearance';
 import Settings, { SettingsIndex } from './pages/Settings';
 import Landing from './pages/Landing';
+import Team from './pages/Team';
 
 export default function App() {
   return (
@@ -50,6 +51,7 @@ export default function App() {
               <Route path="/reports"   element={<Reports />}   />
               <Route path="/clients"   element={<Clients />}   />
               <Route path="/stock"     element={<Stock />}     />
+              <Route path="/team"      element={<Team />}      />
               <Route path="/settings"  element={<Settings />}>
                 <Route index                element={<SettingsIndex />}  />
                 <Route path="account"       element={<Profile />}        />
