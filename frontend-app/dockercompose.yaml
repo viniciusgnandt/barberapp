@@ -1,0 +1,17 @@
+services:
+  frontend:
+    container_name: barber-frontend-app-test_${NODE_ENV}
+    image: ghcr.io/viniciusgnandt/frontend-app:latest
+    expose:
+      - "5173"
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      VITE_API_URL: ${VITE_API_URL}
+      
+    restart: unless-stopped
+    networks:
+      - agenda-net
+
+networks:
+  agenda-net:
+    external: true
