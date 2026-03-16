@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, CheckCircle2, Clock, DollarSign } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CalendarDays, CheckCircle2, Clock, DollarSign, Plus, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Appointments } from '../utils/api';
 import CalendarWidget from '../components/CalendarWidget';
+import Button from '../components/ui/Button';
 import { cn } from '../utils/cn';
 
 function StatCard({ icon: Icon, label, value, color, loading }) {
@@ -24,6 +26,7 @@ function StatCard({ icon: Icon, label, value, color, loading }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [stats,        setStats]        = useState({ today: 0, done: 0, pending: 0, revenue: 0 });
   const [loadingStats, setLoadingStats] = useState(true);
@@ -57,13 +60,23 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Olá, {user?.name?.split(' ')[0]} 👋
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Olá, {user?.name?.split(' ')[0]} 👋
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button variant="secondary" onClick={() => navigate('/agenda', { state: { openBlock: true } })}>
+            <Lock size={15} className="mr-1.5" /> Bloquear
+          </Button>
+          <Button onClick={() => navigate('/agenda', { state: { openCreate: true } })}>
+            <Plus size={16} className="mr-1.5" /> Novo agendamento
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">

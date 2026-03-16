@@ -27,12 +27,12 @@ import Reports from './pages/Reports';
 import Billing from './pages/Billing';
 import Clients from './pages/Clients';
 import Stock from './pages/Stock';
-import Products from './pages/Products';
 import Sales from './pages/Sales';
 import Appearance from './pages/Appearance';
 import Settings, { SettingsIndex } from './pages/Settings';
 import Landing from './pages/Landing';
 import Team from './pages/Team';
+import Business from './pages/Business';
 
 export default function App() {
   return (
@@ -55,9 +55,9 @@ export default function App() {
               <Route path="/services"  element={<Services />}  />
               <Route path="/reports"   element={<Reports />}   />
               <Route path="/clients"   element={<Clients />}   />
-              <Route path="/products"  element={<Products />}  />
               <Route path="/sales"     element={<Sales />}     />
               <Route path="/stock"     element={<Stock />}     />
+              <Route path="/business"  element={<Business />}  />
               <Route path="/settings"  element={<Settings />}>
                 <Route index                element={<SettingsIndex />}  />
                 <Route path="account"       element={<Profile />}        />

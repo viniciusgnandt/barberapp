@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Scissors, LogOut,
   Scissors as ScissorsIcon, Camera, ChevronUp, Check,
-  BarChart2, Settings, ShoppingBag, ShoppingCart, Package, Boxes,
+  BarChart2, TrendingUp, Settings, ShoppingCart, Boxes,
   PanelLeftClose, PanelLeftOpen, UserRound,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -14,16 +14,20 @@ import { toast } from '../ui/Toast';
 
 // ── Navigation structure ───────────────────────────────────────────────────────
 const NAV_MAIN = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
   { to: '/agenda',    icon: CalendarDays,    label: 'Agenda',    adminOnly: false },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
   { to: '/services',  icon: Scissors,        label: 'Serviços',  adminOnly: false },
   { to: '/clients',   icon: UserRound,       label: 'Clientes',  adminOnly: false },
 ];
 
 const NAV_STORE = [
-  { to: '/products', icon: ShoppingBag,  label: 'Produtos' },
-  { to: '/sales',    icon: ShoppingCart, label: 'Vendas'   },
-  { to: '/stock',    icon: Boxes,        label: 'Estoque'  },
+  { to: '/sales',  icon: ShoppingCart, label: 'Vendas'  },
+  { to: '/stock',  icon: Boxes,        label: 'Estoque' },
+];
+
+const NAV_ANALYTICS = [
+  { to: '/reports',  icon: BarChart2,  label: 'Relatórios' },
+  { to: '/business', icon: TrendingUp, label: 'Meu Negócio' },
 ];
 
 const navLinkClass = (isActive, collapsed) => cn(
@@ -149,13 +153,6 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        {/* Relatórios */}
-        <NavLink to="/reports" title={collapsed ? 'Relatórios' : undefined}
-          className={({ isActive }) => navLinkClass(isActive, collapsed)}>
-          <BarChart2 size={16} className="shrink-0" />
-          {!collapsed && 'Relatórios'}
-        </NavLink>
-
         {/* Loja (admin only) */}
         {isAdmin && (
           <>
@@ -172,6 +169,21 @@ export default function Sidebar() {
             ))}
           </>
         )}
+
+        {/* Análises */}
+        <>
+          {!collapsed && (
+            <p className="px-2 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Análises</p>
+          )}
+          {collapsed && <div className="my-1 border-t border-gray-100 dark:border-gray-800" />}
+          {NAV_ANALYTICS.map(({ to, icon: Icon, label }) => (
+            <NavLink key={to} to={to} title={collapsed ? label : undefined}
+              className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+              <Icon size={16} className="shrink-0" />
+              {!collapsed && label}
+            </NavLink>
+          ))}
+        </>
       </nav>
 
       {/* Bottom */}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, Calendar, CheckCircle2, XCircle, Lock, RefreshCw, UserPlus, X, ChevronDown, LayoutGrid, List, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Appointments, Services, Barbershops, Clients as ClientsAPI } from '../utils/api';
@@ -473,6 +474,7 @@ function AppointmentRow({ appt, onEdit, onDelete, onStatusChange, isAdmin, chang
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Agenda() {
   const { user, isAdmin } = useAuth();
+  const location = useLocation();
 
   const [appointments, setAppointments] = useState([]);
   const [services,     setServices]     = useState([]);
@@ -566,6 +568,11 @@ export default function Agenda() {
     setBlockErr('');
     setBlockModal(true);
   };
+
+  useEffect(() => {
+    if (location.state?.openCreate) openCreate();
+    if (location.state?.openBlock)  openBlock();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     if (!form.clientName || !form.service || !form.barber || !form.date || !form.time)
