@@ -5,8 +5,9 @@ const cors    = require('cors');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
+const { reconnectAll } = require('./services/whatsappService');
 
-connectDB();
+connectDB().then(() => reconnectAll()).catch(() => {});
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/billing',      require('./routes/billingRoutes'));
 app.use('/api/products',     require('./routes/productRoutes'));
 app.use('/api/service-categories', require('./routes/serviceCategoryRoutes'));
 app.use('/api/roles',              require('./routes/roleRoutes'));
+app.use('/api/reception',         require('./routes/receptionRoutes'));
 
 // ── Health check ───────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) =>

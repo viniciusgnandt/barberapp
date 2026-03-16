@@ -4,7 +4,7 @@ import {
   LayoutDashboard, CalendarDays, Scissors, LogOut,
   Scissors as ScissorsIcon, Camera, ChevronUp, Check,
   BarChart2, TrendingUp, Settings, ShoppingCart, Boxes,
-  PanelLeftClose, PanelLeftOpen, UserRound,
+  PanelLeftClose, PanelLeftOpen, UserRound, Bot,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Upload as UploadAPI } from '../../utils/api';
@@ -27,7 +27,11 @@ const NAV_STORE = [
 
 const NAV_ANALYTICS = [
   { to: '/reports',  icon: BarChart2,  label: 'Relatórios' },
-  { to: '/business', icon: TrendingUp, label: 'Meu Negócio' },
+  { to: '/business', icon: TrendingUp, label: 'Desempenho'  },
+];
+
+const NAV_AI = [
+  { to: '/reception', icon: Bot, label: 'Recepção IA' },
 ];
 
 const navLinkClass = (isActive, collapsed) => cn(
@@ -184,6 +188,23 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </>
+
+        {/* IA (admin only) */}
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <p className="px-2 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Inteligência Artificial</p>
+            )}
+            {collapsed && <div className="my-1 border-t border-gray-100 dark:border-gray-800" />}
+            {NAV_AI.map(({ to, icon: Icon, label }) => (
+              <NavLink key={to} to={to} title={collapsed ? label : undefined}
+                className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+                <Icon size={16} className="shrink-0" />
+                {!collapsed && label}
+              </NavLink>
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Bottom */}

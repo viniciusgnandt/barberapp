@@ -145,6 +145,21 @@ export const ServiceCategories = {
   remove:  (id)         => request(`/service-categories/${id}`,  { method: 'DELETE' }),
 };
 
+// ── Reception IA ───────────────────────────────────────────────────────────────
+export const Reception = {
+  getStatus:       ()    => request('/reception/status'),
+  connect:         ()    => request('/reception/connect',    { method: 'POST' }),
+  disconnect:      ()    => request('/reception/disconnect', { method: 'POST' }),
+  getConversations:()    => request('/reception/conversations'),
+  getConversation: (id)  => request(`/reception/conversations/${id}`),
+  // Returns the SSE URL (caller creates EventSource with token in query)
+  qrUrl: () => {
+    const token = localStorage.getItem('token');
+    const base  = window.__APP_CONFIG__?.apiUrl || import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    return `${base}/reception/qr?token=${encodeURIComponent(token)}`;
+  },
+};
+
 // ── Billing ────────────────────────────────────────────────────────────────────
 export const Billing = {
   get:          ()       => request('/billing'),
@@ -153,5 +168,5 @@ export const Billing = {
   cancel:       ()       => request('/billing/cancel',       { method: 'POST' }),
 };
 
-const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories };
+const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories, Reception };
 export default API;

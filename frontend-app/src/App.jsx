@@ -33,6 +33,7 @@ import Settings, { SettingsIndex } from './pages/Settings';
 import Landing from './pages/Landing';
 import Team from './pages/Team';
 import Business from './pages/Business';
+import ReceptionAI from './pages/ReceptionAI';
 
 export default function App() {
   return (
@@ -57,7 +58,8 @@ export default function App() {
               <Route path="/clients"   element={<Clients />}   />
               <Route path="/sales"     element={<Sales />}     />
               <Route path="/stock"     element={<Stock />}     />
-              <Route path="/business"  element={<Business />}  />
+              <Route path="/business"   element={<Business />}    />
+              <Route path="/reception" element={<ReceptionAI />} />
               <Route path="/settings"  element={<Settings />}>
                 <Route index                element={<SettingsIndex />}  />
                 <Route path="account"       element={<Profile />}        />
