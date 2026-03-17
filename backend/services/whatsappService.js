@@ -1,10 +1,13 @@
 // services/whatsappService.js — WhatsApp client manager (one per barbershop)
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode  = require('qrcode');
+const { Client, RemoteAuth } = require('whatsapp-web.js');
+const qrcode             = require('qrcode');
+const fs                 = require('fs');
+const path               = require('path');
 const ReceptionSession      = require('../models/ReceptionSession');
 const ReceptionConversation = require('../models/ReceptionConversation');
 const { generateReply }     = require('./claudeService');
+const OCIWhatsappStore      = require('./ociWhatsappStore');
 
 // ── In-memory state ───────────────────────────────────────────────────────────
 
@@ -39,15 +42,31 @@ function removeSseSubscriber(barbershopId, res) {
   getSubscribers(barbershopId)?.delete(res);
 }
 
+// ── Temp file cleanup ─────────────────────────────────────────────────────────
+
+function cleanTempSession(barbershopId) {
+  const tempDir = path.join('/tmp/.wwebjs_auth', `RemoteAuth-${barbershopId}`);
+  try {
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      console.log(`[Reception] Temp session removido: ${tempDir}`);
+    }
+  } catch (err) {
+    console.warn(`[Reception] Falha ao remover temp session: ${err.message}`);
+  }
+}
+
 // ── Client lifecycle ──────────────────────────────────────────────────────────
 
 async function createClient(barbershopId, barbershopName) {
   if (clients.has(barbershopId)) return; // already running
 
   const client = new Client({
-    authStrategy: new LocalAuth({
-      clientId: String(barbershopId),
-      dataPath:  './.wwebjs_auth',
+    authStrategy: new RemoteAuth({
+      session:              String(barbershopId),
+      store:                new OCIWhatsappStore(),
+      backupSyncIntervalMs: 300000, // sincroniza com o bucket a cada 5 min
+      dataPath:             '/tmp/.wwebjs_auth', // temp — não persistido entre restarts
     }),
     puppeteer: {
       headless: true,
@@ -80,9 +99,16 @@ async function createClient(barbershopId, barbershopName) {
     broadcast(barbershopId, 'connected', { phone: info.wid.user });
   });
 
+  // Emitido pelo RemoteAuth após salvar o zip no bucket
+  client.on('remote_session_saved', () => {
+    console.log(`[Reception] Sessão salva no bucket para ${barbershopId}`);
+    cleanTempSession(barbershopId);
+  });
+
   client.on('auth_failure', async () => {
     clients.delete(barbershopId);
     lastQr.delete(barbershopId);
+    cleanTempSession(barbershopId);
     await ReceptionSession.findOneAndUpdate(
       { barbershop: barbershopId },
       { status: 'disconnected', phone: null, connectedAt: null }
@@ -159,6 +185,7 @@ async function destroyClient(barbershopId) {
   const client = clients.get(barbershopId);
   if (client) {
     try { await client.destroy(); } catch (_) {}
+    cleanTempSession(barbershopId);
     clients.delete(barbershopId);
   }
   lastQr.delete(barbershopId);

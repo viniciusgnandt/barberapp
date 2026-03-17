@@ -25,9 +25,6 @@ coverage/
 uploads/
 *.log
 
-# WhatsApp Web sessions
-.wwebjs_auth/
-.wwebjs_cache/
 
 # OS
 Thumbs.db

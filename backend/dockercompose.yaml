@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
 services:
   api:
     container_name: barber-backend-${NODE_ENV}
@@ -16,6 +17,7 @@ services:
       - OCI_SECRET_ACCESS_KEY=${OCI_SECRET_ACCESS_KEY}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE}
       - ALLOWED_FILE_TYPES=${ALLOWED_FILE_TYPES}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     restart: unless-stopped
     networks:
       - agenda-net
