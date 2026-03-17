@@ -170,6 +170,16 @@ export default function Login() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Entre na sua conta</p>
         </div>
 
+        {/* Mode selector */}
+        <div className="flex gap-2 mb-4">
+          <Link to="/login" className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold text-center transition-colors', 'bg-violet-600 text-white')}>
+            Sou Profissional
+          </Link>
+          <Link to="/client/login" className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold text-center transition-colors', 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-violet-400 hover:text-violet-600')}>
+            Sou Cliente
+          </Link>
+        </div>
+
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input

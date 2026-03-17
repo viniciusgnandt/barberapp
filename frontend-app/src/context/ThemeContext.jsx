@@ -68,7 +68,7 @@ function computeDark(mode) {
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [mode,  setMode]  = useState(() => localStorage.getItem('theme-mode')  || 'dark');
+  const [mode,  setMode]  = useState(() => localStorage.getItem('theme-mode')  || 'auto');
   const [color, setColor] = useState(() => localStorage.getItem('theme-color') || 'violet');
   const [font,  setFont]  = useState(() => localStorage.getItem('theme-font')  || 'inter');
 
@@ -108,20 +108,22 @@ export function ThemeProvider({ children }) {
   useEffect(() => { loadFromDB(); }, [loadFromDB]);
 
   // Save to localStorage immediately + persist to DB (fire-and-forget)
+  const isPro = () => !!localStorage.getItem('token');
+
   const setAndSaveMode = v => {
     setMode(v);
     localStorage.setItem('theme-mode', v);
-    Users.savePreferences({ themeMode: v });
+    if (isPro()) Users.savePreferences({ themeMode: v });
   };
   const setAndSaveColor = v => {
     setColor(v);
     localStorage.setItem('theme-color', v);
-    Users.savePreferences({ themeColor: v });
+    if (isPro()) Users.savePreferences({ themeColor: v });
   };
   const setAndSaveFont = v => {
     setFont(v);
     localStorage.setItem('theme-font', v);
-    Users.savePreferences({ themeFont: v });
+    if (isPro()) Users.savePreferences({ themeFont: v });
   };
 
   // Legacy toggle kept for any code that still calls it

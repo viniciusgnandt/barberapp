@@ -15,6 +15,8 @@ const appointmentSchema = new mongoose.Schema({
   notes:      { type: String, trim: true },
   recurrence: { type: String, enum: ['none', 'weekly', 'biweekly', 'monthly'], default: 'none' },
   recurrenceGroupId: { type: String },
+  portalClientId: { type: mongoose.Schema.Types.ObjectId, ref: 'ClientUser' },
+  source:         { type: String, enum: ['manual', 'portal'], default: 'manual' },
   createdAt:  { type: Date, default: Date.now },
 });
 

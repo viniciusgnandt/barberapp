@@ -50,9 +50,15 @@ const barbershopSchema = new mongoose.Schema({
   planExpiresAt:  { type: Date },
   invoices:       { type: [invoiceSchema], default: [] },
 
+  location: {
+    type:        { type: String, enum: ['Point'] },
+    coordinates: { type: [Number] }, // [longitude, latitude]
+  },
+
   createdAt:    { type: Date, default: Date.now },
   updatedAt:    { type: Date, default: Date.now },
 });
 
+barbershopSchema.index({ location: '2dsphere' }, { sparse: true });
 
 module.exports = mongoose.model('Barbershop', barbershopSchema);

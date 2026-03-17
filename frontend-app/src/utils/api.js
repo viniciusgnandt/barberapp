@@ -176,5 +176,36 @@ export const Billing = {
   cancel:       ()       => request('/billing/cancel',       { method: 'POST' }),
 };
 
-const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories, Reception };
+// ── Portal (Client-facing) ────────────────────────────────────────────────────
+function requestPortal(endpoint, options = {}) {
+  const token = localStorage.getItem('clientToken');
+  return request(endpoint, {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+}
+
+export const Portal = {
+  Auth: {
+    register:      (name, phone, password) => requestPortal('/portal/auth/register', { method: 'POST', body: { name, phone, password } }),
+    login:         (phone, password)       => requestPortal('/portal/auth/login',    { method: 'POST', body: { phone, password } }),
+    me:            ()                      => requestPortal('/portal/auth/me'),
+    updateProfile: (data)                  => requestPortal('/portal/auth/me',       { method: 'PUT',  body: data }),
+  },
+  Barbershops: {
+    search:   (params = {}) => { const qs = new URLSearchParams(params).toString(); return requestPortal(`/portal/barbershops${qs ? '?' + qs : ''}`); },
+    get:      (id)          => requestPortal(`/portal/barbershops/${id}`),
+    getSlots: (id, params)  => { const qs = new URLSearchParams(params).toString(); return requestPortal(`/portal/barbershops/${id}/slots?${qs}`); },
+  },
+  Appointments: {
+    getAll: ()       => requestPortal('/portal/appointments'),
+    create: (data)   => requestPortal('/portal/appointments', { method: 'POST', body: data }),
+    cancel: (id)     => requestPortal(`/portal/appointments/${id}/cancel`, { method: 'PUT' }),
+  },
+};
+
+const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories, Reception, Portal };
 export default API;

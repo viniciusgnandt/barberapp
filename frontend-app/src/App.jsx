@@ -1,10 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ClientAuthProvider } from './context/ClientAuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Toaster } from './components/ui/Toast';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import ClientProtectedRoute from './components/layout/ClientProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
+import ClientLayout from './components/layout/ClientLayout';
 
 // Re-loads theme preferences from DB each time the logged-in user changes
 function ThemeSync() {
@@ -39,9 +42,18 @@ import Business from './pages/Business';
 import ReceptionAI from './pages/ReceptionAI';
 import UsageSettings from './pages/UsageSettings';
 
+// Client portal
+import ClientLogin from './pages/client/ClientLogin';
+import ClientRegister from './pages/client/ClientRegister';
+import ClientHome from './pages/client/ClientHome';
+import EstablishmentDetail from './pages/client/EstablishmentDetail';
+import MyAppointments from './pages/client/MyAppointments';
+import ClientSettings from './pages/client/ClientSettings';
+
 export default function App() {
   return (
     <ThemeProvider>
+      <ClientAuthProvider>
       <AuthProvider>
         <ThemeSync />
         <BrowserRouter>
@@ -78,12 +90,25 @@ export default function App() {
               </Route>
             </Route>
 
+            {/* Client portal — public */}
+            <Route path="/client/login"    element={<ClientLogin />}    />
+            <Route path="/client/register" element={<ClientRegister />} />
+
+            {/* Client portal — protected */}
+            <Route element={<ClientProtectedRoute><ClientLayout /></ClientProtectedRoute>}>
+              <Route path="/client"                  element={<ClientHome />}         />
+              <Route path="/client/shop/:id"         element={<EstablishmentDetail />} />
+              <Route path="/client/appointments"     element={<MyAppointments />}     />
+              <Route path="/client/settings"         element={<ClientSettings />}     />
+            </Route>
+
             {/* Qualquer rota desconhecida → landing */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
         <Toaster />
       </AuthProvider>
+      </ClientAuthProvider>
     </ThemeProvider>
   );
 }
