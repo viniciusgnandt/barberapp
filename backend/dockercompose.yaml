@@ -18,6 +18,8 @@ services:
       - MAX_FILE_SIZE=${MAX_FILE_SIZE}
       - ALLOWED_FILE_TYPES=${ALLOWED_FILE_TYPES}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - APP_URL=${APP_URL}
     restart: unless-stopped
     networks:
       - agenda-net

@@ -18,11 +18,13 @@ const openingHourSchema = new mongoose.Schema({
 }, { _id: false });
 
 const barbershopSchema = new mongoose.Schema({
-  name:         { type: String, required: true, trim: true },
-  email:        { type: String, required: true, lowercase: true, trim: true },
+  name:                { type: String, required: true, trim: true },
+  email:               { type: String, required: true, lowercase: true, trim: true },
+  establishmentType:   { type: String, enum: ['barbearia', 'salao', 'manicure', 'sobrancelha', 'cilios', 'outros'], default: 'barbearia' },
   document:     { type: String, trim: true }, // CPF ou CNPJ
   phone:        { type: String, trim: true },
-  address:      { type: String, trim: true },
+  address:      { type: String, trim: true }, // Rua + número + complemento
+  neighborhood: { type: String, trim: true },
   city:         { type: String, trim: true },
   state:        { type: String, trim: true },
   zipCode:      { type: String, trim: true },

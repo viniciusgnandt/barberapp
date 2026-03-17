@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, ChevronLeft, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, CheckCircle2, Mail } from 'lucide-react';
 import JubaOSLogo from '../components/ui/JubaOSLogo';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -9,6 +9,7 @@ import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
 import { toast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
+import { Auth } from '../utils/api';
 
 function ProfileCard({ profile, onSelect, loading }) {
   const initials = profile.name
@@ -53,6 +54,9 @@ export default function Login() {
   const [selecting, setSelecting] = useState(null); // profileId being selected
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError]     = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -67,6 +71,9 @@ export default function Login() {
       toast('Login realizado com sucesso!');
       navigate('/dashboard');
     } else if (!r.ok) {
+      if (r.data?.needsEmailVerification) {
+        setNeedsVerification(true);
+      }
       setError(r.data?.message || 'Credenciais inválidas.');
     }
     // Se needsSelection, o AuthContext seta pendingSelection e a tela muda
@@ -87,6 +94,13 @@ export default function Login() {
   const handleBack = () => {
     cancelSelection();
     setError('');
+  };
+
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    await Auth.resendVerification(form.email);
+    setResendLoading(false);
+    setResendSent(true);
   };
 
   // ── Tela de seleção de perfil ──────────────────────────────────────────────
@@ -186,12 +200,44 @@ export default function Login() {
             </div>
 
             {error && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>
+              <div className="space-y-2">
+                <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>
+                {needsVerification && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 px-1">
+                    <Mail size={13} className="shrink-0" />
+                    {resendSent
+                      ? <span className="text-green-600 dark:text-green-400">E-mail de confirmação reenviado!</span>
+                      : (
+                        <span>
+                          Não recebeu?{' '}
+                          <button
+                            type="button"
+                            onClick={handleResendVerification}
+                            disabled={resendLoading}
+                            className="text-violet-600 dark:text-violet-400 font-medium hover:underline disabled:opacity-50"
+                          >
+                            {resendLoading ? 'Enviando...' : 'Reenviar e-mail'}
+                          </button>
+                        </span>
+                      )
+                    }
+                  </div>
+                )}
+              </div>
             )}
 
             <Button type="submit" className="w-full" loading={loading}>
               Entrar
             </Button>
+
+            <div className="text-center">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
           </form>
         </div>
 

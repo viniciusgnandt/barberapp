@@ -4,13 +4,13 @@ import {
   BarChart2, TrendingUp, TrendingDown, Scissors, Users,
   Download, Search,
   DollarSign, Calendar, Package, AlertTriangle, ShoppingCart,
-  RefreshCw, Filter, Wallet, Store, FileSpreadsheet, ChevronDown,
+  RefreshCw, Filter, Wallet, Store, FileSpreadsheet, ChevronDown, Bot, MessageSquare, MessagesSquare,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../context/AuthContext';
-import { Reports, Barbershops, Products as ProductsAPI } from '../utils/api';
+import { Reports, Barbershops, Products as ProductsAPI, Reception as ReceptionAPI } from '../utils/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { cn } from '../utils/cn';
@@ -757,6 +757,27 @@ export default function ReportsPage() {
   const [stockPDF,    setStockPDF]    = useState(null); // { reportData, startDate, endDate }
   const [servicesOpen,     setServicesOpen]     = useState(true);
   const [appointmentsOpen, setAppointmentsOpen] = useState(true);
+  const [aiUsage,          setAiUsage]          = useState(null);
+  const [aiUsageLoading,   setAiUsageLoading]   = useState(false);
+  const [aiStartDate,      setAiStartDate]      = useState(firstDay);
+  const [aiEndDate,        setAiEndDate]        = useState(today);
+
+  const loadAiUsage = async (start, end) => {
+    setAiUsageLoading(true);
+    const params = {};
+    if (start) params.startDate = start;
+    if (end)   params.endDate   = end;
+    const r = await ReceptionAPI.getUsage(params);
+    setAiUsageLoading(false);
+    if (r.ok) setAiUsage(r.data.data);
+  };
+
+  // Load AI usage when tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'ia') return;
+    if (aiUsage) return; // already loaded
+    loadAiUsage(aiStartDate, aiEndDate);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close export dropdown on outside click
   useEffect(() => {
@@ -860,6 +881,7 @@ export default function ReportsPage() {
         {[
           { id: 'services',  label: 'Serviços',   icon: Scissors,  adminOnly: false },
           { id: 'stock',     label: 'Vendas',      icon: Package,   adminOnly: true  },
+          { id: 'ia',        label: 'Recepção IA', icon: Bot,       adminOnly: true  },
         ].filter(t => !t.adminOnly || isAdmin).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -1170,6 +1192,182 @@ export default function ReportsPage() {
 
       {/* ── Tab: Estoque ─────────────────────────────────────────────────── */}
       {activeTab === 'stock' && isAdmin && <StockReportTab onDataChange={setStockPDF} />}
+
+      {/* ── Tab: Recepção IA ─────────────────────────────────────────────── */}
+      {activeTab === 'ia' && isAdmin && (
+        <div className="space-y-4">
+
+          {/* Filter bar */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
+            <div className="flex flex-wrap gap-3 items-end justify-between">
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Data inicial</label>
+                  <input
+                    type="date" value={aiStartDate} max={aiEndDate}
+                    onChange={e => setAiStartDate(e.target.value)}
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Data final</label>
+                  <input
+                    type="date" value={aiEndDate} min={aiStartDate} max={today}
+                    onChange={e => setAiEndDate(e.target.value)}
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+                  />
+                </div>
+                {/* Shortcuts */}
+                <div className="flex gap-1.5 flex-wrap">
+                  {[
+                    { label: 'Este mês',     start: firstDay, end: today },
+                    { label: 'Últ. 3 meses', start: (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().slice(0, 10); })(), end: today },
+                    { label: 'Últ. 6 meses', start: (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString().slice(0, 10); })(), end: today },
+                  ].map(({ label, start, end }) => (
+                    <button
+                      key={label}
+                      onClick={() => { setAiStartDate(start); setAiEndDate(end); }}
+                      className={cn(
+                        'px-2.5 py-1.5 text-xs rounded-lg border transition-colors',
+                        start === aiStartDate && end === aiEndDate
+                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <Button onClick={() => loadAiUsage(aiStartDate, aiEndDate)} loading={aiUsageLoading}>
+                  <Search size={15} className="mr-1.5" /> Filtrar
+                </Button>
+              </div>
+
+              {/* PDF export */}
+              {aiUsage && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const doc = new jsPDF();
+                    const period = `${fmtDate(aiStartDate)} a ${fmtDate(aiEndDate)}`;
+                    const ts = new Date().toLocaleString('pt-BR');
+                    const MONTHS = { '01':'Jan','02':'Fev','03':'Mar','04':'Abr','05':'Mai','06':'Jun','07':'Jul','08':'Ago','09':'Set','10':'Out','11':'Nov','12':'Dez' };
+
+                    doc.setFillColor(124, 58, 237);
+                    doc.rect(0, 0, 210, 2, 'F');
+                    doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
+                    doc.text('JubaOS — Recepção IA', 14, 18);
+                    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(130);
+                    doc.text(`Período: ${period}`, 196, 12, { align: 'right' });
+                    doc.text(`Gerado: ${ts}`, 196, 17, { align: 'right' });
+                    doc.setDrawColor(230); doc.setLineWidth(0.3); doc.line(14, 23, 196, 23);
+                    doc.setTextColor(0);
+
+                    let y = 32;
+                    autoTable(doc, {
+                      startY: y,
+                      head: [['Métrica', 'Valor']],
+                      body: [
+                        ['Mensagens respondidas pela IA', aiUsage.totalMensagens],
+                        ['Contatos atendidos',            aiUsage.totalContatos],
+                        ['Conversas',                    aiUsage.totalConversas],
+                      ],
+                      styles: { fontSize: 9, cellPadding: 3 },
+                      headStyles: { fillColor: [124, 58, 237], textColor: [255,255,255], fontStyle: 'bold' },
+                      alternateRowStyles: { fillColor: [250, 250, 250] },
+                      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+                    });
+                    y = doc.lastAutoTable.finalY + 10;
+
+                    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(60);
+                    doc.text('MENSAGENS POR MÊS', 14, y); y += 5;
+                    doc.setTextColor(0);
+                    autoTable(doc, {
+                      startY: y,
+                      head: [['Mês', 'Mensagens']],
+                      body: aiUsage.porMes.map(({ mes, mensagens }) => {
+                        const [yr, mo] = mes.split('-');
+                        return [`${MONTHS[mo] || mo} ${yr}`, mensagens];
+                      }),
+                      styles: { fontSize: 9, cellPadding: 3 },
+                      headStyles: { fillColor: [40, 40, 40], textColor: [255,255,255], fontStyle: 'bold' },
+                      alternateRowStyles: { fillColor: [250, 250, 250] },
+                      columnStyles: { 1: { halign: 'right' } },
+                    });
+
+                    doc.save(`recepcao-ia-${aiStartDate}-${aiEndDate}.pdf`);
+                  }}
+                >
+                  <Download size={14} className="mr-1.5" /> Exportar PDF
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {aiUsageLoading && (
+            <div className="flex items-center justify-center py-16">
+              <RefreshCw size={16} className="animate-spin text-gray-400" />
+            </div>
+          )}
+
+          {!aiUsageLoading && aiUsage && (
+            <>
+              {/* Summary cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { icon: MessageSquare,  label: 'Mensagens da IA',   value: aiUsage.totalMensagens, color: 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' },
+                  { icon: Users,          label: 'Contatos atendidos', value: aiUsage.totalContatos,  color: 'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400' },
+                  { icon: MessagesSquare, label: 'Conversas',          value: aiUsage.totalConversas, color: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' },
+                ].map(({ icon: Icon, label, value, color }) => (
+                  <div key={label} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-5 py-4 flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Monthly bar chart */}
+              <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-5">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Mensagens por mês</p>
+                <div className="flex items-end gap-3 h-36">
+                  {aiUsage.porMes.map(({ mes, mensagens }) => {
+                    const [year, month] = mes.split('-');
+                    const maxVal = Math.max(...aiUsage.porMes.map(m => m.mensagens), 1);
+                    const pct    = Math.round((mensagens / maxVal) * 100);
+                    const MONTHS = { '01':'Jan','02':'Fev','03':'Mar','04':'Abr','05':'Mai','06':'Jun','07':'Jul','08':'Ago','09':'Set','10':'Out','11':'Nov','12':'Dez' };
+                    return (
+                      <div key={mes} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{mensagens > 0 ? mensagens : ''}</span>
+                        <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden" style={{ height: '88px' }}>
+                          <div
+                            className="w-full bg-violet-500 dark:bg-violet-600 rounded-md transition-all duration-500"
+                            style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-gray-400">{MONTHS[month]} {year.slice(2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+
+          {!aiUsageLoading && !aiUsage && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center mb-4">
+                <Bot size={28} className="text-gray-300 dark:text-gray-600" />
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Não foi possível carregar os dados.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

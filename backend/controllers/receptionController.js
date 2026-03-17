@@ -2,6 +2,7 @@
 
 const ReceptionSession      = require('../models/ReceptionSession');
 const ReceptionConversation = require('../models/ReceptionConversation');
+const Barbershop            = require('../models/Barbershop');
 const whatsappService       = require('../services/whatsappService');
 
 // GET /api/reception/status
@@ -91,4 +92,90 @@ const getConversation = async (req, res) => {
   }
 };
 
-module.exports = { getStatus, subscribeQr, connect, disconnect, getConversations, getConversation };
+// GET /api/reception/usage
+const getUsage = async (req, res) => {
+  try {
+    const barbershopId = req.user.barbershop._id;
+
+    // Optional date filter
+    const filterStart = req.query.startDate ? new Date(req.query.startDate + 'T00:00:00') : null;
+    const filterEnd   = req.query.endDate   ? new Date(req.query.endDate   + 'T23:59:59') : null;
+
+    const convos = await ReceptionConversation.find({ barbershop: barbershopId }).select('messages contactPhone');
+
+    const now = new Date();
+
+    // ── Billing cycle window ──────────────────────────────────────────────────
+    const shop = await Barbershop.findById(barbershopId).select('planExpiresAt createdAt');
+    let cicloFim;
+    if (shop?.planExpiresAt) {
+      cicloFim = new Date(shop.planExpiresAt);
+    } else {
+      const base = shop?.createdAt || now;
+      cicloFim   = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+    }
+    const cicloInicio = new Date(cicloFim.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // ── Month map: dynamic range if filtered, else last 6 months ─────────────
+    const monthMap = {};
+    if (filterStart && filterEnd) {
+      let d = new Date(filterStart.getFullYear(), filterStart.getMonth(), 1);
+      const last = new Date(filterEnd.getFullYear(), filterEnd.getMonth(), 1);
+      while (d <= last) {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthMap[key] = { mes: key, mensagens: 0 };
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      }
+    } else {
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthMap[key] = { mes: key, mensagens: 0 };
+      }
+    }
+
+    // ── Aggregate ─────────────────────────────────────────────────────────────
+    let totalAI        = 0;
+    let cicloAI        = 0;
+    const allContacts  = new Set();
+    const filtContacts = new Set();
+    let filtConversas  = 0;
+
+    convos.forEach(convo => {
+      allContacts.add(convo.contactPhone);
+      let convoHasFilt = false;
+      convo.messages.forEach(msg => {
+        if (msg.role !== 'assistant') return;
+        if (msg.timestamp >= cicloInicio && msg.timestamp <= cicloFim) cicloAI++;
+        if (filterStart && msg.timestamp < filterStart) return;
+        if (filterEnd   && msg.timestamp > filterEnd)   return;
+        totalAI++;
+        convoHasFilt = true;
+        filtContacts.add(convo.contactPhone);
+        const key = `${msg.timestamp.getFullYear()}-${String(msg.timestamp.getMonth() + 1).padStart(2, '0')}`;
+        if (monthMap[key]) monthMap[key].mensagens++;
+      });
+      if (convoHasFilt) filtConversas++;
+    });
+
+    const isFiltered = !!(filterStart || filterEnd);
+
+    res.json({
+      success: true,
+      data: {
+        limite:         2000,
+        mensagensCiclo: cicloAI,
+        cicloInicio:    cicloInicio.toISOString(),
+        cicloFim:       cicloFim.toISOString(),
+        totalMensagens: totalAI,
+        totalContatos:  isFiltered ? filtContacts.size : allContacts.size,
+        totalConversas: isFiltered ? filtConversas      : convos.length,
+        porMes:         Object.values(monthMap),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getStatus, subscribeQr, connect, disconnect, getConversations, getConversation, getUsage };

@@ -3,7 +3,7 @@
 const router = require('express').Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
 const {
-  getStatus, subscribeQr, connect, disconnect, getConversations, getConversation,
+  getStatus, subscribeQr, connect, disconnect, getConversations, getConversation, getUsage,
 } = require('../controllers/receptionController');
 
 // SSE-compatible auth: EventSource can't set headers, so accept token via query param
@@ -27,5 +27,6 @@ router.post('/connect',          ...auth,           connect);
 router.post('/disconnect',       ...auth,           disconnect);
 router.get('/conversations',     ...auth,           getConversations);
 router.get('/conversations/:id', ...auth,           getConversation);
+router.get('/usage',             ...auth,           getUsage);
 
 module.exports = router;

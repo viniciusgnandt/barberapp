@@ -18,6 +18,9 @@ function ThemeSync() {
 }
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import Agenda from './pages/Agenda';
 import Services from './pages/Services';
@@ -34,6 +37,7 @@ import Landing from './pages/Landing';
 import Team from './pages/Team';
 import Business from './pages/Business';
 import ReceptionAI from './pages/ReceptionAI';
+import UsageSettings from './pages/UsageSettings';
 
 export default function App() {
   return (
@@ -46,8 +50,11 @@ export default function App() {
             <Route path="/" element={<Landing />} />
 
             {/* Public */}
-            <Route path="/login"    element={<Login />}    />
-            <Route path="/register" element={<Register />} />
+            <Route path="/login"           element={<Login />}           />
+            <Route path="/register"        element={<Register />}        />
+            <Route path="/forgot-password" element={<ForgotPassword />}  />
+            <Route path="/reset-password"  element={<ResetPassword />}   />
+            <Route path="/verify-email"    element={<VerifyEmail />}     />
 
             {/* Protected — main app */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -67,6 +74,7 @@ export default function App() {
                 <Route path="establishment" element={<Establishment />}  />
                 <Route path="team"          element={<Team />}           />
                 <Route path="billing"       element={<Billing />}        />
+                <Route path="usage"         element={<UsageSettings />}  />
               </Route>
             </Route>
 

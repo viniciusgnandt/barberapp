@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { UserCircle, Palette, Store, CreditCard, Users } from 'lucide-react';
+import { UserCircle, Palette, Store, CreditCard, Users, BarChart2 } from 'lucide-react';
 import JubaOSLogo from '../components/ui/JubaOSLogo';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
@@ -10,6 +10,7 @@ const SETTINGS_NAV = [
   { to: '/settings/establishment', icon: Store,      label: 'Estabelecimento', adminOnly: true  },
   { to: '/settings/team',          icon: Users,      label: 'Equipe',          adminOnly: true  },
   { to: '/settings/billing',       icon: CreditCard, label: 'Meu Plano',       adminOnly: true  },
+  { to: '/settings/usage',         icon: BarChart2,  label: 'Uso',             adminOnly: true  },
 ];
 
 const navLinkClass = (isActive) => cn(

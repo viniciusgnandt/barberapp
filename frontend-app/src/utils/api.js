@@ -42,12 +42,16 @@ async function request(endpoint, options = {}) {
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
 export const Auth = {
-  login:         (email, password)                                            => request('/auth/login',          { method: 'POST', body: { email, password } }),
-  register:      (name, email, password, role, barbershopName, barbershopId) => request('/auth/register',       { method: 'POST', body: { name, email, password, role, barbershopName, barbershopId } }),
-  selectProfile: (email, password, profileId)                                => request('/auth/select-profile', { method: 'POST', body: { email, password, profileId } }),
-  switchProfile: (profileId)                                                 => request('/auth/switch-profile', { method: 'POST', body: { profileId } }),
-  getProfiles:   ()                                                           => request('/auth/profiles'),
-  me:            ()                                                           => request('/auth/me'),
+  login:               (email, password)                                            => request('/auth/login',              { method: 'POST', body: { email, password } }),
+  register:            (name, email, password, role, barbershopName, barbershopId, extra) => request('/auth/register', { method: 'POST', body: { name, email, password, role, barbershopName, barbershopId, ...extra } }),
+  verifyEmail:         (token)                                                      => request(`/auth/verify-email/${token}`),
+  resendVerification:  (email)                                                      => request('/auth/resend-verification', { method: 'POST', body: { email } }),
+  forgotPassword:      (email)                                                      => request('/auth/forgot-password',    { method: 'POST', body: { email } }),
+  resetPassword:       (token, password)                                            => request(`/auth/reset-password/${token}`, { method: 'POST', body: { password } }),
+  selectProfile:       (email, password, profileId)                                => request('/auth/select-profile',    { method: 'POST', body: { email, password, profileId } }),
+  switchProfile:       (profileId)                                                 => request('/auth/switch-profile',    { method: 'POST', body: { profileId } }),
+  getProfiles:         ()                                                           => request('/auth/profiles'),
+  me:                  ()                                                           => request('/auth/me'),
 };
 
 // ── Services ───────────────────────────────────────────────────────────────────
@@ -152,6 +156,10 @@ export const Reception = {
   disconnect:      ()    => request('/reception/disconnect', { method: 'POST' }),
   getConversations:()    => request('/reception/conversations'),
   getConversation: (id)  => request(`/reception/conversations/${id}`),
+  getUsage: (params) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request(`/reception/usage${qs}`);
+  },
   // Returns the SSE URL (caller creates EventSource with token in query)
   qrUrl: () => {
     const token = localStorage.getItem('token');

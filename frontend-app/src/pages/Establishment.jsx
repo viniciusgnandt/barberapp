@@ -1,6 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Store, Clock, Save, MapPin } from 'lucide-react';
+
+const ESTABLISHMENT_TYPES = [
+  { value: 'barbearia',   label: 'Barbearia' },
+  { value: 'salao',       label: 'Salão de Beleza' },
+  { value: 'manicure',    label: 'Manicure' },
+  { value: 'sobrancelha', label: 'Sobrancelha' },
+  { value: 'cilios',      label: 'Cílios' },
+  { value: 'outros',      label: 'Outros' },
+];
 import { useAuth } from '../context/AuthContext';
 import { Barbershops } from '../utils/api';
 import Button from '../components/ui/Button';
@@ -49,15 +58,17 @@ function InfoTab({ shop, onSaved }) {
 
   useEffect(() => {
     if (shop) setForm({
-      name:        shop.name        || '',
-      email:       shop.email       || '',
-      document:    shop.document    || '',
-      phone:       shop.phone       || '',
-      zipCode:     shop.zipCode     || '',
-      address:     shop.address     || '',
-      city:        shop.city        || '',
-      state:       shop.state       || '',
-      description: shop.description || '',
+      name:              shop.name              || '',
+      email:             shop.email             || '',
+      establishmentType: shop.establishmentType || 'barbearia',
+      document:          shop.document          || '',
+      phone:             shop.phone             || '',
+      zipCode:           shop.zipCode           || '',
+      address:           shop.address           || '',
+      neighborhood:      shop.neighborhood      || '',
+      city:              shop.city              || '',
+      state:             shop.state             || '',
+      description:       shop.description       || '',
     });
   }, [shop]);
 
@@ -70,12 +81,12 @@ function InfoTab({ shop, onSaved }) {
     const data = await fetchCep(clean);
     setCepLoading(false);
     if (data) {
-      const street = [data.logradouro, data.bairro].filter(Boolean).join(', ');
       setForm(f => ({
         ...f,
-        address: street || f.address,
-        city:    data.localidade || f.city,
-        state:   data.uf         || f.state,
+        address:      data.logradouro || f.address,
+        neighborhood: data.bairro     || f.neighborhood,
+        city:         data.localidade || f.city,
+        state:        data.uf         || f.state,
       }));
       toast('Endereço preenchido automaticamente.');
     }
@@ -87,7 +98,7 @@ function InfoTab({ shop, onSaved }) {
 
   const handleSave = async () => {
     if (!form.document) return toast('CPF/CNPJ é obrigatório.', 'error');
-    if (!form.address)  return toast('Endereço é obrigatório.', 'error');
+    if (!form.address)  return toast('Rua é obrigatória.', 'error');
     setSaving(true);
     const r = await Barbershops.update(shop._id, form);
     setSaving(false);
@@ -100,8 +111,23 @@ function InfoTab({ shop, onSaved }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input label="Nome da barbearia" required value={form.name}     onChange={set('name')}    placeholder="Ex: Barbearia do João" className="sm:col-span-2" />
-        <Input label="E-mail"            required value={form.email}    onChange={set('email')}   placeholder="contato@barbearia.com" type="email" />
+        <Input label="Nome do estabelecimento" required value={form.name} onChange={set('name')} placeholder="Ex: Barbearia do João" className="sm:col-span-2" />
+
+        {/* Tipo de estabelecimento */}
+        <div className="sm:col-span-2 space-y-1.5">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de estabelecimento</label>
+          <select
+            value={form.establishmentType}
+            onChange={set('establishmentType')}
+            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+          >
+            {ESTABLISHMENT_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <Input label="E-mail" required value={form.email} onChange={set('email')} placeholder="contato@barbearia.com" type="email" />
         <Input label="Telefone"            value={form.phone}    onChange={set('phone')}   placeholder="(11) 99999-9999" />
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -134,9 +160,10 @@ function InfoTab({ shop, onSaved }) {
             <MapPin size={10} /> Sai do campo para preencher o endereço automaticamente
           </p>
         </div>
-        <Input label="Endereço" required  value={form.address} onChange={set('address')} placeholder="Rua, número, bairro" className="sm:col-span-2" />
-        <Input label="Cidade"      value={form.city}    onChange={set('city')}    placeholder="São Paulo" />
-        <Input label="Estado"      value={form.state}   onChange={set('state')}   placeholder="SP" />
+        <Input label="Rua" required value={form.address} onChange={set('address')} placeholder="Ex: Av. Paulista" className="sm:col-span-2" />
+        <Input label="Bairro"  value={form.neighborhood} onChange={set('neighborhood')} placeholder="Ex: Bela Vista" />
+        <Input label="Cidade"  value={form.city}          onChange={set('city')}         placeholder="São Paulo" />
+        <Input label="Estado"  value={form.state}         onChange={set('state')}        placeholder="SP" />
         <Input label="Descrição"   value={form.description} onChange={set('description')} placeholder="Sobre o estabelecimento..." className="sm:col-span-2" />
       </div>
 

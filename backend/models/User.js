@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema({
   customRole:   { type: mongoose.Schema.Types.ObjectId, ref: 'Role' },
   barbershop:   { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   profileImage: { type: String },
+  emailVerified:              { type: Boolean, default: null }, // null = legacy (skip check)
+  emailVerificationToken:     { type: String },
+  passwordResetToken:         { type: String },
+  passwordResetExpires:       { type: Date },
   preferences: {
     themeMode:  { type: String, enum: ['light', 'dark', 'auto'], default: 'light' },
     themeColor: { type: String, default: 'amber' },

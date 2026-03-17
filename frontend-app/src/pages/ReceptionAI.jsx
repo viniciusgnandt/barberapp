@@ -46,14 +46,6 @@ export default function ReceptionAI() {
 
   // ── Load initial status ────────────────────────────────────────────────────
 
-  const loadStatus = async () => {
-    const r = await ReceptionAPI.getStatus();
-    if (r.ok) {
-      setStatus(r.data.data?.status || 'disconnected');
-      setPhone(r.data.data?.phone   || null);
-    }
-  };
-
   const loadConversations = async () => {
     setLoadingConvos(true);
     const r = await ReceptionAPI.getConversations();
@@ -62,7 +54,15 @@ export default function ReceptionAI() {
   };
 
   useEffect(() => {
-    loadStatus();
+    // Carrega status e abre SSE se o backend já estiver conectando/conectado (ex: após restart)
+    (async () => {
+      const r = await ReceptionAPI.getStatus();
+      if (!r.ok) return;
+      const s = r.data.data?.status || 'disconnected';
+      setStatus(s);
+      setPhone(r.data.data?.phone || null);
+      if (s === 'connecting' || s === 'connected') subscribeSSE();
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -152,9 +152,8 @@ export default function ReceptionAI() {
     loadSelectedConvo(convo._id);
   };
 
-  // Open SSE if we're already connecting on mount
+  // Cleanup SSE on unmount
   useEffect(() => {
-    if (status === 'connecting') subscribeSSE();
     return () => { esRef.current?.close(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -171,7 +170,6 @@ export default function ReceptionAI() {
             Atenda clientes via WhatsApp automaticamente com inteligência artificial
           </p>
         </div>
-        <StatusBadge status={status} />
       </div>
 
       <div className="space-y-4">
@@ -206,24 +204,6 @@ export default function ReceptionAI() {
             </div>
           )}
 
-          {/* Flow diagram */}
-          {!qrCode && status !== 'connected' && (
-            <div className="flex items-center justify-center gap-2 py-4 text-xs text-gray-400 dark:text-gray-500">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-medium">
-                <span>WhatsApp</span>
-              </div>
-              <span>→</span>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium">
-                <span>Plataforma</span>
-              </div>
-              <span>→</span>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 font-medium">
-                <Bot size={12} />
-                <span>Claude IA</span>
-              </div>
-            </div>
-          )}
-
           {/* Actions */}
           <div className="flex items-center justify-end gap-2 pt-2">
             {status === 'connected' && (
@@ -240,11 +220,6 @@ export default function ReceptionAI() {
               <Button onClick={handleConnect} loading={connecting}>
                 <Wifi size={14} className="mr-1.5" />
                 {connecting ? 'Aguardando QR…' : 'Conectar WhatsApp'}
-              </Button>
-            )}
-            {status === 'connecting' && !qrCode && (
-              <Button disabled>
-                <Loader2 size={14} className="mr-1.5 animate-spin" /> Iniciando…
               </Button>
             )}
           </div>
@@ -368,18 +343,6 @@ export default function ReceptionAI() {
           </div>
         )}
 
-        {/* ── Info banner ────────────────────────────────────────────────────── */}
-        <div className="bg-violet-50 dark:bg-violet-900/10 rounded-2xl border border-violet-100 dark:border-violet-900/30 px-6 py-4">
-          <div className="flex gap-3">
-            <Bot size={16} className="text-violet-500 dark:text-violet-400 shrink-0 mt-0.5" />
-            <div className="text-sm text-violet-700 dark:text-violet-300 space-y-1">
-              <p className="font-medium">Como funciona</p>
-              <p className="text-violet-600 dark:text-violet-400 text-xs leading-relaxed">
-                Após conectar seu WhatsApp Business, o Claude IA responderá automaticamente às mensagens dos seus clientes — agendamentos, dúvidas sobre serviços e preços — 24 horas por dia.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
