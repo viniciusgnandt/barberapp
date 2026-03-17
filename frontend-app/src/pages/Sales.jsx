@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  ShoppingCart, Plus, RefreshCw, TrendingUp, DollarSign, Package, Search,
+  ShoppingCart, Plus, RefreshCw, TrendingUp, DollarSign, Package, Search, X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Products as ProductsAPI } from '../utils/api';
@@ -141,8 +141,18 @@ export default function Sales() {
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar produto..."
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
+          className="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
+          aria-label="Buscar vendas"
         />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            aria-label="Limpar busca"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -207,7 +217,7 @@ export default function Sales() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Produto *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Produto <span className="text-red-400 ml-0.5">*</span></label>
             <select
               value={form.productId}
               onChange={handleProductChange}
@@ -224,13 +234,13 @@ export default function Sales() {
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label={`Quantidade${selectedProduct ? ` (${selectedProduct.unit})` : ''} *`}
+              label={`Quantidade${selectedProduct ? ` (${selectedProduct.unit})` : ''}`} required
               type="number" min="0.01" step="0.01" placeholder="0"
               value={form.quantity}
               onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
             />
             <Input
-              label="Preço de venda (R$) *"
+              label="Preço de venda (R$)" required
               type="number" min="0" step="0.01" placeholder="0.00"
               value={form.unitPrice}
               onChange={e => setForm(f => ({ ...f, unitPrice: e.target.value }))}

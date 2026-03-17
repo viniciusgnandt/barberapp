@@ -133,11 +133,13 @@ function ServiceCard({ service, onEdit, onDelete, isAdmin, categories }) {
           {isAdmin && (
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => onEdit(service)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+                aria-label={`Editar ${service.name}`}>
                 <Edit2 size={13} />
               </button>
               <button onClick={() => onDelete(service)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                aria-label={`Remover ${service.name}`}>
                 <Trash2 size={13} />
               </button>
             </div>
@@ -547,9 +549,9 @@ export default function Services() {
       {/* Service form modal */}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Editar serviço' : 'Novo serviço'} size="full">
         <div className="space-y-4">
-          <Input label="Nome do serviço *" placeholder="Ex: Corte + Barba" value={form.name} onChange={set('name')} />
+          <Input label="Nome do serviço" required placeholder="Ex: Corte + Barba" value={form.name} onChange={set('name')} />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Preço (R$) *" type="number" min="0" step="0.01" placeholder="0.00"
+            <Input label="Preço (R$)" required type="number" min="0" step="0.01" placeholder="0.00"
               value={form.price} onChange={set('price')} />
             <Input label="Duração (min)" type="number" min="0" placeholder="30"
               value={form.duration} onChange={set('duration')} />

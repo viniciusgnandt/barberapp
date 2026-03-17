@@ -12,7 +12,7 @@ function ThemeSync() {
   const { loadFromDB } = useTheme();
   useEffect(() => { if (user) loadFromDB(); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    document.title = user?.barbershopName || 'BarberApp';
+    document.title = user?.barbershopName || 'JubaOS';
   }, [user?.barbershopName]);
   return null;
 }

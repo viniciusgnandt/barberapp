@@ -737,13 +737,13 @@ export default function CalendarWidget() {
       <Modal open={editModal} onClose={() => setEditModal(false)} title="Editar agendamento">
         <div className="space-y-4">
           <Input
-            label="Nome do cliente *"
+            label="Nome do cliente" required
             placeholder="João da Silva"
             value={form.clientName}
             onChange={setField('clientName')}
           />
 
-          <Select label="Serviço *" value={form.service} onChange={setField('service')}>
+          <Select label="Serviço" required value={form.service} onChange={setField('service')}>
             <option value="">Selecionar serviço</option>
             {services.map(s => (
               <option key={s._id} value={s._id}>{s.name} — R$ {s.price?.toFixed(2)}</option>
@@ -751,7 +751,7 @@ export default function CalendarWidget() {
           </Select>
 
           {isAdmin && (
-            <Select label="Barbeiro *" value={form.barber} onChange={setField('barber')}>
+            <Select label="Barbeiro" required value={form.barber} onChange={setField('barber')}>
               <option value="">Selecionar barbeiro</option>
               {barbers.map(b => (
                 <option key={b._id} value={b._id}>{b.name}</option>
@@ -760,8 +760,8 @@ export default function CalendarWidget() {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Data *" type="date" value={form.date} onChange={setField('date')} />
-            <Input label="Horário *" type="time" value={form.time} onChange={setField('time')} />
+            <Input label="Data" required type="date" value={form.date} onChange={setField('date')} />
+            <Input label="Horário" required type="time" value={form.time} onChange={setField('time')} />
           </div>
 
           <Select label="Status" value={form.status} onChange={setField('status')}>

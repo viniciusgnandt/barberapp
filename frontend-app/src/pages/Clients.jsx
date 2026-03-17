@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, FileText, Cake } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, FileText, Cake, X } from 'lucide-react';
 import { Clients as ClientsAPI } from '../utils/api';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -74,6 +74,7 @@ function ClientCard({ client, onEdit, onDelete }) {
           onClick={() => onEdit(client)}
           className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
           title="Editar cliente"
+          aria-label={`Editar ${client.name}`}
         >
           <Edit2 size={13} />
         </button>
@@ -81,6 +82,7 @@ function ClientCard({ client, onEdit, onDelete }) {
           onClick={() => onDelete(client)}
           className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           title="Remover cliente"
+          aria-label={`Remover ${client.name}`}
         >
           <Trash2 size={13} />
         </button>
@@ -195,8 +197,18 @@ export default function ClientsPage() {
           placeholder="Buscar por nome, telefone ou e-mail..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+          className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+          aria-label="Buscar clientes"
         />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            aria-label="Limpar busca"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       {/* List */}
@@ -236,14 +248,16 @@ export default function ClientsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Input
-                label="Nome *"
+                label="Nome"
+                required
                 placeholder="João da Silva"
                 value={form.name}
                 onChange={set('name')}
               />
             </div>
             <Input
-              label="Telefone *"
+              label="Telefone"
+              required
               placeholder="(11) 99999-9999"
               value={form.phone}
               onChange={set('phone')}

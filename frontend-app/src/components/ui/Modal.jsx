@@ -27,9 +27,9 @@ export default function Modal({ open, onClose, title, children, footer, size = '
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       {/* backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
 
       {/* panel */}
       <div className={cn(
@@ -40,10 +40,11 @@ export default function Modal({ open, onClose, title, children, footer, size = '
       )}>
         {/* header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+          <h2 id="modal-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Fechar"
           >
             <X size={16} />
           </button>

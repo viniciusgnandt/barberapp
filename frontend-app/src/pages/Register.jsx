@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Scissors } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import JubaOSLogo from '../components/ui/JubaOSLogo';
 import { useTheme } from '../context/ThemeContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -50,10 +50,10 @@ export default function Register() {
       <div className="w-full max-w-sm animate-fade-up">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-brand-500 flex items-center justify-center mb-4 shadow-lg shadow-brand-500/25">
-            <Scissors size={22} className="text-white" />
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
+            <JubaOSLogo size={56} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Criar conta</h1>
+          <h1 className="text-2xl font-bold tracking-tight"><span style={{background:'linear-gradient(135deg,#5eead4 0%,#a78bfa 50%,#7c3aed 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>JubaOS</span></h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Comece gratuitamente por 30 dias</p>
         </div>
 

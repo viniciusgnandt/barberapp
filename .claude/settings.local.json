@@ -16,7 +16,8 @@
       "Bash(node -e \"const fs=require\\(''fs''\\);const c=fs.readFileSync\\(''authController.js'',''utf8''\\);console.log\\(c.slice\\(900,1200\\)\\)\")",
       "Bash(node -e \":*)",
       "Bash(find /c/Users/vinic/Desktop/barberapp/barberapp -name Dockerfile -o -name docker-compose* -o -name *.conf -o -name .github -type d)",
-      "Bash(ls -la /c/Users/vinic/Desktop/barberapp/barberapp/backend/.docker*)"
+      "Bash(ls -la /c/Users/vinic/Desktop/barberapp/barberapp/backend/.docker*)",
+      "Bash(npx vite:*)"
     ]
   }
 }

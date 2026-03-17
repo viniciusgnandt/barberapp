@@ -208,6 +208,14 @@ export default function Business() {
         </div>
       )}
 
+      {!cur && !loading && (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <TrendingUp size={48} className="text-gray-200 dark:text-gray-700 mb-3" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado disponível para o período selecionado.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Tente ajustar os filtros ou aguarde novos agendamentos.</p>
+        </div>
+      )}
+
       {cur && !loading && (
         <>
           {/* Executive Summary Banner */}

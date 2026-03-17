@@ -1,11 +1,12 @@
 import { cn } from '../../utils/cn';
 
-export default function Input({ label, error, className, ...props }) {
+export default function Input({ label, error, required, className, ...props }) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
+          {required && <span className="text-red-400 ml-0.5">*</span>}
         </label>
       )}
       <input
@@ -24,12 +25,13 @@ export default function Input({ label, error, className, ...props }) {
   );
 }
 
-export function Select({ label, error, className, children, ...props }) {
+export function Select({ label, error, required, className, children, ...props }) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
+          {required && <span className="text-red-400 ml-0.5">*</span>}
         </label>
       )}
       <select

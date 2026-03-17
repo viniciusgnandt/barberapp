@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Package, Plus, Edit2, Trash2,
   DollarSign, AlertTriangle, Search, ArrowDownCircle,
-  ArrowUpCircle, ShoppingCart, RefreshCw,
+  ArrowUpCircle, ShoppingCart, RefreshCw, X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Products as ProductsAPI } from '../utils/api';
@@ -132,11 +132,13 @@ function ProductCard({ product, onEdit, onMove, onDelete }) {
           <Package size={12} /> Movimentar
         </button>
         <button onClick={() => onEdit(product)}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+          className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+          aria-label={`Editar ${product.name}`}>
           <Edit2 size={13} />
         </button>
         <button onClick={() => onDelete(product)}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          aria-label={`Remover ${product.name}`}>
           <Trash2 size={13} />
         </button>
       </div>
@@ -393,8 +395,18 @@ export default function Stock() {
               <input
                 value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar produto..."
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
+                className="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
+                aria-label="Buscar produtos"
               />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  aria-label="Limpar busca"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <div className="flex gap-1">
               {[
@@ -511,10 +523,10 @@ export default function Stock() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <Input label="Nome do produto *" placeholder="Ex: Pomada Modeladora" value={form.name} onChange={set('name')} />
+              <Input label="Nome do produto" required placeholder="Ex: Pomada Modeladora" value={form.name} onChange={set('name')} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria <span className="text-red-400 ml-0.5">*</span></label>
               <select value={form.category} onChange={set('category')}
                 className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors">
                 <option value="consumo">Consumo interno</option>
@@ -530,9 +542,9 @@ export default function Stock() {
             </div>
             <Input label="Marca" placeholder="Ex: American Crew" value={form.brand} onChange={set('brand')} />
             <Input label="Descrição" placeholder="Descrição opcional..." value={form.description} onChange={set('description')} />
-            <Input label="Preço de custo (R$) *" type="number" min="0" step="0.01" placeholder="0.00" value={form.costPrice} onChange={set('costPrice')} />
+            <Input label="Preço de custo (R$)" required type="number" min="0" step="0.01" placeholder="0.00" value={form.costPrice} onChange={set('costPrice')} />
             {form.category === 'venda' && (
-              <Input label="Preço de venda (R$) *" type="number" min="0" step="0.01" placeholder="0.00" value={form.salePrice} onChange={set('salePrice')} />
+              <Input label="Preço de venda (R$)" required type="number" min="0" step="0.01" placeholder="0.00" value={form.salePrice} onChange={set('salePrice')} />
             )}
             {!editing && (
               <Input label="Estoque inicial" type="number" min="0" placeholder="0" value={form.stock} onChange={set('stock')} />
@@ -564,7 +576,7 @@ export default function Stock() {
         <div className="space-y-4">
           {/* Type selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de movimentação *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de movimentação <span className="text-red-400 ml-0.5">*</span></label>
             <div className="grid grid-cols-2 gap-2">
               {MOV_TYPES.filter(t => t.value !== 'venda' || movProduct?.category === 'venda').map(({ value, label, icon: Icon, color }) => (
                 <button
@@ -586,7 +598,7 @@ export default function Stock() {
           </div>
 
           <Input
-            label={`Quantidade (${movProduct?.unit || 'un'}) *`}
+            label={`Quantidade (${movProduct?.unit || 'un'})`} required
             type="number" min="0.01" step="0.01" placeholder="0"
             value={movForm.quantity}
             onChange={setMov('quantity')}
@@ -599,7 +611,7 @@ export default function Stock() {
 
           {movForm.type === 'venda' && (
             <>
-              <Input label="Preço de venda unitário (R$) *" type="number" min="0" step="0.01" placeholder="0.00"
+              <Input label="Preço de venda unitário (R$)" required type="number" min="0" step="0.01" placeholder="0.00"
                 value={movForm.unitPrice} onChange={setMov('unitPrice')} />
               {movForm.quantity && movForm.unitPrice && (
                 <div className="bg-brand-50 dark:bg-brand-900/10 rounded-xl p-3 text-xs">

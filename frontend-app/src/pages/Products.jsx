@@ -295,10 +295,10 @@ export default function Products() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <Input label="Nome do produto *" placeholder="Ex: Pomada Modeladora" value={form.name} onChange={set('name')} />
+              <Input label="Nome do produto" required placeholder="Ex: Pomada Modeladora" value={form.name} onChange={set('name')} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria <span className="text-red-400 ml-0.5">*</span></label>
               <select value={form.category} onChange={set('category')}
                 className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors">
                 <option value="consumo">Consumo interno</option>
@@ -314,9 +314,9 @@ export default function Products() {
             </div>
             <Input label="Marca" placeholder="Ex: American Crew" value={form.brand} onChange={set('brand')} />
             <Input label="Descrição" placeholder="Descrição opcional..." value={form.description} onChange={set('description')} />
-            <Input label="Preço de custo (R$) *" type="number" min="0" step="0.01" placeholder="0.00" value={form.costPrice} onChange={set('costPrice')} />
+            <Input label="Preço de custo (R$)" required type="number" min="0" step="0.01" placeholder="0.00" value={form.costPrice} onChange={set('costPrice')} />
             {form.category === 'venda' && (
-              <Input label="Preço de venda (R$) *" type="number" min="0" step="0.01" placeholder="0.00" value={form.salePrice} onChange={set('salePrice')} />
+              <Input label="Preço de venda (R$)" required type="number" min="0" step="0.01" placeholder="0.00" value={form.salePrice} onChange={set('salePrice')} />
             )}
             {!editing && (
               <Input label="Estoque inicial" type="number" min="0" placeholder="0" value={form.stock} onChange={set('stock')} />

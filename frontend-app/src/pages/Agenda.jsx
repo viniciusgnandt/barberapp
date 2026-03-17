@@ -951,8 +951,8 @@ export default function Agenda() {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Data *" type="date" value={form.date} onChange={set('date')} />
-            <Input label="Horário *" type="time" value={form.time} onChange={set('time')} />
+            <Input label="Data" required type="date" value={form.date} onChange={set('date')} />
+            <Input label="Horário" required type="time" value={form.time} onChange={set('time')} />
           </div>
 
           {editing && (
@@ -1011,7 +1011,7 @@ export default function Agenda() {
         <div className="space-y-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">Bloqueios impedem novos agendamentos no horário indicado.</p>
 
-          <Input label="Motivo *" placeholder="Ex: Feriado, Reunião, Férias..." value={blockForm.reason} onChange={setBlock('reason')} />
+          <Input label="Motivo" required placeholder="Ex: Feriado, Reunião, Férias..." value={blockForm.reason} onChange={setBlock('reason')} />
 
           {isAdmin ? (
             <div className="space-y-2">
@@ -1025,7 +1025,7 @@ export default function Agenda() {
                 </span>
               </label>
               {!blockForm.allBarbers && (
-                <Select label="Profissional *" value={blockForm.barber} onChange={setBlock('barber')}>
+                <Select label="Profissional" required value={blockForm.barber} onChange={setBlock('barber')}>
                   <option value="">Selecionar profissional</option>
                   {barbers.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                 </Select>
@@ -1035,7 +1035,7 @@ export default function Agenda() {
             <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg">O bloqueio será aplicado à sua agenda.</p>
           )}
 
-          <Input label="Data *" type="date" value={blockForm.date} onChange={setBlock('date')} />
+          <Input label="Data" required type="date" value={blockForm.date} onChange={setBlock('date')} />
 
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input type="checkbox" checked={blockForm.allDay}
@@ -1046,7 +1046,7 @@ export default function Agenda() {
 
           {!blockForm.allDay && (
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Horário início *" type="time" value={blockForm.startTime} onChange={setBlock('startTime')} />
+              <Input label="Horário início" required type="time" value={blockForm.startTime} onChange={setBlock('startTime')} />
               <Input label="Horário fim" type="time" value={blockForm.endTime} onChange={setBlock('endTime')} />
             </div>
           )}

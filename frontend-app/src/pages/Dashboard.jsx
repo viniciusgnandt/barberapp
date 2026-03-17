@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, CheckCircle2, Clock, DollarSign, Plus, Lock } from 'lucide-react';
+import JubaOSLogo from '../components/ui/JubaOSLogo';
 import { useAuth } from '../context/AuthContext';
 import { Appointments } from '../utils/api';
 import CalendarWidget from '../components/CalendarWidget';
@@ -61,13 +62,16 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Olá, {user?.name?.split(' ')[0]} 👋
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
+        <div className="flex items-center gap-3">
+          <JubaOSLogo size={40} />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Olá, {user?.name?.split(' ')[0]} 👋
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2 shrink-0">
           <Button variant="secondary" onClick={() => navigate('/agenda', { state: { openBlock: true } })}>

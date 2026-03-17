@@ -162,7 +162,7 @@ function TimelineChart({ timeline }) {
 // ── PDF helpers ───────────────────────────────────────────────────────────────
 function pdfHeader(doc, title, subtitle, period, ts) {
   // Brand bar
-  doc.setFillColor(201, 137, 26);
+  doc.setFillColor(124, 58, 237);
   doc.rect(0, 0, 210, 2, 'F');
 
   doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
@@ -199,7 +199,7 @@ function generatePDF({ data, filters, isAdmin, barberName }) {
   const ts     = new Date().toLocaleString('pt-BR');
   const ticket = summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—';
 
-  let y = pdfHeader(doc, 'BarberApp — Relatório', barberName ? `Profissional: ${barberName}` : null, period, ts);
+  let y = pdfHeader(doc, 'JubaOS — Relatório', barberName ? `Profissional: ${barberName}` : null, period, ts);
 
   // ── Summary KPIs ────────────────────────────────────────────────────────────
   y = pdfSection(doc, 'Resumo de Atendimentos', y);
@@ -430,7 +430,7 @@ function generateStockPDF({ reportData, startDate, endDate }) {
   const fmtCur = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
   doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-  doc.text('BarberApp — Relatório de Estoque', 14, 18);
+  doc.text('JubaOS — Relatório de Estoque', 14, 18);
   doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
   doc.text(`Período: ${period}`, 14, 26);
   doc.text(`Gerado em: ${ts}`, 14, 31);
@@ -449,7 +449,7 @@ function generateStockPDF({ reportData, startDate, endDate }) {
       ['Lucro líquido',              fmtCur(summary.salesProfit)],
     ],
     styles: { fontSize: 9 },
-    headStyles: { fillColor: [201, 137, 26] },
+    headStyles: { fillColor: [124, 58, 237] },
     alternateRowStyles: { fillColor: [248, 249, 250] },
   });
   y = doc.lastAutoTable.finalY + 10;
@@ -462,7 +462,7 @@ function generateStockPDF({ reportData, startDate, endDate }) {
       head: [['Produto', 'Qtd', 'Receita', 'Custo', 'Lucro']],
       body: salesByProduct.map(p => [p.name, `${p.quantity} ${p.unit}`, fmtCur(p.revenue), fmtCur(p.cost), fmtCur(p.profit)]),
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [201, 137, 26] },
+      headStyles: { fillColor: [124, 58, 237] },
     });
     y = doc.lastAutoTable.finalY + 10;
   }
@@ -479,7 +479,7 @@ function generateStockPDF({ reportData, startDate, endDate }) {
       fmtCur(p.costPrice), fmtCur(p.stockValue),
     ]),
     styles: { fontSize: 8 },
-    headStyles: { fillColor: [201, 137, 26] },
+    headStyles: { fillColor: [124, 58, 237] },
   });
   doc.save(`estoque-${new Date().toLocaleDateString('sv')}.pdf`);
 }
@@ -610,7 +610,7 @@ function StockReportTab({ onDataChange }) {
                             <td className="py-2 px-2">
                               <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full',
                                 margin >= 30 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                                             : margin >= 10 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                             : margin >= 10 ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300'
                                              : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
                               )}>
                                 {margin}%
@@ -976,7 +976,7 @@ export default function ReportsPage() {
                 icon={Wallet} color="bg-brand-500"
                 sub={summary.revenue > 0 ? `${Math.round(summary.barberCommission / summary.revenue * 100)}% do faturamento` : undefined} />
               <KpiCard label="Ticket médio" value={summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'}
-                icon={TrendingUp} color="bg-amber-500"
+                icon={TrendingUp} color="bg-violet-500"
                 note="Valor médio faturado por serviço concluído no período" />
             </div>
           )}
@@ -988,7 +988,7 @@ export default function ReportsPage() {
                 icon={Wallet} color="bg-brand-500" highlight
                 sub={`${summary.completed} serviços concluídos`} />
               <KpiCard label="Ticket médio" value={summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'}
-                icon={TrendingUp} color="bg-amber-500"
+                icon={TrendingUp} color="bg-violet-500"
                 note="Valor médio faturado por serviço concluído no período" />
               {summary.completed > 0 && (
                 <KpiCard label="Total gerado" value={fmt(summary.revenue)}
@@ -1016,7 +1016,11 @@ export default function ReportsPage() {
             {servicesOpen && (
               <div className="px-6 pb-6 border-t border-gray-100 dark:border-gray-800 pt-5">
                 {byService.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-8">Nenhum dado no período.</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <BarChart2 size={40} className="text-gray-200 dark:text-gray-700 mb-3" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado disponível para o período selecionado.</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Tente ajustar os filtros ou aguarde novos agendamentos.</p>
+                  </div>
                 ) : (
                   <HBarChart rows={byService} valueKey="count" labelKey="name" colorClass="bg-brand-500" fmtValue={r => `${r.count} atend.`} />
                 )}
@@ -1038,7 +1042,11 @@ export default function ReportsPage() {
                 <span className="ml-auto text-xs text-gray-400 hidden sm:block">Passe o mouse para detalhes</span>
               </div>
               {byBarber.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">Nenhum dado no período.</p>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <BarChart2 size={40} className="text-gray-200 dark:text-gray-700 mb-3" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado disponível para o período selecionado.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Tente ajustar os filtros ou aguarde novos agendamentos.</p>
+                </div>
               ) : (
                 <HBarChart rows={byBarber} valueKey="revenue" labelKey="name" colorClass="bg-teal-500" fmtValue={r => fmt(r.revenue)} />
               )}

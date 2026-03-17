@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Scissors, LogOut,
-  Scissors as ScissorsIcon, Camera, ChevronUp, Check,
+  Camera, ChevronUp, Check,
   BarChart2, TrendingUp, Settings, ShoppingCart, Boxes,
   PanelLeftClose, PanelLeftOpen, UserRound, Bot,
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { Upload as UploadAPI } from '../../utils/api';
 import { cn } from '../../utils/cn';
 import Badge from '../ui/Badge';
 import { toast } from '../ui/Toast';
+import JubaOSLogo from '../ui/JubaOSLogo';
 
 // ── Navigation structure ───────────────────────────────────────────────────────
 const NAV_MAIN = [
@@ -113,14 +114,14 @@ export default function Sidebar() {
           <div
             onClick={() => isAdmin && logoInputRef.current?.click()}
             className={cn(
-              'relative w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center shrink-0 overflow-hidden',
+              'relative w-9 h-9 rounded-lg flex items-center justify-center shrink-0 overflow-hidden',
               isAdmin && 'cursor-pointer group',
             )}
             title={isAdmin ? 'Clique para atualizar o logo' : undefined}
           >
             {user?.barbershopLogo
               ? <img src={user.barbershopLogo} alt="logo" className="w-full h-full object-cover" />
-              : <ScissorsIcon size={15} className="text-white" />
+              : <JubaOSLogo size={36} />
             }
             {isAdmin && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -136,9 +137,9 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                {user?.barbershopName || 'BarberApp'}
+                {user?.barbershopName || 'JubaOS'}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Sistema de Agendamento</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Plataforma Inteligente</p>
             </div>
           )}
         </div>

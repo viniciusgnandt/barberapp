@@ -1,3 +1,4 @@
+import jubaosLogo from '../assets/JubaOS_Logo.png';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -8,25 +9,25 @@ const CSS = `
   .lp a { text-decoration: none; color: inherit; }
 
   /* tokens */
-  .lp { --brand:#c9891a; --brand-l:#e0a930; --brand-d:#8b5014; --brand-glow:rgba(201,137,26,.22);
+  .lp { --brand:#7c3aed; --brand-l:#a78bfa; --brand-d:#5b21b6; --brand-glow:rgba(124,58,237,.22);
     --bg:#0b0c0e; --bg2:#111317; --bg3:#17191f; --bgc:#1a1c23; --bgc2:#1f2129;
-    --bdr:rgba(255,255,255,.07); --bdr-b:rgba(201,137,26,.32);
+    --bdr:rgba(255,255,255,.07); --bdr-b:rgba(124,58,237,.32);
     --txt:#f0f1f3; --muted:#7a7f8e; --subtle:#3a3f50; --r:14px; }
 
   /* gradient text */
-  .lp .gt { background:linear-gradient(135deg,#f5d48a 0%,var(--brand-l) 40%,var(--brand) 100%);
+  .lp .gt { background:linear-gradient(135deg,#5eead4 0%,#a78bfa 50%,#7c3aed 100%);
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 
   /* badge */
   .lp .badge { display:inline-flex; align-items:center; gap:6px; padding:5px 13px; border-radius:99px;
     font-size:12px; font-weight:600; letter-spacing:.4px;
-    background:rgba(201,137,26,.1); color:var(--brand-l); border:1px solid rgba(201,137,26,.2); }
+    background:rgba(124,58,237,.1); color:var(--brand-l); border:1px solid rgba(124,58,237,.2); }
 
   /* buttons */
   .lp .btn { display:inline-flex; align-items:center; gap:8px; padding:13px 26px;
     border-radius:9px; font-size:15px; font-weight:600; cursor:pointer; transition:all .22s; border:none; }
-  .lp .btn-p { background:var(--brand); color:#fff; box-shadow:0 4px 20px rgba(201,137,26,.28); }
-  .lp .btn-p:hover { background:var(--brand-l); transform:translateY(-2px); box-shadow:0 8px 28px rgba(201,137,26,.38); }
+  .lp .btn-p { background:var(--brand); color:#fff; box-shadow:0 4px 20px rgba(124,58,237,.28); }
+  .lp .btn-p:hover { background:var(--brand-l); transform:translateY(-2px); box-shadow:0 8px 28px rgba(124,58,237,.38); }
   .lp .btn-o { background:transparent; color:var(--txt); border:1px solid var(--bdr); }
   .lp .btn-o:hover { border-color:var(--brand); color:var(--brand-l); transform:translateY(-2px); }
   .lp .btn-lg { padding:16px 36px; font-size:17px; border-radius:11px; }
@@ -47,8 +48,8 @@ const CSS = `
   .lp .nav-inner { max-width:1120px; margin:0 auto; padding:0 24px;
     display:flex; align-items:center; justify-content:space-between; }
   .lp .logo { display:flex; align-items:center; gap:10px; font-size:19px; font-weight:800; letter-spacing:-.5px; }
-  .lp .logo-icon { width:35px; height:35px; border-radius:9px; background:var(--brand);
-    display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px rgba(201,137,26,.38); }
+  .lp .logo-icon { width:38px; height:38px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; }
   .lp .logo-icon svg { width:19px; height:19px; color:#fff; }
   .lp .nav-links { display:flex; gap:4px; }
   .lp .nav-links a { padding:8px 14px; border-radius:8px; font-size:14px; font-weight:500;
@@ -68,8 +69,8 @@ const CSS = `
   /* hero */
   .lp .hero { padding:160px 0 100px; position:relative; overflow:hidden; }
   .lp .hero-bg { position:absolute; inset:0;
-    background:radial-gradient(ellipse 80% 55% at 50% -10%,rgba(201,137,26,.11) 0%,transparent 70%),
-               radial-gradient(ellipse 40% 40% at 85% 50%,rgba(201,137,26,.05) 0%,transparent 60%); }
+    background:radial-gradient(ellipse 80% 55% at 50% -10%,rgba(124,58,237,.11) 0%,transparent 70%),
+               radial-gradient(ellipse 40% 40% at 85% 50%,rgba(124,58,237,.05) 0%,transparent 60%); }
   .lp .hero-grid { position:absolute; inset:0;
     background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
                      linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
@@ -89,7 +90,7 @@ const CSS = `
   .lp .mock-wrap { position:relative; }
   .lp .mock-browser { background:var(--bgc); border:1px solid var(--bdr); border-radius:18px;
     overflow:hidden; box-shadow:0 0 0 1px rgba(255,255,255,.04),0 40px 80px rgba(0,0,0,.5),
-    0 0 60px rgba(201,137,26,.07); animation:lp-float 4.2s ease-in-out infinite; }
+    0 0 60px rgba(124,58,237,.07); animation:lp-float 4.2s ease-in-out infinite; }
   .lp .mb-bar { display:flex; align-items:center; gap:6px; padding:11px 15px;
     background:var(--bg2); border-bottom:1px solid var(--bdr); }
   .lp .dot { width:10px; height:10px; border-radius:50%; }
@@ -102,39 +103,39 @@ const CSS = `
   .lp .mb-li { width:22px; height:22px; border-radius:6px; background:var(--brand); flex-shrink:0; }
   .lp .mb-lt { width:55px; height:9px; border-radius:3px; background:rgba(255,255,255,.13); }
   .lp .mb-ni { display:flex; align-items:center; gap:7px; padding:7px 7px; border-radius:6px; }
-  .lp .mb-ni.a { background:rgba(201,137,26,.12); }
+  .lp .mb-ni.a { background:rgba(124,58,237,.12); }
   .lp .mb-ic { width:14px; height:14px; border-radius:3px; background:rgba(255,255,255,.07); flex-shrink:0; }
-  .lp .mb-ni.a .mb-ic { background:rgba(201,137,26,.35); }
+  .lp .mb-ni.a .mb-ic { background:rgba(124,58,237,.35); }
   .lp .mb-nt { width:50px; height:7px; border-radius:3px; background:rgba(255,255,255,.07); }
-  .lp .mb-ni.a .mb-nt { background:rgba(201,137,26,.38); }
+  .lp .mb-ni.a .mb-nt { background:rgba(124,58,237,.38); }
   .lp .mb-main { flex:1; display:flex; flex-direction:column; gap:9px; }
   .lp .mb-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
   .lp .mb-sc { background:var(--bg2); border:1px solid var(--bdr); border-radius:8px; padding:9px 10px; }
-  .lp .mb-sc:first-child { border-color:rgba(201,137,26,.22); }
+  .lp .mb-sc:first-child { border-color:rgba(124,58,237,.22); }
   .lp .mb-st { display:flex; justify-content:space-between; margin-bottom:5px; }
-  .lp .mb-sd { width:16px; height:16px; border-radius:4px; background:rgba(201,137,26,.18); }
+  .lp .mb-sd { width:16px; height:16px; border-radius:4px; background:rgba(124,58,237,.18); }
   .lp .mb-sl { width:26px; height:5px; border-radius:3px; background:rgba(255,255,255,.06); }
   .lp .mb-sn { width:36px; height:12px; border-radius:3px; background:rgba(255,255,255,.11); }
-  .lp .mb-sc:first-child .mb-sn { background:rgba(201,137,26,.38); }
+  .lp .mb-sc:first-child .mb-sn { background:rgba(124,58,237,.38); }
   .lp .mb-ss { width:50px; height:6px; border-radius:3px; background:rgba(255,255,255,.06); margin-top:3px; }
   .lp .mb-appts { display:flex; flex-direction:column; gap:6px; flex:1; }
   .lp .mb-appt { background:var(--bg2); border:1px solid var(--bdr); border-radius:7px; padding:7px 10px;
     display:flex; align-items:center; gap:9px; }
-  .lp .mb-appt:first-child { border-color:rgba(201,137,26,.2); }
-  .lp .mb-av { width:24px; height:24px; border-radius:50%; background:rgba(201,137,26,.22); flex-shrink:0; }
+  .lp .mb-appt:first-child { border-color:rgba(124,58,237,.2); }
+  .lp .mb-av { width:24px; height:24px; border-radius:50%; background:rgba(124,58,237,.22); flex-shrink:0; }
   .lp .mb-ai { flex:1; display:flex; flex-direction:column; gap:3px; }
   .lp .mb-an { width:72px; height:6px; border-radius:3px; background:rgba(255,255,255,.14); }
   .lp .mb-as { width:50px; height:5px; border-radius:3px; background:rgba(255,255,255,.07); }
   .lp .mb-badge { padding:2px 7px; border-radius:99px; font-size:9px; font-weight:700; white-space:nowrap;
     background:rgba(34,197,94,.1); color:#4ade80; border:1px solid rgba(34,197,94,.2); }
-  .lp .mb-badge.pend { background:rgba(201,137,26,.1); color:var(--brand-l); border-color:rgba(201,137,26,.2); }
+  .lp .mb-badge.pend { background:rgba(124,58,237,.1); color:var(--brand-l); border-color:rgba(124,58,237,.2); }
 
   /* floating badge */
   .lp .fl-badge { position:absolute; bottom:-14px; left:-18px;
     background:var(--bgc2); border:1px solid var(--bdr-b); border-radius:13px;
     padding:11px 15px; display:flex; align-items:center; gap:9px;
     box-shadow:0 8px 28px rgba(0,0,0,.38); animation:lp-float 3.2s ease-in-out infinite reverse; }
-  .lp .fl-ic { width:34px; height:34px; border-radius:8px; background:rgba(201,137,26,.14);
+  .lp .fl-ic { width:34px; height:34px; border-radius:8px; background:rgba(124,58,237,.14);
     display:flex; align-items:center; justify-content:center; color:var(--brand-l); }
   .lp .fl-ic svg { width:17px; height:17px; }
   .lp .fl-num { font-size:17px; font-weight:800; color:var(--brand-l); line-height:1; }
@@ -184,7 +185,7 @@ const CSS = `
     border-radius:var(--r); border:1px solid transparent; transition:all .22s; }
   .lp .sol-item:hover { background:var(--bgc); border-color:var(--bdr-b); transform:translateX(4px); }
   .lp .sol-chk { width:22px; height:22px; border-radius:6px; flex-shrink:0;
-    background:rgba(201,137,26,.1); display:flex; align-items:center; justify-content:center; color:var(--brand-l); }
+    background:rgba(124,58,237,.1); display:flex; align-items:center; justify-content:center; color:var(--brand-l); }
   .lp .sol-chk svg { width:13px; height:13px; }
   .lp .sol-item h4 { font-size:14px; font-weight:600; margin-bottom:2px; }
   .lp .sol-item p  { font-size:13px; color:var(--muted); }
@@ -200,14 +201,14 @@ const CSS = `
   .lp .feat-card:hover { border-color:var(--bdr-b); transform:translateY(-4px); }
   .lp .feat-card:hover::after { opacity:1; }
   .lp .feat-ico { width:44px; height:44px; border-radius:11px; margin-bottom:16px;
-    background:rgba(201,137,26,.1); border:1px solid rgba(201,137,26,.14);
+    background:rgba(124,58,237,.1); border:1px solid rgba(124,58,237,.14);
     display:flex; align-items:center; justify-content:center; color:var(--brand-l); position:relative; z-index:1; }
   .lp .feat-ico svg { width:21px; height:21px; }
   .lp .feat-card h3 { font-size:16px; font-weight:700; margin-bottom:7px; position:relative; z-index:1; }
   .lp .feat-card p  { font-size:13px; color:var(--muted); line-height:1.65; position:relative; z-index:1; }
   .lp .feat-tag { display:inline-block; margin-top:12px; padding:3px 10px; border-radius:99px;
-    font-size:11px; font-weight:600; background:rgba(201,137,26,.08); color:var(--brand-l);
-    border:1px solid rgba(201,137,26,.15); position:relative; z-index:1; }
+    font-size:11px; font-weight:600; background:rgba(124,58,237,.08); color:var(--brand-l);
+    border:1px solid rgba(124,58,237,.15); position:relative; z-index:1; }
   .lp .feat-tag.new  { background:rgba(34,197,94,.08); color:#4ade80; border-color:rgba(34,197,94,.2); }
   .lp .feat-tag.soon { background:rgba(139,92,246,.08); color:#c084fc; border-color:rgba(139,92,246,.2); }
   .lp .feat-ico.purple { background:rgba(139,92,246,.1); border-color:rgba(139,92,246,.15); color:#c084fc; }
@@ -217,9 +218,9 @@ const CSS = `
   .lp .demo-tabs { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-bottom:36px; }
   .lp .demo-tab { padding:9px 20px; border-radius:99px; font-size:14px; font-weight:500; cursor:pointer;
     background:var(--bgc); border:1px solid var(--bdr); color:var(--muted); transition:all .22s; }
-  .lp .demo-tab.act, .lp .demo-tab:hover { background:rgba(201,137,26,.1); color:var(--brand-l); border-color:var(--bdr-b); }
+  .lp .demo-tab.act, .lp .demo-tab:hover { background:rgba(124,58,237,.1); color:var(--brand-l); border-color:var(--bdr-b); }
   .lp .demo-screen { display:none; background:var(--bgc); border:1px solid var(--bdr); border-radius:18px;
-    overflow:hidden; box-shadow:0 40px 90px rgba(0,0,0,.48),0 0 60px rgba(201,137,26,.05); }
+    overflow:hidden; box-shadow:0 40px 90px rgba(0,0,0,.48),0 0 60px rgba(124,58,237,.05); }
   .lp .demo-screen.act { display:block; }
   .lp .demo-bar { background:var(--bg2); border-bottom:1px solid var(--bdr); padding:12px 18px;
     display:flex; align-items:center; gap:8px; }
@@ -232,7 +233,7 @@ const CSS = `
   .lp .d-lt { font-size:12px; font-weight:700; }
   .lp .d-nav { display:flex; align-items:center; gap:8px; padding:8px 9px; border-radius:7px;
     font-size:12px; color:var(--muted); transition:all .2s; }
-  .lp .d-nav.act { background:rgba(201,137,26,.12); color:var(--brand-l); font-weight:600; }
+  .lp .d-nav.act { background:rgba(124,58,237,.12); color:var(--brand-l); font-weight:600; }
   .lp .d-nav svg { width:14px; height:14px; flex-shrink:0; }
   .lp .demo-main { flex:1; padding:20px; overflow:hidden; }
 
@@ -248,7 +249,7 @@ const CSS = `
   .lp .d-card { background:var(--bg2); border:1px solid var(--bdr); border-radius:9px; padding:14px; }
   .lp .d-ctitle { font-size:11px; font-weight:600; color:var(--muted); margin-bottom:12px; }
   .lp .d-bars { display:flex; align-items:flex-end; gap:5px; height:72px; }
-  .lp .d-bar { flex:1; border-radius:3px 3px 0 0; background:rgba(201,137,26,.14); min-width:0; }
+  .lp .d-bar { flex:1; border-radius:3px 3px 0 0; background:rgba(124,58,237,.14); min-width:0; }
   .lp .d-bar.hl { background:var(--brand); }
   .lp .d-xlbls { display:flex; justify-content:space-between; margin-top:4px; }
   .lp .d-xl { font-size:9px; color:var(--subtle); }
@@ -267,13 +268,13 @@ const CSS = `
     border:1px solid var(--bdr); border-radius:8px; padding:9px 12px; }
   .lp .ag-appt:first-child { border-color:var(--bdr-b); }
   .lp .ag-time { font-size:12px; font-weight:700; color:var(--brand-l); width:34px; flex-shrink:0; }
-  .lp .ag-av { width:26px; height:26px; border-radius:50%; background:rgba(201,137,26,.2); flex-shrink:0; }
+  .lp .ag-av { width:26px; height:26px; border-radius:50%; background:rgba(124,58,237,.2); flex-shrink:0; }
   .lp .ag-info { flex:1; }
   .lp .ag-name { font-size:12px; font-weight:600; }
   .lp .ag-svc  { font-size:10px; color:var(--muted); }
   .lp .ag-status { padding:2px 8px; border-radius:99px; font-size:9px; font-weight:700;
     background:rgba(34,197,94,.1); color:#4ade80; border:1px solid rgba(34,197,94,.2); }
-  .lp .ag-status.pend { background:rgba(201,137,26,.1); color:var(--brand-l); border-color:rgba(201,137,26,.2); }
+  .lp .ag-status.pend { background:rgba(124,58,237,.1); color:var(--brand-l); border-color:rgba(124,58,237,.2); }
 
   /* benefits */
   .lp .ben-bg { background:var(--bg2); }
@@ -303,10 +304,10 @@ const CSS = `
 
   /* cta */
   .lp .cta-box { background:var(--bgc); border:1px solid var(--bdr-b); border-radius:22px;
-    padding:60px; text-align:center; box-shadow:0 0 80px rgba(201,137,26,.05);
+    padding:60px; text-align:center; box-shadow:0 0 80px rgba(124,58,237,.05);
     position:relative; overflow:hidden; }
   .lp .cta-box::before { content:''; position:absolute; inset:0; border-radius:inherit;
-    background:radial-gradient(ellipse 70% 70% at 50% 50%,rgba(201,137,26,.07),transparent 70%); pointer-events:none; }
+    background:radial-gradient(ellipse 70% 70% at 50% 50%,rgba(124,58,237,.07),transparent 70%); pointer-events:none; }
   .lp .cta-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
   .lp .cta-note { margin-top:14px; font-size:12px; color:var(--muted); }
 
@@ -399,11 +400,9 @@ export default function Landing() {
         <div className="nav-inner">
           <a href="#" className="logo" onClick={e => { e.preventDefault(); window.scrollTo({ top:0, behavior:'smooth' }); }}>
             <div className="logo-icon">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2v8l4 4-4 4v4"/><path d="M18 2v8l-4 4 4 4v4"/>
-              </svg>
+              <img src={jubaosLogo} alt="JubaOS" width="36" height="36" style={{objectFit:'contain',borderRadius:'22%'}}/>
             </div>
-            BarberApp
+            <span className="gt">JubaOS</span>
           </a>
 
           <div className="nav-links">
@@ -440,14 +439,14 @@ export default function Landing() {
             <div>
               <span className="badge">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                Plataforma #1 para barbearias
+                Plataforma Inteligente para Barbearias
               </span>
             </div>
             <h1 className="hero-title">
               Sua barbearia,<br/><span className="gt">100% organizada</span>
             </h1>
             <p className="hero-sub">
-              Chega de agenda no papel e horários perdidos. O BarberApp centraliza agendamentos, clientes, serviços e faturamento em um único sistema moderno.
+              Chega de agenda no papel e horários perdidos. O JubaOS centraliza agendamentos, clientes, serviços e faturamento em um único sistema moderno.
             </p>
             <div className="hero-btns">
               <Link to="/register" className="btn btn-p btn-lg">
@@ -468,7 +467,7 @@ export default function Landing() {
             <div className="mock-browser">
               <div className="mb-bar">
                 <div className="dot dot-r"/><div className="dot dot-y"/><div className="dot dot-g"/>
-                <div className="mb-url">barberapp.com/dashboard</div>
+                <div className="mb-url">jubaos.com/dashboard</div>
               </div>
               <div className="mb-body">
                 <div className="mb-sidebar">
@@ -582,7 +581,7 @@ export default function Landing() {
                   <div style={{width:'9px',height:'9px',borderRadius:'50%',background:'#ff5f57'}}/>
                   <div style={{width:'9px',height:'9px',borderRadius:'50%',background:'#ffbd2e'}}/>
                   <div style={{width:'9px',height:'9px',borderRadius:'50%',background:'#28c840'}}/>
-                  <span style={{fontSize:'11px',color:'var(--muted)',marginLeft:'7px'}}>✅ Agenda BarberApp</span>
+                  <span style={{fontSize:'11px',color:'var(--muted)',marginLeft:'7px'}}>✅ Agenda JubaOS</span>
                 </div>
                 <div style={{padding:'18px'}}>
                   {[
@@ -591,19 +590,19 @@ export default function Landing() {
                     ['14:00','Pedro Santos','Corte Navalhado · R$ 50','agendado',false],
                   ].map(([time,name,svc,status,hi],i)=>(
                     <div key={i} style={{display:'flex',alignItems:'center',gap:'10px',
-                      background:hi?'rgba(201,137,26,.06)':'var(--bg2)',
+                      background:hi?'rgba(124,58,237,.06)':'var(--bg2)',
                       border:`1px solid ${hi?'var(--bdr-b)':'var(--bdr)'}`,
                       borderRadius:'9px',padding:'9px 12px',marginBottom:'8px'}}>
                       <span style={{fontSize:'12px',fontWeight:'700',color:'var(--brand-l)',width:'34px'}}>{time}</span>
-                      <div style={{width:'26px',height:'26px',borderRadius:'50%',background:'rgba(201,137,26,.2)',flexShrink:'0'}}/>
+                      <div style={{width:'26px',height:'26px',borderRadius:'50%',background:'rgba(124,58,237,.2)',flexShrink:'0'}}/>
                       <div style={{flex:1}}>
                         <div style={{fontSize:'12px',fontWeight:'600'}}>{name}</div>
                         <div style={{fontSize:'10px',color:'var(--muted)'}}>{svc}</div>
                       </div>
                       <span style={{padding:'2px 8px',borderRadius:'99px',fontSize:'9px',fontWeight:'700',
-                        background:status==='concluído'?'rgba(34,197,94,.1)':'rgba(201,137,26,.1)',
+                        background:status==='concluído'?'rgba(34,197,94,.1)':'rgba(124,58,237,.1)',
                         color:status==='concluído'?'#4ade80':'var(--brand-l)',
-                        border:`1px solid ${status==='concluído'?'rgba(34,197,94,.2)':'rgba(201,137,26,.2)'}`}}>
+                        border:`1px solid ${status==='concluído'?'rgba(34,197,94,.2)':'rgba(124,58,237,.2)'}`}}>
                         {status.toUpperCase()}
                       </span>
                     </div>
@@ -651,7 +650,7 @@ export default function Landing() {
           <div className="sec-hdr ctr reveal">
             <span className="badge sec-badge">Funcionalidades</span>
             <h2 className="sec-title">Tudo que você precisa,<br/><span className="gt">em um só lugar</span></h2>
-            <p className="sec-sub">Do agendamento ao relatório financeiro — o BarberApp tem tudo integrado para gerenciar sua barbearia sem complicação.</p>
+            <p className="sec-sub">Do agendamento ao relatório financeiro — o JubaOS tem tudo integrado para gerenciar sua barbearia sem complicação.</p>
           </div>
           <div className="feat-grid">
             {[
@@ -699,11 +698,11 @@ export default function Landing() {
           <div className={`demo-screen${activeTab==='dashboard'?' act':''}`}>
             <div className="demo-bar">
               <div className="dot dot-r"/><div className="dot dot-y"/><div className="dot dot-g"/>
-              <span className="demo-title-bar">BarberApp — Dashboard</span>
+              <span className="demo-title-bar">JubaOS — Dashboard</span>
             </div>
             <div className="demo-body">
               <div className="demo-sb">
-                <div className="d-logo"><div className="d-li"/><span className="d-lt">BarberApp</span></div>
+                <div className="d-logo"><div className="d-li"/><span className="d-lt">JubaOS</span></div>
                 {[['M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',true,'Dashboard'],
                   ['M3 4h18v18H3zM16 2v4M8 2v4M3 10h18',false,'Agenda'],
                   ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2',false,'Clientes'],
@@ -760,11 +759,11 @@ export default function Landing() {
           <div className={`demo-screen${activeTab==='agenda'?' act':''}`}>
             <div className="demo-bar">
               <div className="dot dot-r"/><div className="dot dot-y"/><div className="dot dot-g"/>
-              <span className="demo-title-bar">BarberApp — Agenda</span>
+              <span className="demo-title-bar">JubaOS — Agenda</span>
             </div>
             <div className="demo-body">
               <div className="demo-sb">
-                <div className="d-logo"><div className="d-li"/><span className="d-lt">BarberApp</span></div>
+                <div className="d-logo"><div className="d-li"/><span className="d-lt">JubaOS</span></div>
                 {[['M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',false,'Dashboard'],
                   ['M3 4h18v18H3zM16 2v4M8 2v4M3 10h18',true,'Agenda'],
                   ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2',false,'Clientes'],
@@ -807,7 +806,7 @@ export default function Landing() {
         <div className="container">
           <div className="sec-hdr ctr reveal">
             <span className="badge sec-badge">Benefícios</span>
-            <h2 className="sec-title">Por que usar<br/><span className="gt">o BarberApp?</span></h2>
+            <h2 className="sec-title">Por que usar<br/><span className="gt">o JubaOS?</span></h2>
           </div>
           <div className="ben-grid">
             {[
@@ -834,7 +833,7 @@ export default function Landing() {
           </div>
           <div className="test-grid">
             {[
-              {init:'JR',color:'rgba(201,137,26,.2)',tc:'var(--brand-l)',name:'João Rafael',role:'Barbearia JR, São Paulo',text:'"Antes controlava tudo no caderno e ainda assim perdia horário quase todo dia. Desde que usei o BarberApp, zero conflito e muito mais organização."'},
+              {init:'JR',color:'rgba(124,58,237,.2)',tc:'var(--brand-l)',name:'João Rafael',role:'Barbearia JR, São Paulo',text:'"Antes controlava tudo no caderno e ainda assim perdia horário quase todo dia. Desde que usei o JubaOS, zero conflito e muito mais organização."'},
               {init:'MC',color:'rgba(96,165,250,.2)',tc:'#93c5fd',name:'Marcos Conceição',role:'MC Grooming, Rio de Janeiro',text:'"O relatório financeiro mudou como entendo meu negócio. Sei exatamente quais serviços vendem mais e quando o movimento é maior."'},
               {init:'AC',color:'rgba(74,222,128,.2)',tc:'#86efac',name:'André Carvalho',role:'Studio André C., BH',text:'"Minha equipe tem 4 barbeiros e agora cada um tem seu acesso. O admin vê tudo, cada barbeiro vê sua agenda. Simples e profissional."'},
             ].map(({init,color,tc,name,role,text},i)=>(
@@ -886,11 +885,9 @@ export default function Landing() {
             <div>
               <div className="logo">
                 <div className="logo-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 2v8l4 4-4 4v4"/><path d="M18 2v8l-4 4 4 4v4"/>
-                  </svg>
+                  <img src={jubaosLogo} alt="JubaOS" width="32" height="32" style={{objectFit:'contain',borderRadius:'22%'}}/>
                 </div>
-                BarberApp
+                <span className="gt">JubaOS</span>
               </div>
               <p className="ft-desc">O sistema de gestão mais moderno para barbearias. Organize sua agenda, clientes e finanças em um só lugar.</p>
               <div className="ft-socials">
@@ -934,7 +931,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="ft-btm">
-            <p>© 2025 BarberApp. Todos os direitos reservados.</p>
+            <p>© 2025 JubaOS. Todos os direitos reservados.</p>
             <div className="ft-links">
               <a href="#">Privacidade</a>
               <a href="#">Termos</a>

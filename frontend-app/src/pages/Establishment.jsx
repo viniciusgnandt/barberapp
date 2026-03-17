@@ -100,12 +100,12 @@ function InfoTab({ shop, onSaved }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input label="Nome da barbearia *" value={form.name}     onChange={set('name')}    placeholder="Ex: Barbearia do João" className="sm:col-span-2" />
-        <Input label="E-mail *"            value={form.email}    onChange={set('email')}   placeholder="contato@barbearia.com" type="email" />
+        <Input label="Nome da barbearia" required value={form.name}     onChange={set('name')}    placeholder="Ex: Barbearia do João" className="sm:col-span-2" />
+        <Input label="E-mail"            required value={form.email}    onChange={set('email')}   placeholder="contato@barbearia.com" type="email" />
         <Input label="Telefone"            value={form.phone}    onChange={set('phone')}   placeholder="(11) 99999-9999" />
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            CPF / CNPJ *
+            CPF / CNPJ <span className="text-red-400 ml-0.5">*</span>
           </label>
           <input
             type="text"
@@ -134,7 +134,7 @@ function InfoTab({ shop, onSaved }) {
             <MapPin size={10} /> Sai do campo para preencher o endereço automaticamente
           </p>
         </div>
-        <Input label="Endereço *"  value={form.address} onChange={set('address')} placeholder="Rua, número, bairro" className="sm:col-span-2" />
+        <Input label="Endereço" required  value={form.address} onChange={set('address')} placeholder="Rua, número, bairro" className="sm:col-span-2" />
         <Input label="Cidade"      value={form.city}    onChange={set('city')}    placeholder="São Paulo" />
         <Input label="Estado"      value={form.state}   onChange={set('state')}   placeholder="SP" />
         <Input label="Descrição"   value={form.description} onChange={set('description')} placeholder="Sobre o estabelecimento..." className="sm:col-span-2" />

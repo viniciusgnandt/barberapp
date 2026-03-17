@@ -9,18 +9,18 @@
     /* Default font */
     --font-body: 'Inter', system-ui, sans-serif;
 
-    /* Default brand color: Âmbar */
-    --brand-50:  253 249 239;
-    --brand-100: 250 240 210;
-    --brand-200: 243 222 160;
-    --brand-300: 234 199 100;
-    --brand-400: 224 169 48;
-    --brand-500: 201 137 26;
-    --brand-600: 172 108 20;
-    --brand-700: 139 80 20;
-    --brand-800: 114 64 23;
-    --brand-900: 94 53 23;
-    --brand-950: 53 26 8;
+    /* Default brand color: Violeta (JubaOS) */
+    --brand-50:  245 243 255;
+    --brand-100: 237 233 254;
+    --brand-200: 221 214 254;
+    --brand-300: 196 181 253;
+    --brand-400: 167 139 250;
+    --brand-500: 139 92 246;
+    --brand-600: 124 58 237;
+    --brand-700: 109 40 217;
+    --brand-800: 91 33 182;
+    --brand-900: 76 29 149;
+    --brand-950: 46 16 101;
   }
 
   * { box-sizing: border-box; }

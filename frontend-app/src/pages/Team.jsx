@@ -94,9 +94,9 @@ function EmployeeModal({ open, onClose, shopId, roles, onCreated }) {
       </>}
     >
       <div className="space-y-4">
-        <Input label="Nome completo *" value={form.name}     onChange={set('name')}     placeholder="Ex: Carlos Silva" />
-        <Input label="E-mail *"        value={form.email}    onChange={set('email')}    placeholder="carlos@barbearia.com" type="email" />
-        <Input label="Senha *"         value={form.password} onChange={set('password')} placeholder="Mínimo 6 caracteres" type="password" autoComplete="new-password" />
+        <Input label="Nome completo" required value={form.name}     onChange={set('name')}     placeholder="Ex: Carlos Silva" />
+        <Input label="E-mail"        required value={form.email}    onChange={set('email')}    placeholder="carlos@barbearia.com" type="email" />
+        <Input label="Senha"         required value={form.password} onChange={set('password')} placeholder="Mínimo 6 caracteres" type="password" autoComplete="new-password" />
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Função</label>
           <select
@@ -257,7 +257,7 @@ function RoleFormModal({ open, onClose, existing, onSaved }) {
     >
       <div className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Nome da função *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Recepcionista" />
+          <Input label="Nome da função" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Recepcionista" />
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cor</label>
             <div className="flex items-center gap-2">
@@ -414,6 +414,7 @@ function TeamTab({ shop, roles }) {
                 <button
                   onClick={() => setEditTarget(emp)}
                   title="Editar perfil / promover"
+                  aria-label={`Editar perfil de ${emp.name}`}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
                 >
                   <Shield size={14} />
@@ -421,6 +422,7 @@ function TeamTab({ shop, roles }) {
                 <button
                   onClick={() => setResetTarget(emp)}
                   title="Redefinir senha"
+                  aria-label={`Redefinir senha de ${emp.name}`}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
                 >
                   <KeyRound size={14} />
@@ -429,6 +431,7 @@ function TeamTab({ shop, roles }) {
                   onClick={() => handleRemove(emp)}
                   disabled={removingId === emp._id}
                   title="Remover funcionário"
+                  aria-label={`Remover ${emp.name}`}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                 >
                   {removingId === emp._id
@@ -556,6 +559,7 @@ function RolesTab() {
                   <button
                     onClick={() => { setEditTarget(role); setFormOpen(true); }}
                     title="Editar função"
+                    aria-label={`Editar função ${role.name}`}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
                   >
                     <Shield size={14} />
@@ -564,6 +568,7 @@ function RolesTab() {
                     onClick={() => handleRemove(role)}
                     disabled={removingId === role._id}
                     title="Remover função"
+                    aria-label={`Remover função ${role.name}`}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                   >
                     {removingId === role._id

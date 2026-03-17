@@ -68,8 +68,8 @@ function computeDark(mode) {
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [mode,  setMode]  = useState(() => localStorage.getItem('theme-mode')  || 'light');
-  const [color, setColor] = useState(() => localStorage.getItem('theme-color') || 'amber');
+  const [mode,  setMode]  = useState(() => localStorage.getItem('theme-mode')  || 'dark');
+  const [color, setColor] = useState(() => localStorage.getItem('theme-color') || 'violet');
   const [font,  setFont]  = useState(() => localStorage.getItem('theme-font')  || 'inter');
 
   const dark = computeDark(mode);

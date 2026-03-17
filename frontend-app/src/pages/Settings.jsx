@@ -1,5 +1,6 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { UserCircle, Palette, Store, CreditCard, Users } from 'lucide-react';
+import JubaOSLogo from '../components/ui/JubaOSLogo';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 
@@ -27,6 +28,10 @@ export default function Settings() {
 
       {/* Left sub-nav */}
       <div className="w-48 shrink-0">
+        <div className="flex items-center gap-2 px-3 mb-4">
+          <JubaOSLogo size={24} />
+          <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">JubaOS</span>
+        </div>
         <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">
           Configurações
         </p>
