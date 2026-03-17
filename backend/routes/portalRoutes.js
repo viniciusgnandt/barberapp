@@ -3,15 +3,18 @@ const router     = require('express').Router();
 const clientAuth = require('../middleware/clientAuthMiddleware');
 const {
   registerClient, loginClient, meClient, updateClientProfile,
+  forgotClientPassword, resetClientPassword,
   searchBarbershops, getBarbershop, getSlots,
   getClientAppointments, createClientAppointment, cancelClientAppointment,
 } = require('../controllers/portalController');
 
 // Auth
-router.post('/auth/register', registerClient);
-router.post('/auth/login',    loginClient);
-router.get ('/auth/me',       clientAuth, meClient);
-router.put ('/auth/me',       clientAuth, updateClientProfile);
+router.post('/auth/register',        registerClient);
+router.post('/auth/login',           loginClient);
+router.get ('/auth/me',              clientAuth, meClient);
+router.put ('/auth/me',              clientAuth, updateClientProfile);
+router.post('/auth/forgot-password', forgotClientPassword);
+router.post('/auth/reset-password',  resetClientPassword);
 
 // Public discovery
 router.get('/barbershops',           searchBarbershops);

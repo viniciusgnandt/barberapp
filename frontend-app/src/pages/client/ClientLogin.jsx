@@ -64,6 +64,12 @@ export default function ClientLogin() {
 
             {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
 
+            <div className="flex justify-end">
+              <Link to="/client/forgot-password" className="text-xs text-violet-600 dark:text-violet-400 hover:underline">
+                Esqueci minha senha
+              </Link>
+            </div>
+
             <Button type="submit" className="w-full" loading={loading}>Entrar</Button>
           </form>
         </div>

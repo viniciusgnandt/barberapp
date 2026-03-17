@@ -10,6 +10,8 @@ const clientUserSchema = new mongoose.Schema({
   preferences: {
     themeMode: { type: String, enum: ['light', 'dark', 'auto'], default: 'auto' },
   },
+  resetCode:        { type: String },
+  resetCodeExpires: { type: Date },
   createdAt: { type: Date, default: Date.now },
 });
 

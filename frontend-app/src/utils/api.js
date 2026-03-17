@@ -190,10 +190,12 @@ function requestPortal(endpoint, options = {}) {
 
 export const Portal = {
   Auth: {
-    register:      (name, phone, password) => requestPortal('/portal/auth/register', { method: 'POST', body: { name, phone, password } }),
-    login:         (phone, password)       => requestPortal('/portal/auth/login',    { method: 'POST', body: { phone, password } }),
-    me:            ()                      => requestPortal('/portal/auth/me'),
-    updateProfile: (data)                  => requestPortal('/portal/auth/me',       { method: 'PUT',  body: data }),
+    register:       (name, phone, password) => requestPortal('/portal/auth/register',        { method: 'POST', body: { name, phone, password } }),
+    login:          (phone, password)       => requestPortal('/portal/auth/login',           { method: 'POST', body: { phone, password } }),
+    me:             ()                      => requestPortal('/portal/auth/me'),
+    updateProfile:  (data)                  => requestPortal('/portal/auth/me',              { method: 'PUT',  body: data }),
+    forgotPassword: (phone)                 => requestPortal('/portal/auth/forgot-password', { method: 'POST', body: { phone } }),
+    resetPassword:  (phone, code, newPassword) => requestPortal('/portal/auth/reset-password', { method: 'POST', body: { phone, code, newPassword } }),
   },
   Barbershops: {
     search:   (params = {}) => { const qs = new URLSearchParams(params).toString(); return requestPortal(`/portal/barbershops${qs ? '?' + qs : ''}`); },

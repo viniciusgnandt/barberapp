@@ -352,8 +352,58 @@ const cancelClientAppointment = async (req, res) => {
   }
 };
 
+// POST /portal/auth/forgot-password
+const forgotClientPassword = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ ok: false, message: 'Informe o telefone.' });
+
+    const user = await ClientUser.findOne({ phone: phone.replace(/\D/g, '') });
+    if (user) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      user.resetCode        = code;
+      user.resetCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+      await user.save();
+      // Em produção: enviar via SMS. No dev: log no console.
+      console.log(`[RESET CODE] Telefone: ${phone} | Código: ${code}`);
+    }
+    // Sempre responde igual para não revelar se o número existe
+    res.json({ ok: true, message: 'Se a conta existir, o código foi gerado.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+};
+
+// POST /portal/auth/reset-password
+const resetClientPassword = async (req, res) => {
+  try {
+    const { phone, code, newPassword } = req.body;
+    if (!phone || !code || !newPassword)
+      return res.status(400).json({ ok: false, message: 'Dados incompletos.' });
+    if (newPassword.length < 6)
+      return res.status(400).json({ ok: false, message: 'A senha deve ter no mínimo 6 caracteres.' });
+
+    const user = await ClientUser.findOne({
+      phone:            phone.replace(/\D/g, ''),
+      resetCode:        code,
+      resetCodeExpires: { $gt: new Date() },
+    });
+    if (!user) return res.status(400).json({ ok: false, message: 'Código inválido ou expirado.' });
+
+    user.password         = newPassword;
+    user.resetCode        = undefined;
+    user.resetCodeExpires = undefined;
+    await user.save();
+
+    res.json({ ok: true, message: 'Senha redefinida com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+};
+
 module.exports = {
   registerClient, loginClient, meClient, updateClientProfile,
+  forgotClientPassword, resetClientPassword,
   searchBarbershops, getBarbershop, getSlots,
   getClientAppointments, createClientAppointment, cancelClientAppointment,
 };

@@ -45,6 +45,7 @@ import UsageSettings from './pages/UsageSettings';
 // Client portal
 import ClientLogin from './pages/client/ClientLogin';
 import ClientRegister from './pages/client/ClientRegister';
+import ClientForgotPassword from './pages/client/ClientForgotPassword';
 import ClientHome from './pages/client/ClientHome';
 import EstablishmentDetail from './pages/client/EstablishmentDetail';
 import MyAppointments from './pages/client/MyAppointments';
@@ -91,8 +92,9 @@ export default function App() {
             </Route>
 
             {/* Client portal — public */}
-            <Route path="/client/login"    element={<ClientLogin />}    />
-            <Route path="/client/register" element={<ClientRegister />} />
+            <Route path="/client/login"            element={<ClientLogin />}           />
+            <Route path="/client/register"         element={<ClientRegister />}        />
+            <Route path="/client/forgot-password"  element={<ClientForgotPassword />}  />
 
             {/* Client portal — protected */}
             <Route element={<ClientProtectedRoute><ClientLayout /></ClientProtectedRoute>}>
