@@ -7,6 +7,7 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 const { reconnectAll } = require('./services/whatsappService');
 const { startNotificationScheduler } = require('./services/notificationService');
+const rateLimit = require('./middleware/rateLimit');
 
 connectDB().then(() => {
   reconnectAll().catch(() => {});
@@ -16,7 +17,11 @@ connectDB().then(() => {
 const app = express();
 
 // ── Middlewares ────────────────────────────────────────────────────────────────
-app.use(cors());          // Aceita requisições do frontend (localhost:5500)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:5173', 'http://localhost:5500', 'http://127.0.0.1:5500'];
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -28,6 +33,32 @@ app.use((err, req, res, next) => {
   }
   next();
 });
+
+// ── Rate limiting em endpoints sensíveis ──────────────────────────────────────
+const loginLimit = rateLimit({
+  windowMs: 60_000,   // 1 minuto
+  max:      10,
+  message:  'Muitas tentativas de login. Aguarde 1 minuto.',
+});
+
+const forgotLimit = rateLimit({
+  windowMs: 15 * 60_000, // 15 minutos
+  max:      5,
+  message:  'Muitas solicitações de recuperação de senha. Aguarde 15 minutos.',
+});
+
+const chatLimit = rateLimit({
+  windowMs: 60_000,  // 1 minuto
+  max:      20,
+  message:  'Limite de mensagens atingido. Aguarde 1 minuto.',
+});
+
+app.use('/api/auth/login',                     loginLimit);
+app.use('/api/auth/forgot-password',           forgotLimit);
+app.use('/api/portal/auth/login',              loginLimit);
+app.use('/api/portal/auth/forgot-password',    forgotLimit);
+app.use('/api/portal/auth/reset-password',     forgotLimit);
+app.use('/api/chat/message',                   chatLimit);
 
 // ── Rotas da API ───────────────────────────────────────────────────────────────
 app.use('/api/auth',         require('./routes/authRoutes'));

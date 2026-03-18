@@ -253,7 +253,8 @@ const updateAppointment = async (req, res) => {
       }
     }
 
-    Object.assign(apt, req.body);
+    const allowed = ['date', 'endDate', 'barber', 'service', 'status', 'notes', 'clientName', 'client', 'type'];
+    allowed.forEach(f => { if (req.body[f] !== undefined) apt[f] = req.body[f]; });
     await apt.save();
     const data = await populate(Appointment.findById(apt._id));
     res.json({ success: true, data });

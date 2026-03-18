@@ -22,6 +22,14 @@ const getMyBarbershop = async (req, res) => {
     if (!barbershop)
       return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
+    // Barbeiros não veem dados financeiros
+    if (req.user.role !== 'admin') {
+      const { name, email, phone, logo, address, neighborhood, city, state, zipCode,
+              description, openingHours, establishmentType, status } = barbershop;
+      return res.json({ success: true, data: { _id: barbershop._id, name, email, phone, logo, address,
+        neighborhood, city, state, zipCode, description, openingHours, establishmentType, status } });
+    }
+
     res.json({ success: true, data: barbershop });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -77,15 +85,39 @@ const updateBarbershop = async (req, res) => {
   }
 };
 
-// DELETE /api/barbershops/:id — Deletar barbearia
+// DELETE /api/barbershops/:id — Deletar barbearia (cascade)
 const deleteBarbershop = async (req, res) => {
   try {
     const barbershop = await Barbershop.findById(req.params.id);
     if (!barbershop)
       return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
-    await Barbershop.deleteOne({ _id: req.params.id });
-    res.json({ success: true, message: 'Barbearia deletada.' });
+    const id = req.params.id;
+    const Appointment        = require('../models/Appointment');
+    const Client             = require('../models/Client');
+    const Service            = require('../models/Service');
+    const Product            = require('../models/Product');
+    const StockMovement      = require('../models/StockMovement');
+    const Role               = require('../models/Role');
+    const ServiceCategory    = require('../models/ServiceCategory');
+    const ReceptionSession   = require('../models/ReceptionSession');
+    const ReceptionConversation = require('../models/ReceptionConversation');
+
+    await Promise.all([
+      User.deleteMany({ barbershop: id }),
+      Appointment.deleteMany({ barbershop: id }),
+      Client.deleteMany({ barbershop: id }),
+      Service.deleteMany({ barbershop: id }),
+      Product.deleteMany({ barbershop: id }),
+      StockMovement.deleteMany({ barbershop: id }),
+      Role.deleteMany({ barbershop: id }),
+      ServiceCategory.deleteMany({ barbershop: id }),
+      ReceptionSession.deleteOne({ barbershop: id }),
+      ReceptionConversation.deleteMany({ barbershop: id }),
+    ]);
+
+    await Barbershop.deleteOne({ _id: id });
+    res.json({ success: true, message: 'Barbearia e todos os dados relacionados foram deletados.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -111,8 +143,10 @@ const createEmployee = async (req, res) => {
 
     if (!name || !email || !password)
       return res.status(400).json({ success: false, message: 'Nome, email e senha são obrigatórios.' });
-    if (password.length < 6)
-      return res.status(400).json({ success: false, message: 'Senha mínima: 6 caracteres.' });
+
+    const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!PASSWORD_POLICY.test(password))
+      return res.status(400).json({ success: false, message: 'A senha deve ter no mínimo 8 caracteres, incluindo letras maiúsculas, minúsculas e números.' });
     if (await User.findOne({ email, barbershop: barbershopId }))
       return res.status(400).json({ success: false, message: 'Email já cadastrado nesta barbearia.' });
 
@@ -186,6 +220,20 @@ const removeEmployee = async (req, res) => {
     const employee = await User.findOne({ _id: userId, barbershop: barbershopId });
     if (!employee)
       return res.status(404).json({ success: false, message: 'Funcionário não encontrado.' });
+
+    // Block removal if there are future appointments
+    const Appointment = require('../models/Appointment');
+    const futureAppts = await Appointment.countDocuments({
+      barber:     userId,
+      barbershop: barbershopId,
+      status:     'agendado',
+      date:       { $gt: new Date() },
+    });
+    if (futureAppts > 0)
+      return res.status(400).json({
+        success: false,
+        message: `Este profissional possui ${futureAppts} agendamento(s) futuro(s). Cancele-os antes de remover o funcionário.`,
+      });
 
     await User.deleteOne({ _id: userId });
     res.json({ success: true, message: 'Funcionário removido.' });

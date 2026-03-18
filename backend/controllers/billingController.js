@@ -47,7 +47,7 @@ const getBilling = async (req, res) => {
         planStatus:      shop.planStatus,
         planExpiresAt:   shop.planExpiresAt,
         daysLeft,
-        invoices:        shop.invoices.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+        invoices:        shop.invoices.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt)),
         messagePackages: activePackages,
       },
     });

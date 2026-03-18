@@ -99,8 +99,8 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
 
       case 'verificar_disponibilidade': {
         const { data, serviceId, profissionalId } = input;
-        const dateObj = new Date(data + 'T00:00:00');
-        const dayOfWeek = dateObj.getDay(); // 0=Dom, 1=Seg...
+        const dateObj   = new Date(data + 'T12:00:00.000-03:00'); // noon BRT avoids day-boundary issues
+        const dayOfWeek = dateObj.getUTCDay(); // correct day in BRT
 
         // Check barbershop opening hours
         const shop = await Barbershop.findById(barbershopId).select('openingHours');
@@ -132,9 +132,9 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           slots.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
         }
 
-        // Get existing appointments for this date
-        const startOfDay = new Date(data + 'T00:00:00');
-        const endOfDay   = new Date(data + 'T23:59:59');
+        // Get existing appointments for this date (BRT boundaries)
+        const startOfDay = new Date(data + 'T00:00:00.000-03:00');
+        const endOfDay   = new Date(data + 'T23:59:59.999-03:00');
         const existing   = await Appointment.find({
           barbershop: barbershopId,
           date:       { $gte: startOfDay, $lte: endOfDay },
@@ -142,12 +142,12 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           ...(profissionalId ? { barber: profissionalId } : {}),
         }).populate('service', 'duration');
 
-        // Filter available slots per barber
+        // Filter available slots per barber — parse slot times in BRT (UTC-3)
         const result = [];
         for (const barber of barbers) {
           const barberAppts = existing.filter(a => String(a.barber) === String(barber._id));
           const freeSlots = slots.filter(slot => {
-            const slotStart = new Date(data + `T${slot}:00`);
+            const slotStart = new Date(`${data}T${slot}:00.000-03:00`);
             const slotEnd   = new Date(slotStart.getTime() + duration * 60000);
             return !barberAppts.some(a => {
               const aDur   = (a.service?.duration || 30) * 60000;
@@ -175,30 +175,31 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
         const service = await Service.findById(serviceId).select('name duration price');
         if (!service) return { sucesso: false, erro: 'Serviço não encontrado.' };
 
-        const barber = await User.findById(profissionalId);
+        // Validate barber belongs to this barbershop (prevents cross-tenant injection)
+        const barber = await User.findOne({ _id: profissionalId, barbershop: barbershopId });
         if (!barber) return { sucesso: false, erro: 'Profissional não encontrado.' };
 
         // Find or create client — always register if we have any name info
-        let clientDoc = await Client.findOne({ barbershop: barbershopId, phone: contactPhone });
+        const phoneClean = String(contactPhone).replace(/\D/g, '');
+        let clientDoc = await Client.findOne({ barbershop: barbershopId, phone: phoneClean });
         const clientName = nomeCliente || contactName;
         if (!clientDoc && clientName) {
           clientDoc = await Client.create({
             barbershop: barbershopId,
             name:       clientName,
-            phone:      contactPhone,
+            phone:      phoneClean,
           });
         }
 
-        // Parse date as local time (BRT) — matches how the agenda queries
-        const dateObj = new Date(`${data}T${horario}:00`);
+        // Parse as BRT (UTC-3) — consistent with portal and admin dashboard
+        const dateObj = new Date(`${data}T${horario}:00.000-03:00`);
         const endDate = new Date(dateObj.getTime() + service.duration * 60000);
 
-        console.log(`[Reception] Criando agendamento: ${service.name} em ${dateObj.toISOString()} (${data} ${horario} local)`);
+        console.log(`[Reception] Criando agendamento: ${service.name} em ${dateObj.toISOString()} (${data} ${horario} BRT)`);
 
-        // Conflict check — load all appointments for this barber on this date and check overlap
-        // (cannot rely on endDate field; web-created appointments don't store it)
-        const dayStart = new Date(`${data}T00:00:00`);
-        const dayEnd   = new Date(`${data}T23:59:59`);
+        // Conflict check — BRT day boundaries
+        const dayStart = new Date(`${data}T00:00:00.000-03:00`);
+        const dayEnd   = new Date(`${data}T23:59:59.999-03:00`);
         const existing = await Appointment.find({
           barbershop: barbershopId,
           barber:     profissionalId,
@@ -249,9 +250,11 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
             status:     'agendado',
           }).populate('service', 'name').populate('barber', 'name').sort({ date: 1 }).limit(5);
         } else {
+          // Fallback: search by exact phone in notes — anchored to prevent partial matches
+          const escapedPhone = String(contactPhone).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           appts = await Appointment.find({
             barbershop: barbershopId,
-            notes:      { $regex: contactPhone },
+            notes:      { $regex: `\\(${escapedPhone}\\)` },
             date:       { $gte: now },
             status:     'agendado',
           }).populate('service', 'name').populate('barber', 'name').sort({ date: 1 }).limit(5);
@@ -340,6 +343,7 @@ Você tem acesso a ferramentas para:
 FORMATO OBRIGATÓRIO — NUNCA VIOLE ESTAS REGRAS:
 - Máximo 1 frase por resposta. Em casos excepcionais, 2 frases.
 - PROIBIDO: emojis, asteriscos (**), hashtags (#), markdown, negrito, itálico, listas numeradas com símbolos.
+- PROIBIDO: mencionar IDs internos (códigos alfanuméricos como "507f1f77bcf86cd799439011") nas respostas.
 - PROIBIDO: saudações ("Olá", "Oi"), despedidas ("Até logo", "Até breve"), frases motivacionais.
 - PROIBIDO: repetir o que o cliente disse, resumos, listas de agendamentos não solicitadas.
 - Texto simples apenas. Sem formatação de nenhum tipo.

@@ -181,9 +181,10 @@ const getSlots = async (req, res) => {
     if (!service)
       return res.status(404).json({ success: false, message: 'Serviço não encontrado.' });
 
-    // Day-of-week for requested date (use noon to avoid DST issues)
-    const reqDate    = new Date(date + 'T12:00:00');
-    const dayOfWeek  = reqDate.getDay();
+    // Brazil is UTC-3 (no DST since 2019) — all slot/time calculations use BRT explicitly
+    const BRT_OFFSET_H = -3;
+    const reqDate    = new Date(date + 'T12:00:00.000-03:00');
+    const dayOfWeek  = reqDate.getUTCDay();
     const hoursToday = shop.openingHours?.find(h => h.day === dayOfWeek);
     if (!hoursToday || !hoursToday.open)
       return res.json({ success: true, slots: [] });
@@ -202,13 +203,15 @@ const getSlots = async (req, res) => {
       barbers = await User.find({ barbershop: id });
     }
 
-    const dayStart = new Date(date + 'T00:00:00');
-    const dayEnd   = new Date(date + 'T23:59:59');
+    // BRT day boundaries stored in UTC
+    const dayStart = new Date(date + 'T00:00:00.000-03:00');
+    const dayEnd   = new Date(date + 'T23:59:59.999-03:00');
 
-    // Now threshold — don't return slots already passed (with 30-min buffer)
-    const now        = new Date();
-    const isToday    = date === now.toISOString().slice(0, 10);
-    const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() + 30 : 0;
+    // Now threshold in BRT minutes-from-midnight (with 30-min buffer)
+    const now      = new Date();
+    const nowBRT   = new Date(now.getTime() + BRT_OFFSET_H * 3600000);
+    const isToday  = date === nowBRT.toISOString().slice(0, 10);
+    const nowMinBRT = isToday ? ((now.getUTCHours() + BRT_OFFSET_H + 24) % 24) * 60 + now.getUTCMinutes() + 30 : 0;
 
     const allSlots = [];
 
@@ -220,12 +223,12 @@ const getSlots = async (req, res) => {
         status:     { $nin: ['cancelado'] },
       }).populate('service', 'duration');
 
-      // Build occupied intervals in minutes from midnight
+      // Build occupied intervals in BRT minutes-from-midnight (UTC-3)
       const occupied = appts.map(a => {
-        const startMin = a.date.getHours() * 60 + a.date.getMinutes();
+        const startMin = ((a.date.getUTCHours() + BRT_OFFSET_H + 24) % 24) * 60 + a.date.getUTCMinutes();
         let endMin;
         if (a.endDate) {
-          endMin = a.endDate.getHours() * 60 + a.endDate.getMinutes();
+          endMin = ((a.endDate.getUTCHours() + BRT_OFFSET_H + 24) % 24) * 60 + a.endDate.getUTCMinutes();
         } else {
           endMin = startMin + (a.service?.duration || 30);
         }
@@ -234,7 +237,7 @@ const getSlots = async (req, res) => {
 
       // Generate slots every 15 minutes
       for (let t = openMinutes; t + service.duration <= closeMinutes; t += 15) {
-        if (t < nowMinutes) continue;
+        if (t < nowMinBRT) continue;
         const hasConflict = occupied.some(o => t < o.end && t + service.duration > o.start);
         if (!hasConflict) {
           const h = String(Math.floor(t / 60)).padStart(2, '0');
@@ -310,12 +313,13 @@ const createClientAppointment = async (req, res) => {
     if (!barber)
       return res.status(404).json({ success: false, message: 'Profissional não encontrado.' });
 
-    const appointmentDate = new Date(`${date}T${time}:00`);
+    // Parse as BRT (UTC-3) so dates are stored correctly regardless of server timezone
+    const appointmentDate = new Date(`${date}T${time}:00.000-03:00`);
     const endDate         = new Date(appointmentDate.getTime() + service.duration * 60 * 1000);
 
-    // Double-check availability — populate service duration for appointments without endDate
-    const dayStart  = new Date(`${date}T00:00:00`);
-    const dayEnd    = new Date(`${date}T23:59:59`);
+    // Double-check availability — BRT day boundaries
+    const dayStart  = new Date(`${date}T00:00:00.000-03:00`);
+    const dayEnd    = new Date(`${date}T23:59:59.999-03:00`);
     const dayAppts  = await Appointment.find({
       barber:     barberId,
       barbershop: barbershopId,
@@ -372,9 +376,18 @@ const createClientAppointment = async (req, res) => {
 
 const cancelClientAppointment = async (req, res) => {
   try {
+    // Allow cancellation of appointments created via portal OR linked via Client record
+    const clientRecords = await Client.find({
+      $or: [{ clientUser: req.client._id }, { phone: req.client.phone }],
+    }).select('_id');
+    const clientIds = clientRecords.map(c => c._id);
+
     const appt = await Appointment.findOne({
-      _id:            req.params.id,
-      portalClientId: req.client._id,
+      _id: req.params.id,
+      $or: [
+        { portalClientId: req.client._id },
+        ...(clientIds.length ? [{ client: { $in: clientIds } }] : []),
+      ],
     });
     if (!appt)
       return res.status(404).json({ success: false, message: 'Agendamento não encontrado.' });

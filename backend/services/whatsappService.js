@@ -195,9 +195,13 @@ async function createClient(barbershopId, barbershopName) {
       message: { role: 'user', content: msg.body, timestamp: new Date() },
     });
 
-    // Generate AI reply
+    // Generate AI reply — send only last 30 messages to avoid token explosion and MongoDB 16MB limit
     try {
-      const reply = await generateReply(barbershopName, convo.messages, { barbershopId, contactPhone: phone, contactName: name });
+      const MAX_CONTEXT = 30;
+      const contextMessages = convo.messages.length > MAX_CONTEXT
+        ? convo.messages.slice(-MAX_CONTEXT)
+        : convo.messages;
+      const reply = await generateReply(barbershopName, contextMessages, { barbershopId, contactPhone: phone, contactName: name });
       convo.messages.push({ role: 'assistant', content: reply });
       convo.lastMessageAt = new Date();
       await convo.save();
