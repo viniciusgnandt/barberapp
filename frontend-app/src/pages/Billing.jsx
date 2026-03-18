@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Zap, Crown, XCircle } from 'lucide-react';
+import { CreditCard, Zap, Crown, XCircle, Package, ChevronDown } from 'lucide-react';
 import { Billing as BillingAPI } from '../utils/api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -105,13 +105,15 @@ function InvStatus({ status }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Billing() {
-  const [billing,       setBilling]       = useState(null);
-  const [loading,       setLoading]       = useState(true);
-  const [editingCard,   setEditingCard]   = useState(false);
-  const [savedCard,     setSavedCard]     = useState(null);
-  const [paying,        setPaying]        = useState(false);
-  const [cancelling,    setCancelling]    = useState(false);
-  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [billing,         setBilling]         = useState(null);
+  const [loading,         setLoading]         = useState(true);
+  const [editingCard,     setEditingCard]     = useState(false);
+  const [savedCard,       setSavedCard]       = useState(null);
+  const [paying,          setPaying]          = useState(false);
+  const [cancelling,      setCancelling]      = useState(false);
+  const [confirmCancel,   setConfirmCancel]   = useState(false);
+  const [showInvoices,    setShowInvoices]    = useState(true);
+  const [showPackages,    setShowPackages]    = useState(true);
 
   const load = async () => {
     setLoading(true);
@@ -252,39 +254,83 @@ export default function Billing() {
         {/* ── Faturas ─────────────────────────────────────────────────────── */}
         {billing?.invoices?.length > 0 && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-5">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Faturas</p>
+            <button
+              onClick={() => setShowInvoices(v => !v)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Faturas</p>
+              <ChevronDown size={15} className={cn('text-gray-400 transition-transform', showInvoices && 'rotate-180')} />
+            </button>
 
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-gray-400 dark:text-gray-500 text-left">
-                  <th className="pb-3 font-medium">Data</th>
-                  <th className="pb-3 font-medium">Total</th>
-                  <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium text-right">Descrição</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {billing.invoices.map((inv, i) => (
-                  <tr key={i}>
-                    <td className="py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                      {fmtDate(inv.paidAt || inv.createdAt)}
-                      {inv.card && (
-                        <span className="block text-xs text-gray-400 dark:text-gray-600">•••• {inv.card}</span>
-                      )}
-                    </td>
-                    <td className="py-3 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                      {inv.amount > 0 ? fmtCurrency(inv.amount) : 'Grátis'}
-                    </td>
-                    <td className="py-3">
-                      <InvStatus status={inv.status} />
-                    </td>
-                    <td className="py-3 text-right text-xs text-gray-400 dark:text-gray-500 max-w-[160px] truncate">
-                      {inv.description}
-                    </td>
+            {showInvoices && (
+              <table className="w-full text-sm mt-4">
+                <thead>
+                  <tr className="text-xs text-gray-400 dark:text-gray-500 text-left">
+                    <th className="pb-3 font-medium">Data</th>
+                    <th className="pb-3 font-medium">Total</th>
+                    <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium text-right">Descrição</th>
                   </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {billing.invoices.map((inv, i) => (
+                    <tr key={i}>
+                      <td className="py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                        {fmtDate(inv.paidAt || inv.createdAt)}
+                        {inv.card && (
+                          <span className="block text-xs text-gray-400 dark:text-gray-600">•••• {inv.card}</span>
+                        )}
+                      </td>
+                      <td className="py-3 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                        {inv.amount > 0 ? fmtCurrency(inv.amount) : 'Grátis'}
+                      </td>
+                      <td className="py-3">
+                        <InvStatus status={inv.status} />
+                      </td>
+                      <td className="py-3 text-right text-xs text-gray-400 dark:text-gray-500 max-w-[160px] truncate">
+                        {inv.description}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* ── Pacotes de mensagens ────────────────────────────────────────── */}
+        {billing?.messagePackages?.length > 0 && (
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-5">
+            <button
+              onClick={() => setShowPackages(v => !v)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Package size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Pacotes de mensagens ativos</p>
+              </div>
+              <ChevronDown size={15} className={cn('text-gray-400 transition-transform', showPackages && 'rotate-180')} />
+            </button>
+
+            {showPackages && (
+              <div className="space-y-3 mt-4">
+                {billing.messagePackages.map((p, i) => (
+                  <div key={p._id || i} className="flex items-center justify-between text-sm gap-4">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        {p.remaining.toLocaleString('pt-BR')} restantes
+                      </span>
+                      {p.recurring && (
+                        <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">Recorrente</span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                      Expira {fmtDate(p.expiresAt)}
+                    </span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
         )}
 

@@ -39,6 +39,7 @@ app.use('/api/products',     require('./routes/productRoutes'));
 app.use('/api/service-categories', require('./routes/serviceCategoryRoutes'));
 app.use('/api/roles',              require('./routes/roleRoutes'));
 app.use('/api/reception',         require('./routes/receptionRoutes'));
+app.use('/api/chat',              require('./routes/chatRoutes'));
 app.use('/api/portal',            require('./routes/portalRoutes'));
 
 // ── Health check ───────────────────────────────────────────────────────────────

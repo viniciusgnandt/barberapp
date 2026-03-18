@@ -69,9 +69,9 @@ const getConversations = async (req, res) => {
   try {
     const barbershopId = req.user.barbershop._id;
     const convos = await ReceptionConversation
-      .find({ barbershop: barbershopId })
+      .find({ barbershop: barbershopId, contactPhone: { $not: /^chat_/ } })
       .sort({ lastMessageAt: -1 })
-      .select('contactPhone contactName lastMessageAt messages');
+      .select('contactPhone contactName contactPhoto lastMessageAt messages');
     res.json({ success: true, data: convos });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -106,7 +106,7 @@ const getUsage = async (req, res) => {
     const now = new Date();
 
     // ── Billing cycle window ──────────────────────────────────────────────────
-    const shop = await Barbershop.findById(barbershopId).select('planExpiresAt createdAt');
+    const shop = await Barbershop.findById(barbershopId).select('planExpiresAt createdAt messagePackages');
     let cicloFim;
     if (shop?.planExpiresAt) {
       cicloFim = new Date(shop.planExpiresAt);
@@ -160,17 +160,35 @@ const getUsage = async (req, res) => {
 
     const isFiltered = !!(filterStart || filterEnd);
 
+    // ── Package info ──────────────────────────────────────────────────────────
+    const BASE_LIMIT       = 2000;
+    const activePackages   = (shop.messagePackages || []).filter(p => p.remaining > 0 && p.expiresAt > now);
+    const packageRemaining = activePackages.reduce((sum, p) => sum + p.remaining, 0);
+    const packageUsed      = Math.max(0, cicloAI - BASE_LIMIT);
+    const totalDisponivel  = BASE_LIMIT + packageRemaining;
+
     res.json({
       success: true,
       data: {
-        limite:         2000,
-        mensagensCiclo: cicloAI,
-        cicloInicio:    cicloInicio.toISOString(),
-        cicloFim:       cicloFim.toISOString(),
-        totalMensagens: totalAI,
-        totalContatos:  isFiltered ? filtContacts.size : allContacts.size,
-        totalConversas: isFiltered ? filtConversas      : convos.length,
-        porMes:         Object.values(monthMap),
+        limite:           BASE_LIMIT,
+        mensagensCiclo:   cicloAI,
+        packageUsed,
+        packageRemaining,
+        totalDisponivel,
+        pacotes:          activePackages.map(p => ({
+          id:          p._id,
+          messages:    p.messages,
+          remaining:   p.remaining,
+          recurring:   p.recurring,
+          purchasedAt: p.purchasedAt,
+          expiresAt:   p.expiresAt,
+        })),
+        cicloInicio:      cicloInicio.toISOString(),
+        cicloFim:         cicloFim.toISOString(),
+        totalMensagens:   totalAI,
+        totalContatos:    isFiltered ? filtContacts.size : allContacts.size,
+        totalConversas:   isFiltered ? filtConversas      : convos.length,
+        porMes:           Object.values(monthMap),
       },
     });
   } catch (err) {

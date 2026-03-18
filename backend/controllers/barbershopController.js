@@ -66,7 +66,7 @@ const updateBarbershop = async (req, res) => {
     if (!barbershop)
       return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
-    const allowed = ['name', 'email', 'document', 'phone', 'address', 'city', 'state', 'zipCode', 'description', 'openingHours'];
+    const allowed = ['name', 'email', 'document', 'phone', 'address', 'neighborhood', 'city', 'state', 'zipCode', 'description', 'openingHours', 'notifications'];
     allowed.forEach(k => { if (req.body[k] !== undefined) barbershop[k] = req.body[k]; });
     barbershop.updatedAt = new Date();
     await barbershop.save();

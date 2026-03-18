@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Scissors } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { cn } from '../../utils/cn';
 import { useClientAuth } from '../../context/ClientAuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import JubaOSLogo from '../../components/ui/JubaOSLogo';
 
 export default function ClientLogin() {
   const { login }    = useClientAuth();
@@ -37,11 +39,21 @@ export default function ClientLogin() {
 
       <div className="w-full max-w-sm animate-fade-up">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-violet-600 flex items-center justify-center mb-4">
-            <Scissors size={28} className="text-white" />
+          <div className="w-14 h-14 rounded-2xl overflow-hidden mb-4">
+            <JubaOSLogo size={56} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Área do Cliente</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{background:'linear-gradient(135deg,#5eead4 0%,#a78bfa 50%,#7c3aed 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>JubaOS</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Entre para agendar serviços</p>
+        </div>
+
+        {/* Mode selector */}
+        <div className="flex gap-2 mb-4">
+          <Link to="/login" className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold text-center transition-colors', 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-violet-400 hover:text-violet-600')}>
+            Sou Profissional
+          </Link>
+          <Link to="/client/login" className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold text-center transition-colors', 'bg-violet-600 text-white')}>
+            Sou Cliente
+          </Link>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
@@ -77,10 +89,6 @@ export default function ClientLogin() {
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
           Não tem conta?{' '}
           <Link to="/client/register" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">Cadastre-se</Link>
-        </p>
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
-          É profissional?{' '}
-          <Link to="/login" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">Acesso profissional</Link>
         </p>
       </div>
     </div>

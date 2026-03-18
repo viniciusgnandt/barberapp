@@ -211,12 +211,7 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
 
         return {
           sucesso: true,
-          agendamentoId: appt._id,
-          mensagem: `Agendamento confirmado! ${service.name} com ${barber.name} em ${data} às ${horario}.`,
-          servico:      service.name,
-          profissional: barber.name,
-          data,
-          horario,
+          mensagem: `${service.name} — ${data} às ${horario}.`,
         };
       }
 
@@ -307,24 +302,18 @@ Você tem acesso a ferramentas para:
 - Criar agendamentos
 - Consultar e cancelar agendamentos do cliente
 
-Diretrizes gerais:
-- Nunca peça o número de telefone — você já tem o número do WhatsApp
-- Seja objetivo e cordial, responda sempre em português
-- Se o cliente não estiver cadastrado, peça apenas o nome para criar o cadastro
-- Use as ferramentas sempre que necessário para dar respostas precisas
+REGRAS:
+- Responda de forma curta e objetiva. Use no máximo 2 frases. Nunca escreva respostas longas. Se possível responda em uma única frase. Sem saudações, sem despedidas, sem repetir o que o cliente disse. Sem emojis. Responda sempre em português.
+- Nunca peça o telefone — já temos.
+- Cliente não cadastrado: peça só o nome.
+- Use ferramentas para respostas precisas.
 
-Sugestões de agendamento (IMPORTANTE):
-- Sempre que o cliente demonstrar interesse em agendar (mesmo que vagamente, ex: "quero cortar o cabelo", "tem horário?", "quando tem vaga?"), use as ferramentas para buscar disponibilidade e já sugira opções concretas
-- Sugira horários para hoje e amanhã por padrão. Se não houver vagas, expanda para os próximos dias
-- Apresente as sugestões de forma clara e numerada para o cliente escolher facilmente, ex:
-  "Encontrei estes horários disponíveis:
-  1️⃣ Hoje às 14h00 — com João
-  2️⃣ Hoje às 16h30 — com João
-  3️⃣ Amanhã às 09h00 — com Carlos
-  Qual prefere?"
-- Ao apresentar opções, inclua o nome do profissional e o horário
-- Informe o preço e duração do serviço junto com as sugestões
-- Após o cliente escolher, confirme todos os detalhes e crie o agendamento imediatamente sem pedir confirmação redundante`;
+Agendamento:
+- SEMPRE use verificar_disponibilidade antes de sugerir qualquer horário. Nunca sugira horário sem checar.
+- Apresente apenas horários confirmados como livres pela ferramenta.
+- Após o cliente escolher, chame verificar_disponibilidade novamente para confirmar que o horário ainda está livre antes de criar.
+- Só então chame criar_agendamento. Isso evita duplicidade.
+- Confirmação: informe apenas serviço, data e horário. Nada mais.`;
 
   const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
 

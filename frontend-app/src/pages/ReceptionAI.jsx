@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bot, Wifi, WifiOff, Loader2, RefreshCw, PhoneOff, MessageSquare, User } from 'lucide-react';
-import { Reception as ReceptionAPI } from '../utils/api';
+import { Bot, Wifi, WifiOff, Loader2, RefreshCw, PhoneOff, MessageSquare, User, Bell, Plus, Trash2 } from 'lucide-react';
+import { Reception as ReceptionAPI, Barbershops } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import { toast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
@@ -12,6 +13,13 @@ const fmtTime = (d) =>
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }) : '';
+
+// Strip @lid/@c.us suffix; return null if result looks like a WhatsApp internal ID (>13 digits)
+const fmtPhone = (raw) => {
+  if (!raw) return null;
+  const num = raw.replace(/@.*$/, '');
+  return num.length > 13 ? null : num;
+};
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -32,7 +40,123 @@ function StatusBadge({ status }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+// ── Notification Settings Card ────────────────────────────────────────────────
+
+const DEFAULT_ITEM = { leadTime: 1, leadUnit: 'horas' };
+
+function NotificationSettings({ shopId }) {
+  const [enabled, setEnabled] = useState(false);
+  const [items,   setItems]   = useState([{ ...DEFAULT_ITEM }]);
+  const [saving,  setSaving]  = useState(false);
+
+  useEffect(() => {
+    Barbershops.getMine().then(r => {
+      if (!r.ok) return;
+      const n = r.data?.data?.notifications;
+      if (n) {
+        setEnabled(n.enabled ?? false);
+        setItems(n.items?.length ? n.items : [{ ...DEFAULT_ITEM }]);
+      }
+    });
+  }, []);
+
+  const updateItem = (i, field, value) =>
+    setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: value } : it));
+
+  const addItem    = () => setItems(prev => [...prev, { ...DEFAULT_ITEM }]);
+  const removeItem = (i) => setItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const handleSave = async () => {
+    if (!shopId) return;
+    setSaving(true);
+    const payload = { notifications: { enabled, items: items.map(it => ({ leadTime: Number(it.leadTime), leadUnit: it.leadUnit })) } };
+    const r = await Barbershops.update(shopId, payload);
+    setSaving(false);
+    if (r.ok) toast('Configurações de notificação salvas!');
+    else toast(r.data?.message || 'Erro ao salvar.', 'error');
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-5">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
+          <Bell size={18} className="text-violet-600 dark:text-violet-400" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Notificações de agendamento</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Avise seus clientes antes do horário marcado</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {/* Toggle enable */}
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <div className="relative">
+            <input type="checkbox" className="sr-only" checked={enabled} onChange={e => setEnabled(e.target.checked)} />
+            <div className={cn('w-10 h-6 rounded-full transition-colors', enabled ? 'bg-violet-600' : 'bg-gray-200 dark:bg-gray-700')} />
+            <div className={cn('absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform', enabled ? 'translate-x-4' : 'translate-x-0')} />
+          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Habilitar notificação aos clientes</span>
+        </label>
+
+        {/* Items list */}
+        {enabled && (
+          <div className="space-y-2 pl-1">
+            {items.map((item, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">Notificar</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={item.leadTime}
+                  onChange={e => updateItem(i, 'leadTime', e.target.value)}
+                  className="w-20 px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 text-center"
+                />
+                <select
+                  value={item.leadUnit}
+                  onChange={e => updateItem(i, 'leadUnit', e.target.value)}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                >
+                  <option value="minutos">minutos</option>
+                  <option value="horas">horas</option>
+                  <option value="dias">dias</option>
+                </select>
+                <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">antes</span>
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeItem(i)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addItem}
+              className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 font-medium mt-1 transition-colors"
+            >
+              <Plus size={14} /> Adicionar outra notificação
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end mt-5">
+        <Button onClick={handleSave} loading={saving} size="sm">Salvar</Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
 export default function ReceptionAI() {
+  const { user } = useAuth();
   const [status,         setStatus]         = useState('disconnected');
   const [phone,          setPhone]          = useState(null);
   const [qrCode,         setQrCode]         = useState(null);
@@ -165,7 +289,7 @@ export default function ReceptionAI() {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Recepção IA</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Recepção Virtual</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Atenda clientes via WhatsApp automaticamente com inteligência artificial
           </p>
@@ -263,18 +387,26 @@ export default function ReceptionAI() {
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                        <User size={14} className="text-gray-400" />
+                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0 overflow-hidden">
+                        {convo.contactPhoto
+                          ? <img src={convo.contactPhoto} alt="" className="w-full h-full object-cover" />
+                          : <User size={14} className="text-gray-400" />
+                        }
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {convo.contactName || convo.contactPhone}
+                            {convo.contactName || fmtPhone(convo.contactPhone) || 'Contato'}
                           </p>
                           <span className="text-[10px] text-gray-400 shrink-0">
                             {fmtDate(convo.lastMessageAt)}
                           </span>
                         </div>
+                        {convo.contactName && (
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                            {fmtPhone(convo.contactPhone) || '—'}
+                          </p>
+                        )}
                         {convo.messages?.length > 0 && (
                           <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
                             {convo.messages[convo.messages.length - 1]?.content}
@@ -297,14 +429,19 @@ export default function ReceptionAI() {
                   <>
                     {/* Thread header */}
                     <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <User size={14} className="text-gray-400" />
+                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                        {selectedConvo.contactPhoto
+                          ? <img src={selectedConvo.contactPhoto} alt="" className="w-full h-full object-cover" />
+                          : <User size={14} className="text-gray-400" />
+                        }
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                          {selectedConvo.contactName || selectedConvo.contactPhone}
+                          {selectedConvo.contactName || fmtPhone(selectedConvo.contactPhone) || 'Contato'}
                         </p>
-                        <p className="text-xs text-gray-400">{selectedConvo.contactPhone}</p>
+                        {fmtPhone(selectedConvo.contactPhone) && (
+                          <p className="text-xs text-gray-400">{fmtPhone(selectedConvo.contactPhone)}</p>
+                        )}
                       </div>
                     </div>
 
@@ -342,6 +479,9 @@ export default function ReceptionAI() {
             </div>
           </div>
         )}
+
+        {/* ── Notification settings ────────────────────────────────────────── */}
+        <NotificationSettings shopId={user?.barbershop?._id || user?.barbershop} />
 
       </div>
     </div>

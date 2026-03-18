@@ -32,3 +32,9 @@ Thumbs.db
 
 # Scripts utilitários / seed
 backend/scripts/
+
+# WhatsApp (cache e sessões armazenados no bucket OCI)
+.wwebjs_cache/
+backend/.wwebjs_cache/
+.wwebjs_auth/
+backend/.wwebjs_auth/

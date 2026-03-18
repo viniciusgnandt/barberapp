@@ -17,8 +17,11 @@ const roleSchema = new mongoose.Schema({
     },
     services:  { view: { type: Boolean, default: true  }, edit: { type: Boolean, default: false } },
     clients:   { view: { type: Boolean, default: true  }, edit: { type: Boolean, default: false } },
-    reports:   { view: { type: Boolean, default: false }, edit: { type: Boolean, default: false } },
+    sales:     { view: { type: Boolean, default: false }, edit: { type: Boolean, default: false } },
     stock:     { view: { type: Boolean, default: false }, edit: { type: Boolean, default: false } },
+    reports:   { view: { type: Boolean, default: false }, edit: { type: Boolean, default: false } },
+    business:  { view: { type: Boolean, default: false }, edit: { type: Boolean, default: false } },
+    reception: { view: { type: Boolean, default: false }, edit: { type: Boolean, default: false } },
   },
   createdAt: { type: Date, default: Date.now },
 });

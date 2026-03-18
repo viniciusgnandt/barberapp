@@ -15,13 +15,15 @@ const TABS = [
 ];
 
 const SECTIONS = [
-  { key: 'dashboard', label: 'Dashboard'  },
-  { key: 'agenda',    label: 'Agenda'     },
-  { key: 'services',  label: 'Serviços'   },
-  { key: 'clients',   label: 'Clientes'   },
-  { key: 'sales',     label: 'Vendas'     },
-  { key: 'stock',     label: 'Estoque'    },
-  { key: 'reports',   label: 'Relatórios' },
+  { key: 'dashboard', label: 'Dashboard'          },
+  { key: 'agenda',    label: 'Agenda'             },
+  { key: 'services',  label: 'Serviços'           },
+  { key: 'clients',   label: 'Clientes'           },
+  { key: 'sales',     label: 'Vendas'             },
+  { key: 'stock',     label: 'Estoque'            },
+  { key: 'reports',   label: 'Relatórios'         },
+  { key: 'business',  label: 'Desempenho'         },
+  { key: 'reception', label: 'Recepção Virtual'   },
 ];
 
 const PERM_LABELS = {

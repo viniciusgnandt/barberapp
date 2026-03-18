@@ -50,9 +50,26 @@ const barbershopSchema = new mongoose.Schema({
   planExpiresAt:  { type: Date },
   invoices:       { type: [invoiceSchema], default: [] },
 
+  // Pacotes de mensagens adicionais
+  messagePackages: [{
+    messages:    { type: Number, default: 1000 },
+    remaining:   { type: Number, default: 1000 },
+    recurring:   { type: Boolean, default: false },
+    purchasedAt: { type: Date, default: Date.now },
+    expiresAt:   { type: Date },
+  }],
+
   location: {
     type:        { type: String, enum: ['Point'] },
     coordinates: { type: [Number] }, // [longitude, latitude]
+  },
+
+  notifications: {
+    enabled: { type: Boolean, default: false },
+    items:   [{
+      leadTime: { type: Number, default: 1 },
+      leadUnit: { type: String, enum: ['minutos', 'horas', 'dias'], default: 'horas' },
+    }],
   },
 
   createdAt:    { type: Date, default: Date.now },

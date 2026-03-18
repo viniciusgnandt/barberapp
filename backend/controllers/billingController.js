@@ -7,7 +7,7 @@ const Coupon     = require('../models/Coupon');
 const getBilling = async (req, res) => {
   try {
     const shop = await Barbershop.findById(req.user.barbershop._id)
-      .select('name plan planStatus planExpiresAt invoices createdAt');
+      .select('name plan planStatus planExpiresAt invoices messagePackages createdAt');
     if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
     // Auto-initialize trial if planExpiresAt was never set (legacy accounts)
@@ -36,14 +36,19 @@ const getBilling = async (req, res) => {
       ? Math.max(0, Math.ceil((new Date(shop.planExpiresAt) - new Date()) / (1000 * 60 * 60 * 24)))
       : 0;
 
+    // Active packages: not expired and with remaining messages
+    const now2           = new Date();
+    const activePackages = (shop.messagePackages || []).filter(p => p.remaining > 0 && p.expiresAt > now2);
+
     res.json({
       success: true,
       data: {
-        plan:          shop.plan,
-        planStatus:    shop.planStatus,
-        planExpiresAt: shop.planExpiresAt,
+        plan:            shop.plan,
+        planStatus:      shop.planStatus,
+        planExpiresAt:   shop.planExpiresAt,
         daysLeft,
-        invoices:      shop.invoices.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+        invoices:        shop.invoices.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+        messagePackages: activePackages,
       },
     });
   } catch (err) {
@@ -171,4 +176,45 @@ const cancelPlan = async (req, res) => {
   }
 };
 
-module.exports = { getBilling, pay, applyCoupon, cancelPlan };
+// POST /api/billing/buy-package — pacotes adicionais de mensagens
+const PACKAGE_TIERS = { 1000: 49, 3000: 139, 5000: 229 };
+
+const buyPackage = async (req, res) => {
+  try {
+    const { messages, quantity = 1, recurring = false } = req.body;
+    const msgs  = parseInt(messages, 10);
+    const qty   = Math.max(1, Math.min(10, parseInt(quantity, 10) || 1));
+    const price = PACKAGE_TIERS[msgs];
+    if (!price) {
+      return res.status(400).json({ success: false, message: 'Pacote inválido. Escolha 1.000, 3.000 ou 5.000 mensagens.' });
+    }
+
+    const shop = await Barbershop.findById(req.user.barbershop._id);
+    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+
+    const now       = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    for (let i = 0; i < qty; i++) {
+      shop.messagePackages.push({ messages: msgs, remaining: msgs, recurring, purchasedAt: now, expiresAt });
+    }
+
+    shop.invoices.push({
+      description: `${qty}x Pacote ${msgs.toLocaleString('pt-BR')} msgs (30 dias)`,
+      amount:      price * qty,
+      status:      'paid',
+      paidAt:      now,
+    });
+
+    await shop.save();
+    res.json({
+      success: true,
+      message: `${qty}x pacote de ${msgs.toLocaleString('pt-BR')} mensagens adicionado(s) com sucesso!`,
+      data:    { messagePackages: shop.messagePackages },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getBilling, pay, applyCoupon, cancelPlan, buyPackage };

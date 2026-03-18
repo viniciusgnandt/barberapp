@@ -3,6 +3,10 @@
 const https  = require('https');
 const crypto = require('crypto');
 const fs     = require('fs');
+const path   = require('path');
+
+const CACHE_BUCKET_KEY = 'whatsapp-cache/bundle.zip';
+const CACHE_LOCAL_DIR  = path.join(__dirname, '../.wwebjs_cache');
 
 // ── AWS4 signing (mesma lógica do uploadController) ────────────────────────────
 
@@ -173,10 +177,14 @@ class OCIWhatsappStore {
     return ociHead(this._key(session));
   }
 
-  // data = Buffer (zip gerado pelo RemoteAuth)
-  async save({ session, data }) {
-    await ociPut(this._key(session), data);
-    console.log(`[Reception] Sessão WhatsApp salva no bucket: ${this._key(session)}`);
+  // RemoteAuth passes session as a full path (e.g. /tmp/.wwebjs_auth/RemoteAuth-{id})
+  // and already wrote the zip to ${session}.zip — we read it from disk and upload
+  async save({ session }) {
+    const sessionName = path.basename(session);
+    const zipPath     = `${session}.zip`;
+    const data        = fs.readFileSync(zipPath);
+    await ociPut(this._key(sessionName), data);
+    console.log(`[Reception] Sessão WhatsApp salva no bucket: ${this._key(sessionName)}`);
   }
 
   // RemoteAuth chama extract passando o path onde o zip deve ser gravado
@@ -192,4 +200,48 @@ class OCIWhatsappStore {
   }
 }
 
+// ── Cache sync (whatsapp-web.js .wwebjs_cache ↔ bucket) ────────────────────────
+
+async function syncCacheFromBucket() {
+  // Only restore from bucket if the local cache doesn't exist yet
+  if (fs.existsSync(CACHE_LOCAL_DIR)) {
+    console.log('[Reception] Cache local encontrado, usando sem buscar do bucket.');
+    return;
+  }
+  const buffer = await ociGet(CACHE_BUCKET_KEY);
+  if (!buffer) {
+    console.log('[Reception] Nenhum cache no bucket, será baixado pelo cliente.');
+    return;
+  }
+  const unzipper = require('unzipper');
+  const { Readable } = require('stream');
+  fs.mkdirSync(CACHE_LOCAL_DIR, { recursive: true });
+  await new Promise((resolve, reject) => {
+    Readable.from(buffer)
+      .pipe(unzipper.Extract({ path: CACHE_LOCAL_DIR }))
+      .on('error', reject)
+      .on('finish', resolve);
+  });
+  console.log('[Reception] Cache restaurado do bucket.');
+}
+
+async function syncCacheToBucket() {
+  if (!fs.existsSync(CACHE_LOCAL_DIR)) return;
+  const archiver = require('archiver');
+  const chunks   = [];
+  await new Promise((resolve, reject) => {
+    const archive = archiver('zip');
+    archive.on('error', reject);
+    archive.on('data', c => chunks.push(c));
+    archive.on('end', resolve);
+    archive.directory(CACHE_LOCAL_DIR, false);
+    archive.finalize();
+  });
+  await ociPut(CACHE_BUCKET_KEY, Buffer.concat(chunks));
+  console.log('[Reception] Cache salvo no bucket (mantido no disco).');
+}
+
 module.exports = OCIWhatsappStore;
+module.exports.ociPut              = ociPut;
+module.exports.syncCacheFromBucket = syncCacheFromBucket;
+module.exports.syncCacheToBucket   = syncCacheToBucket;

@@ -1,7 +1,7 @@
 // routes/billingRoutes.js
 
 const router = require('express').Router();
-const { getBilling, pay, applyCoupon, cancelPlan } = require('../controllers/billingController');
+const { getBilling, pay, applyCoupon, cancelPlan, buyPackage } = require('../controllers/billingController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 const adminOnly = (req, res, next) => {
@@ -18,5 +18,6 @@ router.get('/',              getBilling);
 router.post('/pay',          pay);
 router.post('/apply-coupon', applyCoupon);
 router.post('/cancel',       cancelPlan);
+router.post('/buy-package',  buyPackage);
 
 module.exports = router;

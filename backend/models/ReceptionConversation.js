@@ -12,6 +12,7 @@ const receptionConversationSchema = new mongoose.Schema({
   barbershop:    { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   contactPhone:  { type: String, required: true },
   contactName:   { type: String },
+  contactPhoto:  { type: String },
   messages:      { type: [messageSchema], default: [] },
   lastMessageAt: { type: Date },
 }, { timestamps: true });

@@ -170,10 +170,16 @@ export const Reception = {
 
 // ── Billing ────────────────────────────────────────────────────────────────────
 export const Billing = {
-  get:          ()       => request('/billing'),
-  pay:          (data)   => request('/billing/pay',          { method: 'POST', body: data }),
-  applyCoupon:  (code)   => request('/billing/apply-coupon', { method: 'POST', body: { code } }),
-  cancel:       ()       => request('/billing/cancel',       { method: 'POST' }),
+  get:         ()                    => request('/billing'),
+  pay:         (data)                => request('/billing/pay',          { method: 'POST', body: data }),
+  applyCoupon: (code)                => request('/billing/apply-coupon', { method: 'POST', body: { code } }),
+  cancel:      ()                    => request('/billing/cancel',       { method: 'POST' }),
+  buyPackage:  (messages, quantity, recurring) => request('/billing/buy-package',  { method: 'POST', body: { messages, quantity, recurring } }),
+};
+
+// ── Chat (Lia — assistente profissional) ──────────────────────────────────────
+export const Chat = {
+  sendMessage: (message, history = []) => request('/chat/message', { method: 'POST', body: { message, history } }),
 };
 
 // ── Portal (Client-facing) ────────────────────────────────────────────────────
@@ -209,5 +215,5 @@ export const Portal = {
   },
 };
 
-const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories, Reception, Portal };
+const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories, Reception, Chat, Portal };
 export default API;

@@ -32,7 +32,7 @@ const NAV_ANALYTICS = [
 ];
 
 const NAV_AI = [
-  { to: '/reception', icon: Bot, label: 'Recepção IA' },
+  { to: '/reception', icon: Bot, label: 'Recepção Virtual' },
 ];
 
 const navLinkClass = (isActive, collapsed) => cn(
@@ -139,71 +139,79 @@ export default function Sidebar() {
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                 {user?.barbershopName || 'JubaOS'}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Plataforma Inteligente</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Agendamento Inteligente</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Nav */}
-      <nav className={cn('flex-1 py-4 space-y-0.5 overflow-y-auto scrollbar-thin', collapsed ? 'px-2' : 'px-3')}>
+      <nav className={cn('flex-1 py-3 overflow-y-auto scrollbar-thin', collapsed ? 'px-2' : 'px-3')}>
         {!collapsed && (
-          <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Menu</p>
+          <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Menu</p>
         )}
-        {visibleMain.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} title={collapsed ? label : undefined}
-            className={({ isActive }) => navLinkClass(isActive, collapsed)}>
-            <Icon size={16} className="shrink-0" />
-            {!collapsed && label}
-          </NavLink>
-        ))}
-
-        {/* Loja (admin only) */}
-        {isAdmin && (
-          <>
-            {!collapsed && (
-              <p className="px-2 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Loja</p>
-            )}
-            {collapsed && <div className="my-1 border-t border-gray-100 dark:border-gray-800" />}
-            {NAV_STORE.map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} title={collapsed ? label : undefined}
-                className={({ isActive }) => navLinkClass(isActive, collapsed)}>
-                <Icon size={16} className="shrink-0" />
-                {!collapsed && label}
-              </NavLink>
-            ))}
-          </>
-        )}
-
-        {/* Análises */}
-        <>
-          {!collapsed && (
-            <p className="px-2 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Análises</p>
-          )}
-          {collapsed && <div className="my-1 border-t border-gray-100 dark:border-gray-800" />}
-          {NAV_ANALYTICS.map(({ to, icon: Icon, label }) => (
+        <div className="space-y-1">
+          {visibleMain.map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to} title={collapsed ? label : undefined}
               className={({ isActive }) => navLinkClass(isActive, collapsed)}>
               <Icon size={16} className="shrink-0" />
               {!collapsed && label}
             </NavLink>
           ))}
-        </>
+        </div>
 
-        {/* IA (admin only) */}
+        {/* Loja (admin only) */}
         {isAdmin && (
           <>
             {!collapsed && (
-              <p className="px-2 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Inteligência Artificial</p>
+              <p className="px-2 mt-5 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Loja</p>
             )}
-            {collapsed && <div className="my-1 border-t border-gray-100 dark:border-gray-800" />}
-            {NAV_AI.map(({ to, icon: Icon, label }) => (
+            {collapsed && <div className="my-3 border-t border-gray-100 dark:border-gray-800" />}
+            <div className="space-y-1">
+              {NAV_STORE.map(({ to, icon: Icon, label }) => (
+                <NavLink key={to} to={to} title={collapsed ? label : undefined}
+                  className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+                  <Icon size={16} className="shrink-0" />
+                  {!collapsed && label}
+                </NavLink>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Análises */}
+        <>
+          {!collapsed && (
+            <p className="px-2 mt-5 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Análises</p>
+          )}
+          {collapsed && <div className="my-3 border-t border-gray-100 dark:border-gray-800" />}
+          <div className="space-y-1">
+            {NAV_ANALYTICS.map(({ to, icon: Icon, label }) => (
               <NavLink key={to} to={to} title={collapsed ? label : undefined}
                 className={({ isActive }) => navLinkClass(isActive, collapsed)}>
                 <Icon size={16} className="shrink-0" />
                 {!collapsed && label}
               </NavLink>
             ))}
+          </div>
+        </>
+
+        {/* IA (admin only) */}
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <p className="px-2 mt-5 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Inteligência Artificial</p>
+            )}
+            {collapsed && <div className="my-3 border-t border-gray-100 dark:border-gray-800" />}
+            <div className="space-y-1">
+              {NAV_AI.map(({ to, icon: Icon, label }) => (
+                <NavLink key={to} to={to} title={collapsed ? label : undefined}
+                  className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+                  <Icon size={16} className="shrink-0" />
+                  {!collapsed && label}
+                </NavLink>
+              ))}
+            </div>
           </>
         )}
       </nav>
