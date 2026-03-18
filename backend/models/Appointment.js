@@ -17,6 +17,7 @@ const appointmentSchema = new mongoose.Schema({
   recurrenceGroupId: { type: String },
   portalClientId: { type: mongoose.Schema.Types.ObjectId, ref: 'ClientUser' },
   source:         { type: String, enum: ['manual', 'portal'], default: 'manual' },
+  notificationsSent: { type: [String], default: [] }, // keys like "1_horas", "30_minutos"
   createdAt:  { type: Date, default: Date.now },
 });
 

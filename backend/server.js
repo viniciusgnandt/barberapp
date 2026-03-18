@@ -6,8 +6,12 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 const { reconnectAll } = require('./services/whatsappService');
+const { startNotificationScheduler } = require('./services/notificationService');
 
-connectDB().then(() => reconnectAll()).catch(() => {});
+connectDB().then(() => {
+  reconnectAll().catch(() => {});
+  startNotificationScheduler();
+}).catch(() => {});
 
 const app = express();
 

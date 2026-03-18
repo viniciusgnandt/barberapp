@@ -8,7 +8,8 @@ const clientSchema = new mongoose.Schema({
   email:     { type: String, trim: true, lowercase: true },
   birthdate: { type: Date },
   address:   { type: String, trim: true },
-  notes:     { type: String, trim: true },
+  notes:      { type: String, trim: true },
+  clientUser: { type: mongoose.Schema.Types.ObjectId, ref: 'ClientUser' }, // linked portal account
   barbershop: { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   createdAt:  { type: Date, default: Date.now },
 });

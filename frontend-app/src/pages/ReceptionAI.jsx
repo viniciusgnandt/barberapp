@@ -165,8 +165,10 @@ export default function ReceptionAI() {
   const [conversations,  setConversations]  = useState([]);
   const [selectedConvo,  setSelectedConvo]  = useState(null);
   const [loadingConvos,  setLoadingConvos]  = useState(false);
-  const messagesEndRef = useRef(null);
-  const esRef          = useRef(null);
+  const messagesEndRef       = useRef(null);
+  const esRef                = useRef(null);
+  const selectedConvoRef     = useRef(null);
+  const loadSelectedConvoRef = useRef(null);
 
   // ── Load initial status ────────────────────────────────────────────────────
 
@@ -229,7 +231,7 @@ export default function ReceptionAI() {
 
     es.addEventListener('message', () => {
       loadConversations();
-      if (selectedConvo) loadSelectedConvo(selectedConvo._id);
+      if (selectedConvoRef.current) loadSelectedConvoRef.current(selectedConvoRef.current._id);
     });
 
     es.onerror = () => {
@@ -271,8 +273,11 @@ export default function ReceptionAI() {
     const r = await ReceptionAPI.getConversation(id);
     if (r.ok) setSelectedConvo(r.data.data);
   };
+  // Always keep ref pointing to latest version to avoid stale closures in SSE listener
+  loadSelectedConvoRef.current = loadSelectedConvo;
 
   const handleSelectConvo = (convo) => {
+    selectedConvoRef.current = convo;
     loadSelectedConvo(convo._id);
   };
 

@@ -1,6 +1,7 @@
 // controllers/portalController.js
 const jwt        = require('jsonwebtoken');
 const ClientUser = require('../models/ClientUser');
+const Client     = require('../models/Client');
 const Barbershop = require('../models/Barbershop');
 const Service    = require('../models/Service');
 const User       = require('../models/User');
@@ -46,6 +47,10 @@ const registerClient = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Este telefone já está cadastrado.' });
 
     const client = await ClientUser.create({ name, phone: clean, password });
+
+    // Link this portal account to any existing Client records with the same phone
+    await Client.updateMany({ phone: clean }, { $set: { clientUser: client._id } });
+
     res.status(201).json({ success: true, token: makeToken(client._id), user: formatClient(client) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -267,9 +272,18 @@ const getSlots = async (req, res) => {
 
 const getClientAppointments = async (req, res) => {
   try {
+    // Find all Client records linked to this portal account (by phone or clientUser field)
+    const clientRecords = await Client.find({
+      $or: [{ clientUser: req.client._id }, { phone: req.client.phone }],
+    }).select('_id');
+    const clientIds = clientRecords.map(c => c._id);
+
     const appts = await Appointment.find({
-      portalClientId: req.client._id,
-      type:           'appointment',
+      type: 'appointment',
+      $or: [
+        { portalClientId: req.client._id },
+        ...(clientIds.length ? [{ client: { $in: clientIds } }] : []),
+      ],
     })
       .populate('barbershop', 'name logo address city')
       .populate('service',    'name duration price')
@@ -299,19 +313,42 @@ const createClientAppointment = async (req, res) => {
     const appointmentDate = new Date(`${date}T${time}:00`);
     const endDate         = new Date(appointmentDate.getTime() + service.duration * 60 * 1000);
 
-    // Double-check availability
-    const conflict = await Appointment.findOne({
+    // Double-check availability — populate service duration for appointments without endDate
+    const dayStart  = new Date(`${date}T00:00:00`);
+    const dayEnd    = new Date(`${date}T23:59:59`);
+    const dayAppts  = await Appointment.find({
       barber:     barberId,
       barbershop: barbershopId,
       status:     { $nin: ['cancelado'] },
-      date:       { $lt: endDate },
-      endDate:    { $gt: appointmentDate },
+      date:       { $gte: dayStart, $lte: dayEnd },
+    }).populate('service', 'duration');
+
+    const hasConflict = dayAppts.some(a => {
+      const aDur   = (a.service?.duration || 30) * 60000;
+      const aStart = new Date(a.date);
+      const aEnd   = a.endDate ? new Date(a.endDate) : new Date(aStart.getTime() + aDur);
+      return appointmentDate < aEnd && endDate > aStart;
     });
-    if (conflict)
+    if (hasConflict)
       return res.status(409).json({ success: false, message: 'Este horário não está mais disponível. Escolha outro.' });
+
+    // Find or create the Client record for this barbershop (unifies portal + admin identities)
+    let clientDoc = await Client.findOne({ barbershop: barbershopId, phone: req.client.phone });
+    if (!clientDoc) {
+      clientDoc = await Client.create({
+        barbershop: barbershopId,
+        name:       req.client.name,
+        phone:      req.client.phone,
+        clientUser: req.client._id,
+      });
+    } else if (!clientDoc.clientUser) {
+      clientDoc.clientUser = req.client._id;
+      await clientDoc.save();
+    }
 
     const appt = await Appointment.create({
       clientName:     req.client.name,
+      client:         clientDoc._id,
       portalClientId: req.client._id,
       service:        serviceId,
       barber:         barberId,

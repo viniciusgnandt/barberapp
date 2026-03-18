@@ -95,6 +95,21 @@ async function createClient(barbershopId, barbershopName) {
 
   clients.set(barbershopId, client);
 
+  // Patch RemoteAuth's internal backup to suppress ENOENT from Chrome file locks on Windows.
+  // Our own saveSessionToBucket (pre-init + gracefulShutdown) already handles persistence.
+  const auth = client.authStrategy;
+  const _origStore = auth.storeRemoteSession.bind(auth);
+  auth.storeRemoteSession = async (opts) => {
+    try { await _origStore(opts); }
+    catch (err) {
+      if (err?.code === 'ENOENT') {
+        // Chrome is running and locking session files — silently skip; bucket backup is handled separately.
+      } else {
+        throw err;
+      }
+    }
+  };
+
   await ReceptionSession.findOneAndUpdate(
     { barbershop: barbershopId },
     { status: 'connecting', phone: null, connectedAt: null },
@@ -305,4 +320,15 @@ async function reconnectAll() {
   }
 }
 
-module.exports = { createClient, destroyClient, addSseSubscriber, removeSseSubscriber, reconnectAll };
+function isConnected(barbershopId) {
+  return clients.has(String(barbershopId));
+}
+
+async function sendToPhone(barbershopId, phone, text) {
+  const client = clients.get(String(barbershopId));
+  if (!client) throw new Error(`Cliente WhatsApp não conectado para ${barbershopId}`);
+  const chatId = `${phone}@c.us`;
+  await client.sendMessage(chatId, text);
+}
+
+module.exports = { createClient, destroyClient, addSseSubscriber, removeSseSubscriber, reconnectAll, sendToPhone, isConnected };

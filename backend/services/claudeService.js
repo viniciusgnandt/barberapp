@@ -140,19 +140,19 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           date:       { $gte: startOfDay, $lte: endOfDay },
           status:     { $ne: 'cancelado' },
           ...(profissionalId ? { barber: profissionalId } : {}),
-        }).select('barber date endDate');
+        }).populate('service', 'duration');
 
         // Filter available slots per barber
         const result = [];
         for (const barber of barbers) {
           const barberAppts = existing.filter(a => String(a.barber) === String(barber._id));
           const freeSlots = slots.filter(slot => {
-            const [h, mi] = slot.split(':').map(Number);
             const slotStart = new Date(data + `T${slot}:00`);
             const slotEnd   = new Date(slotStart.getTime() + duration * 60000);
             return !barberAppts.some(a => {
+              const aDur   = (a.service?.duration || 30) * 60000;
               const aStart = new Date(a.date);
-              const aEnd   = a.endDate ? new Date(a.endDate) : new Date(aStart.getTime() + 30 * 60000);
+              const aEnd   = new Date(aStart.getTime() + aDur);
               return slotStart < aEnd && slotEnd > aStart;
             });
           });
@@ -168,34 +168,51 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
       case 'criar_agendamento': {
         const { serviceId, profissionalId, data, horario, nomeCliente } = input;
 
+        // Validate ISO date format YYYY-MM-DD
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(data))
+          return { sucesso: false, erro: `Data inválida: "${data}". Use o formato YYYY-MM-DD.` };
+
         const service = await Service.findById(serviceId).select('name duration price');
         if (!service) return { sucesso: false, erro: 'Serviço não encontrado.' };
 
         const barber = await User.findById(profissionalId);
         if (!barber) return { sucesso: false, erro: 'Profissional não encontrado.' };
 
-        // Find or create client
+        // Find or create client — always register if we have any name info
         let clientDoc = await Client.findOne({ barbershop: barbershopId, phone: contactPhone });
-        if (!clientDoc && (nomeCliente || contactName)) {
+        const clientName = nomeCliente || contactName;
+        if (!clientDoc && clientName) {
           clientDoc = await Client.create({
             barbershop: barbershopId,
-            name:       nomeCliente || contactName,
+            name:       clientName,
             phone:      contactPhone,
           });
         }
 
+        // Parse date as local time (BRT) — matches how the agenda queries
         const dateObj = new Date(`${data}T${horario}:00`);
         const endDate = new Date(dateObj.getTime() + service.duration * 60000);
 
-        // Check for conflict
-        const conflict = await Appointment.findOne({
+        console.log(`[Reception] Criando agendamento: ${service.name} em ${dateObj.toISOString()} (${data} ${horario} local)`);
+
+        // Conflict check — load all appointments for this barber on this date and check overlap
+        // (cannot rely on endDate field; web-created appointments don't store it)
+        const dayStart = new Date(`${data}T00:00:00`);
+        const dayEnd   = new Date(`${data}T23:59:59`);
+        const existing = await Appointment.find({
           barbershop: barbershopId,
           barber:     profissionalId,
           status:     { $ne: 'cancelado' },
-          date:       { $lt: endDate },
-          endDate:    { $gt: dateObj },
+          date:       { $gte: dayStart, $lte: dayEnd },
+        }).populate('service', 'duration');
+
+        const hasConflict = existing.some(a => {
+          const aDur    = (a.service?.duration || 30) * 60000;
+          const aStart  = new Date(a.date);
+          const aEnd    = new Date(aStart.getTime() + aDur);
+          return dateObj < aEnd && endDate > aStart;
         });
-        if (conflict) return { sucesso: false, erro: 'Horário não disponível. Por favor escolha outro horário.' };
+        if (hasConflict) return { sucesso: false, erro: 'Horário não disponível. Escolha outro horário.' };
 
         const appt = await Appointment.create({
           barbershop: barbershopId,
@@ -209,9 +226,13 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           notes:      `Agendado via WhatsApp (${contactPhone})`,
         });
 
+        // Format date as DD/MM
+        const [ano, mes, dia] = data.split('-');
+        const dataFmt = `${dia}/${mes}`;
+
         return {
           sucesso: true,
-          mensagem: `${service.name} — ${data} às ${horario}.`,
+          resposta_final: `${service.name} com ${barber.name} agendado para ${dataFmt} às ${horario}.`,
         };
       }
 
@@ -282,6 +303,19 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
 
 // ── Main: agentic loop ────────────────────────────────────────────────────────
 
+function sanitize(text) {
+  return text
+    // Remove emojis
+    .replace(/[\u{1F000}-\u{1FFFF}|\u{2600}-\u{27FF}|\u{FE00}-\u{FEFF}|\u{1F900}-\u{1F9FF}]/gu, '')
+    // Remove markdown bold/italic (** __ * _)
+    .replace(/\*{1,2}|_{1,2}/g, '')
+    // Remove markdown headers (#)
+    .replace(/^#+\s?/gm, '')
+    // Collapse extra blank lines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 async function generateReply(barbershopName, messages, context) {
   const { barbershopId, contactPhone, contactName } = context;
 
@@ -292,6 +326,7 @@ async function generateReply(barbershopName, messages, context) {
   const systemPrompt = `Você é um recepcionista virtual da barbearia "${barbershopName}". Atende clientes via WhatsApp de forma amigável e profissional.
 
 Data e hora atual: ${dataHoje}, ${horaAgora}
+Data de hoje em ISO (use EXATAMENTE este valor ao chamar ferramentas): ${now.toISOString().slice(0, 10)}
 O número de WhatsApp do cliente atual é: ${contactPhone}
 ${contactName ? `Nome do contato no WhatsApp: ${contactName}` : ''}
 
@@ -302,18 +337,23 @@ Você tem acesso a ferramentas para:
 - Criar agendamentos
 - Consultar e cancelar agendamentos do cliente
 
-REGRAS:
-- Responda de forma curta e objetiva. Use no máximo 2 frases. Nunca escreva respostas longas. Se possível responda em uma única frase. Sem saudações, sem despedidas, sem repetir o que o cliente disse. Sem emojis. Responda sempre em português.
+FORMATO OBRIGATÓRIO — NUNCA VIOLE ESTAS REGRAS:
+- Máximo 1 frase por resposta. Em casos excepcionais, 2 frases.
+- PROIBIDO: emojis, asteriscos (**), hashtags (#), markdown, negrito, itálico, listas numeradas com símbolos.
+- PROIBIDO: saudações ("Olá", "Oi"), despedidas ("Até logo", "Até breve"), frases motivacionais.
+- PROIBIDO: repetir o que o cliente disse, resumos, listas de agendamentos não solicitadas.
+- Texto simples apenas. Sem formatação de nenhum tipo.
+- Responda sempre em português.
+
+Outras regras:
 - Nunca peça o telefone — já temos.
 - Cliente não cadastrado: peça só o nome.
 - Use ferramentas para respostas precisas.
 
 Agendamento:
-- SEMPRE use verificar_disponibilidade antes de sugerir qualquer horário. Nunca sugira horário sem checar.
-- Apresente apenas horários confirmados como livres pela ferramenta.
-- Após o cliente escolher, chame verificar_disponibilidade novamente para confirmar que o horário ainda está livre antes de criar.
-- Só então chame criar_agendamento. Isso evita duplicidade.
-- Confirmação: informe apenas serviço, data e horário. Nada mais.`;
+- SEMPRE use verificar_disponibilidade antes de sugerir horários.
+- Após o cliente escolher, verifique disponibilidade novamente antes de criar.
+- Quando criar_agendamento retornar sucesso=true, responda EXATAMENTE com o campo "resposta_final", sem adicionar nem remover nada.`;
 
   const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
 
@@ -329,7 +369,7 @@ Agendamento:
 
     if (response.stop_reason === 'end_turn') {
       const textBlock = response.content.find(b => b.type === 'text');
-      return textBlock?.text || '…';
+      return sanitize(textBlock?.text || '…');
     }
 
     if (response.stop_reason === 'tool_use') {
