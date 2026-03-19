@@ -5,6 +5,7 @@ const jwt    = require('jsonwebtoken');
 const User   = require('../models/User');
 const Barbershop = require('../models/Barbershop');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
+const { geocodeAddress } = require('../utils/geocode');
 
 const makeToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -54,6 +55,9 @@ const register = async (req, res) => {
     if (barbershopName) {
       const now     = new Date();
       const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      // Geocodificar endereço para exibição no mapa do cliente
+      const location = await geocodeAddress({ address, neighborhood, city, state, zipCode });
+
       barbershop = await Barbershop.create({
         name:              barbershopName,
         email,
@@ -65,6 +69,7 @@ const register = async (req, res) => {
         zipCode:      zipCode      || undefined,
         city:         city         || undefined,
         state:        state        || undefined,
+        ...(location && { location }),
         plan:          'trial',
         planStatus:    'active',
         planExpiresAt: expires,

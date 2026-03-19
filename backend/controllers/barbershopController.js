@@ -3,6 +3,7 @@
 const Barbershop = require('../models/Barbershop');
 const User       = require('../models/User');
 const bcrypt     = require('bcryptjs');
+const { geocodeAddress } = require('../utils/geocode');
 
 // GET /api/barbershops — Listar barbearias do usuário (owner)
 const getBarbershops = async (req, res) => {
@@ -76,6 +77,21 @@ const updateBarbershop = async (req, res) => {
 
     const allowed = ['name', 'email', 'document', 'phone', 'address', 'neighborhood', 'city', 'state', 'zipCode', 'description', 'openingHours', 'notifications'];
     allowed.forEach(k => { if (req.body[k] !== undefined) barbershop[k] = req.body[k]; });
+
+    // Re-geocodificar se algum campo de endereço foi alterado
+    const addressFields = ['address', 'neighborhood', 'city', 'state', 'zipCode'];
+    const addressChanged = addressFields.some(k => req.body[k] !== undefined);
+    if (addressChanged) {
+      const location = await geocodeAddress({
+        address:      barbershop.address,
+        neighborhood: barbershop.neighborhood,
+        city:         barbershop.city,
+        state:        barbershop.state,
+        zipCode:      barbershop.zipCode,
+      });
+      if (location) barbershop.location = location;
+    }
+
     barbershop.updatedAt = new Date();
     await barbershop.save();
 
