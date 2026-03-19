@@ -3,11 +3,12 @@
 const mongoose = require('mongoose');
 
 const invoiceSchema = new mongoose.Schema({
-  description: { type: String },
-  amount:      { type: Number, default: 0 },
-  status:      { type: String, enum: ['paid', 'pending', 'failed'], default: 'paid' },
-  paidAt:      { type: Date },
-  card:        { type: String }, // last 4 digits
+  description:     { type: String },
+  amount:          { type: Number, default: 0 },
+  status:          { type: String, enum: ['paid', 'pending', 'failed'], default: 'paid' },
+  paidAt:          { type: Date },
+  card:            { type: String }, // last 4 digits
+  stripeSessionId: { type: String }, // Stripe Checkout session ID (for deduplication)
 }, { timestamps: true });
 
 const openingHourSchema = new mongoose.Schema({
@@ -45,10 +46,11 @@ const barbershopSchema = new mongoose.Schema({
     ],
   },
   // Billing
-  plan:           { type: String, enum: ['trial', 'basic'], default: 'trial' },
-  planStatus:     { type: String, enum: ['active', 'expired', 'cancelled'], default: 'active' },
-  planExpiresAt:  { type: Date },
-  invoices:       { type: [invoiceSchema], default: [] },
+  plan:             { type: String, enum: ['trial', 'free', 'basic', 'pro', 'premium'], default: 'trial' },
+  planStatus:       { type: String, enum: ['active', 'expired', 'cancelled'], default: 'active' },
+  planExpiresAt:    { type: Date },
+  invoices:         { type: [invoiceSchema], default: [] },
+  stripeCustomerId: { type: String, select: false }, // Stripe customer ID
 
   // Pacotes de mensagens adicionais
   messagePackages: [{

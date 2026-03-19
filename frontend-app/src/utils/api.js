@@ -174,11 +174,11 @@ export const Reception = {
 
 // ── Billing ────────────────────────────────────────────────────────────────────
 export const Billing = {
-  get:         ()                    => request('/billing'),
-  pay:         (data)                => request('/billing/pay',          { method: 'POST', body: data }),
-  applyCoupon: (code)                => request('/billing/apply-coupon', { method: 'POST', body: { code } }),
-  cancel:      ()                    => request('/billing/cancel',       { method: 'POST' }),
-  buyPackage:  (messages, quantity, recurring) => request('/billing/buy-package',  { method: 'POST', body: { messages, quantity, recurring } }),
+  get:                    ()                      => request('/billing'),
+  createCheckoutSession:  (planKey = 'pro')        => request('/billing/create-checkout-session', { method: 'POST', body: { planKey } }),
+  createPackageCheckout:  (messages, quantity)    => request('/billing/create-package-checkout',  { method: 'POST', body: { messages, quantity } }),
+  applyCoupon:            (code)                  => request('/billing/apply-coupon',             { method: 'POST', body: { code } }),
+  cancel:                 ()                      => request('/billing/cancel',                   { method: 'POST' }),
 };
 
 // ── Chat (Lia — assistente profissional) ──────────────────────────────────────

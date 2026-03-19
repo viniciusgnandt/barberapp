@@ -41,6 +41,7 @@ import Team from './pages/Team';
 import Business from './pages/Business';
 import ReceptionAI from './pages/ReceptionAI';
 import UsageSettings from './pages/UsageSettings';
+import PlanSelection from './pages/PlanSelection';
 
 // Client portal
 import ClientLogin from './pages/client/ClientLogin';
@@ -87,6 +88,7 @@ export default function App() {
                 <Route path="establishment" element={<Establishment />}  />
                 <Route path="team"          element={<Team />}           />
                 <Route path="billing"       element={<Billing />}        />
+                <Route path="billing/plans" element={<PlanSelection />}  />
                 <Route path="usage"         element={<UsageSettings />}  />
               </Route>
             </Route>

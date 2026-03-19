@@ -53,8 +53,6 @@ const register = async (req, res) => {
     }
 
     if (barbershopName) {
-      const now     = new Date();
-      const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       // Geocodificar endereço para exibição no mapa do cliente
       const location = await geocodeAddress({ address, neighborhood, city, state, zipCode });
 
@@ -70,15 +68,8 @@ const register = async (req, res) => {
         city:         city         || undefined,
         state:        state        || undefined,
         ...(location && { location }),
-        plan:          'trial',
-        planStatus:    'active',
-        planExpiresAt: expires,
-        invoices: [{
-          description: 'Período Gratuito — 30 dias',
-          amount:      0,
-          status:      'paid',
-          paidAt:      now,
-        }],
+        plan:       'free',
+        planStatus: 'active',
       });
 
       try {

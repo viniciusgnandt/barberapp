@@ -8,6 +8,7 @@ const connectDB = require('./config/db');
 const { reconnectAll } = require('./services/whatsappService');
 const { startNotificationScheduler } = require('./services/notificationService');
 const rateLimit = require('./middleware/rateLimit');
+const { handleWebhook } = require('./controllers/billingController');
 
 connectDB().then(() => {
   reconnectAll().catch(() => {});
@@ -22,6 +23,11 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : ['http://localhost:5173', 'http://localhost:5500', 'http://127.0.0.1:5500'];
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
+
+// ── Stripe webhook — raw body BEFORE express.json() ────────────────────────────
+// Stripe signatures require the unmodified raw body buffer
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
