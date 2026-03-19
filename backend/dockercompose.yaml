@@ -5,25 +5,8 @@ services:
     image: ghcr.io/viniciusgnandt/backend:latest
     expose:
       - "3000"
-    environment:
-      - MONGO_URI=${MONGO_URI}
-      - JWT_SECRET=${JWT_SECRET}
-      - PORT=${PORT}
-      - NODE_ENV=${NODE_ENV}
-      - OCI_REGION=${OCI_REGION}
-      - OCI_NAMESPACE=${OCI_NAMESPACE}
-      - OCI_BUCKET_NAME=${OCI_BUCKET_NAME}
-      - OCI_ACCESS_KEY_ID=${OCI_ACCESS_KEY_ID}
-      - OCI_SECRET_ACCESS_KEY=${OCI_SECRET_ACCESS_KEY}
-      - MAX_FILE_SIZE=${MAX_FILE_SIZE}
-      - ALLOWED_FILE_TYPES=${ALLOWED_FILE_TYPES}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - APP_URL=${APP_URL}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+    env_file:
+      - .env
 
     restart: unless-stopped
     networks:
