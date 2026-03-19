@@ -6,7 +6,7 @@ services:
     expose:
       - "3000"
     env_file:
-      - .env
+      - barber-backend-test.env
 
     restart: unless-stopped
     networks:
