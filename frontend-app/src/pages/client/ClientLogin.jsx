@@ -86,10 +86,6 @@ export default function ClientLogin() {
           </form>
         </div>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
-          Não tem conta?{' '}
-          <Link to="/client/register" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">Cadastre-se</Link>
-        </p>
       </div>
     </div>
   );

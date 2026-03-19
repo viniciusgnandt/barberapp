@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CheckCircle2, Eye, EyeOff, Loader2, Store, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import JubaOSLogo from '../components/ui/JubaOSLogo';
 import { useTheme } from '../context/ThemeContext';
@@ -55,7 +55,9 @@ const STEPS = ['Conta', 'Estabelecimento', 'Segurança'];
 export default function Register() {
   const { register } = useAuth();
   const { dark, toggle } = useTheme();
+  const navigate = useNavigate();
 
+  const [role, setRole] = useState(null); // null = choosing, 'profissional' = show form
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     name: '', email: '',
@@ -149,6 +151,65 @@ export default function Register() {
     if (r.ok) setSuccess(true);
     else setError(r.data?.message || 'Erro ao criar conta.');
   };
+
+  // Role selection screen
+  if (!role) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
+        <button
+          onClick={toggle}
+          className="fixed top-4 right-4 p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors shadow-sm"
+        >
+          {dark ? '☀️' : '🌙'}
+        </button>
+
+        <div className="w-full max-w-sm animate-fade-up">
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
+              <JubaOSLogo size={56} />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              <span style={{background:'linear-gradient(135deg,#5eead4 0%,#a78bfa 50%,#7c3aed 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>JubaOS</span>
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Como deseja se cadastrar?</p>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => setRole('profissional')}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-violet-400 dark:hover:border-violet-600 hover:shadow-md transition-all text-left group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0 group-hover:bg-violet-200 dark:group-hover:bg-violet-900/50 transition-colors">
+                <Store size={22} className="text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Sou Profissional</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Quero cadastrar meu estabelecimento</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/client/register')}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-violet-400 dark:hover:border-violet-600 hover:shadow-md transition-all text-left group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/50 transition-colors">
+                <User size={22} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Sou Cliente</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Quero agendar serviços</p>
+              </div>
+            </button>
+          </div>
+
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+            Já tem conta?{' '}
+            <Link to="/login" className="text-brand-600 dark:text-brand-400 font-medium hover:underline">Entrar</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
@@ -392,10 +453,12 @@ export default function Register() {
           )}
         </div>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
-          Já tem conta?{' '}
-          <Link to="/login" className="text-brand-600 dark:text-brand-400 font-medium hover:underline">Entrar</Link>
-        </p>
+        <button
+          onClick={() => { setRole(null); setStep(0); setError(''); }}
+          className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors mt-4 mx-auto"
+        >
+          Voltar
+        </button>
       </div>
     </div>
   );

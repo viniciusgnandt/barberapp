@@ -28,8 +28,12 @@ async function request(endpoint, options = {}) {
     const data = await res.json();
 
     if (res.status === 401) {
-      localStorage.clear();
-      window.location.href = '/';
+      // Only redirect on expired token, not on login attempts
+      const isLoginEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
+      if (!isLoginEndpoint) {
+        localStorage.clear();
+        window.location.href = '/';
+      }
       return { ok: false, status: 401, data };
     }
 

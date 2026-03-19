@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Scissors } from 'lucide-react';
+import { Eye, EyeOff, Scissors, CheckCircle2 } from 'lucide-react';
 import { useClientAuth } from '../../context/ClientAuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import Button from '../../components/ui/Button';
@@ -15,6 +15,7 @@ export default function ClientRegister() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  const [success, setSuccess] = useState(false);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -27,7 +28,7 @@ export default function ClientRegister() {
     setLoading(true);
     const r = await register(form.name, form.phone, form.password);
     setLoading(false);
-    if (r.ok) navigate('/client');
+    if (r.ok) setSuccess(true);
     else setError(r.data?.message || 'Erro ao criar conta.');
   };
 
@@ -47,36 +48,53 @@ export default function ClientRegister() {
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Nome completo" placeholder="João da Silva" value={form.name} onChange={set('name')} autoComplete="name" />
-            <Input label="Telefone" placeholder="(11) 99999-9999" value={form.phone} onChange={set('phone')} autoComplete="tel" />
-
-            <div className="relative">
-              <Input
-                label="Senha"
-                type={showPwd ? 'text' : 'password'}
-                placeholder="Mínimo 6 caracteres"
-                value={form.password}
-                onChange={set('password')}
-                autoComplete="new-password"
-              />
-              <button type="button" onClick={() => setShowPwd(s => !s)} className="absolute right-3 bottom-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+          {success ? (
+            <div className="text-center space-y-4 py-2">
+              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
+                <CheckCircle2 size={22} className="text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Conta criada com sucesso!</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Bem-vindo(a), <strong>{form.name.split(' ')[0]}</strong>! Agora você pode buscar estabelecimentos e agendar serviços.
+              </p>
+              <Button className="w-full" onClick={() => navigate('/client')}>
+                Explorar estabelecimentos
+              </Button>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input label="Nome completo" placeholder="João da Silva" value={form.name} onChange={set('name')} autoComplete="name" />
+              <Input label="Telefone" placeholder="(11) 99999-9999" value={form.phone} onChange={set('phone')} autoComplete="tel" />
 
-            <Input label="Confirmar senha" type="password" placeholder="Repita a senha" value={form.confirm} onChange={set('confirm')} autoComplete="new-password" />
+              <div className="relative">
+                <Input
+                  label="Senha"
+                  type={showPwd ? 'text' : 'password'}
+                  placeholder="Mínimo 6 caracteres"
+                  value={form.password}
+                  onChange={set('password')}
+                  autoComplete="new-password"
+                />
+                <button type="button" onClick={() => setShowPwd(s => !s)} className="absolute right-3 bottom-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
 
-            {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+              <Input label="Confirmar senha" type="password" placeholder="Repita a senha" value={form.confirm} onChange={set('confirm')} autoComplete="new-password" />
 
-            <Button type="submit" className="w-full" loading={loading}>Criar conta</Button>
-          </form>
+              {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+
+              <Button type="submit" className="w-full" loading={loading}>Criar conta</Button>
+            </form>
+          )}
         </div>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
-          Já tem conta?{' '}
-          <Link to="/client/login" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">Entrar</Link>
-        </p>
+        {!success && (
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+            Já tem conta?{' '}
+            <Link to="/client/login" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">Entrar</Link>
+          </p>
+        )}
       </div>
     </div>
   );
