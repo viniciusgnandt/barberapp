@@ -6,7 +6,16 @@ const transactionSchema = new mongoose.Schema({
   barbershop:   { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   cashRegister: { type: mongoose.Schema.Types.ObjectId, ref: 'CashRegister' },
   type:         { type: String, enum: ['entrada', 'saida'], required: true },
-  category:     { type: String, enum: ['servico', 'produto', 'comissao', 'despesa', 'ajuste', 'outros'], default: 'outros' },
+  category:     { type: String, enum: [
+    // entradas
+    'servico', 'produto', 'gorjeta', 'comanda',
+    // saídas
+    'comissao', 'fornecedor', 'salario', 'aluguel', 'manutencao', 'materiais',
+    'energia', 'internet', 'impostos', 'marketing', 'equipamentos', 'limpeza',
+    'alimentacao', 'transporte',
+    // geral
+    'despesa', 'ajuste', 'outros',
+  ], default: 'outros' },
   amount:       { type: Number, required: true },
   description:  { type: String, trim: true },
   appointment:  { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },

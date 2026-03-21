@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Zap, Star, Crown, Check, Shield, MessageSquare, Sparkles, Users, BarChart3, Headphones } from 'lucide-react';
-import { Billing as BillingAPI } from '../utils/api';
+import {
+  ArrowLeft, Zap, Star, Crown, Check, Shield, MessageSquare,
+  Sparkles, Users, BarChart3, Headphones, X, CheckCircle,
+} from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, useStripe } from '@stripe/react-stripe-js';
+import { getPublicConfig, Billing as BillingAPI } from '../utils/api';
 import { toast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
 
-// ── Plan config ─────────────────────────────────────────────────────────────
+const stripePromise = getPublicConfig().then(cfg => {
+  const key = cfg?.stripePublishableKey;
+  return key && key.startsWith('pk_') ? loadStripe(key) : null;
+});
 
+// ── Plan config ──────────────────────────────────────────────────────────────
 const PLANS = [
   {
     key:      'free',
@@ -63,7 +72,7 @@ const PLANS = [
 ];
 
 const colorMap = {
-  gray:   {
+  gray: {
     bg: 'bg-gray-100 dark:bg-gray-800', icon: 'text-gray-400', badge: '', ring: '',
     btn: 'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-default',
     gradient: 'from-gray-50 to-white dark:from-gray-900 dark:to-gray-900',
@@ -99,8 +108,7 @@ const colorMap = {
   },
 };
 
-// ── Plan Card ───────────────────────────────────────────────────────────────
-
+// ── Plan Card ────────────────────────────────────────────────────────────────
 function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
   const c        = colorMap[plan.color];
   const isActive = currentPlan === plan.key;
@@ -115,7 +123,6 @@ function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
       isPopular && 'scale-[1.02] lg:scale-105 z-10',
       !isPopular && 'hover:scale-[1.01]',
     )}>
-      {/* Badge */}
       {plan.badge && (
         <div className="flex justify-center pt-4 -mb-1">
           <span className={cn('px-4 py-1 rounded-full text-xs font-bold flex items-center gap-1.5', c.badge)}>
@@ -126,7 +133,6 @@ function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
       )}
 
       <div className="p-6 pb-0 flex flex-col gap-4">
-        {/* Icon + Name */}
         <div className="flex items-center gap-3">
           <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center shrink-0', c.bg)}>
             <Icon size={22} className={c.icon} />
@@ -137,14 +143,12 @@ function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
           </div>
         </div>
 
-        {/* Price */}
         <div className="flex items-baseline gap-1">
           <span className="text-sm text-gray-400 dark:text-gray-500">R$</span>
           <span className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">{plan.price}</span>
           {plan.period && <span className="text-sm text-gray-400 dark:text-gray-500">{plan.period}</span>}
         </div>
 
-        {/* AI Messages bar */}
         {plan.aiMsgs && (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60">
             <MessageSquare size={16} className={c.icon} />
@@ -161,14 +165,12 @@ function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
           </div>
         )}
 
-        {/* Barbers */}
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
           <Users size={14} className="shrink-0" />
           <span>{plan.barbers}</span>
         </div>
       </div>
 
-      {/* Features */}
       <div className="p-6 pt-3 flex-1">
         <ul className="space-y-2.5">
           {plan.features.map(f => (
@@ -182,7 +184,6 @@ function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
         </ul>
       </div>
 
-      {/* CTA */}
       <div className="px-6 pb-6">
         {isActive ? (
           <div className="py-3 text-center text-sm font-medium text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
@@ -209,34 +210,186 @@ function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
   );
 }
 
-// ── Page ────────────────────────────────────────────────────────────────────
+const fmtCurrency = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
-export default function PlanSelection() {
+// ── Modal de confirmação de assinatura ───────────────────────────────────────
+function ConfirmModal({ plan, preview, onConfirm, onCancel, paying }) {
+  const c = colorMap[plan.color];
+  const Icon = plan.icon;
+  const isUpgrade   = preview?.type === 'upgrade';
+  const isDowngrade = preview?.type === 'downgrade';
+  const isNew       = !preview || preview.type === 'new';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden animate-fade-up">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <p className="font-bold text-gray-900 dark:text-gray-100">
+            {isUpgrade ? 'Confirmar upgrade' : isDowngrade ? 'Confirmar downgrade' : 'Confirmar assinatura'}
+          </p>
+          <button onClick={onCancel} disabled={paying} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+
+          {/* Resumo do plano */}
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', c.bg)}>
+              <Icon size={18} className={c.icon} />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 dark:text-gray-100">Plano {plan.name}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">R$ {plan.price}{plan.period} · mensalmente</p>
+            </div>
+          </div>
+
+          {/* Preview de cobrança proporcional */}
+          {preview && !isNew && (
+            <div className={cn(
+              'p-3 rounded-xl border text-sm',
+              isUpgrade
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40'
+                : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40',
+            )}>
+              {isUpgrade ? (
+                <div className="space-y-1">
+                  <p className="font-semibold text-amber-800 dark:text-amber-300">Cobrança proporcional imediata</p>
+                  <p className="text-amber-700 dark:text-amber-400">
+                    <span className="font-bold text-base">{fmtCurrency(preview.amount)}</span> cobrado agora pelo período restante.
+                  </p>
+                  {preview.periodEnd && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Próxima renovação: {fmtDate(preview.periodEnd)}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="font-semibold text-blue-800 dark:text-blue-300">Crédito proporcional</p>
+                  <p className="text-blue-700 dark:text-blue-400">
+                    <span className="font-bold text-base">{fmtCurrency(Math.abs(preview.amount || 0))}</span> de crédito aplicado na próxima fatura.
+                  </p>
+                  {preview.periodEnd && (
+                    <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">Plano alterado agora. Ciclo atual até {fmtDate(preview.periodEnd)}.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Garantias */}
+          <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <li className="flex items-center gap-2.5">
+              <CheckCircle size={14} className="text-green-500 shrink-0" />
+              {isNew ? 'Acesso imediato após confirmação' : isUpgrade ? 'Acesso ao novo plano imediatamente' : 'Plano alterado agora'}
+            </li>
+            <li className="flex items-center gap-2.5">
+              <CheckCircle size={14} className="text-green-500 shrink-0" />
+              Cobrado no cartão padrão cadastrado
+            </li>
+            <li className="flex items-center gap-2.5">
+              <CheckCircle size={14} className="text-green-500 shrink-0" />
+              Cancele a qualquer momento, sem multa
+            </li>
+          </ul>
+
+          {/* Botões */}
+          <div className="flex gap-3 pt-1">
+            <button onClick={onCancel} disabled={paying}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50">
+              Cancelar
+            </button>
+            <button onClick={onConfirm} disabled={paying}
+              className={cn('flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50 disabled:shadow-none', c.btn)}>
+              {paying ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Processando...
+                </span>
+              ) : isUpgrade ? 'Confirmar upgrade' : isDowngrade ? 'Confirmar downgrade' : 'Confirmar e assinar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inner page (precisa do useStripe dentro do Elements) ─────────────────────
+function PlanSelectionContent() {
   const navigate    = useNavigate();
   const location    = useLocation();
-  const [paying, setPaying] = useState(false);
+  const stripe      = useStripe();
+
+  const [paying,         setPaying]         = useState(false);
+  const [confirmingPlan, setConfirmingPlan] = useState(null);
+  const [preview,        setPreview]        = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
   const currentPlan = location.state?.currentPlan || null;
   const hasCard     = location.state?.hasCard ?? true;
 
   const handleSelect = async (planKey) => {
-    setPaying(true);
-    const r = await BillingAPI.subscribe(planKey);
-    setPaying(false);
+    const plan = PLANS.find(p => p.key === planKey);
+    if (!plan) return;
+    setConfirmingPlan(plan);
+    setPreview(null);
 
-    if (r.ok) {
-      if (r.data.clientSecret) {
-        toast('Pagamento requer confirmacao adicional no seu banco.', 'info');
-      } else {
-        toast(r.data.message || `Plano ${planKey} ativado!`);
-        navigate('/settings/billing');
-      }
-    } else {
+    // Buscar preview de proration
+    setLoadingPreview(true);
+    const r = await BillingAPI.previewChange(planKey);
+    setLoadingPreview(false);
+    if (r.ok) setPreview(r.data.data);
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmingPlan) return;
+    const planName = confirmingPlan.name;
+    setPaying(true);
+
+    const r = await BillingAPI.subscribe(confirmingPlan.key);
+
+    if (!r.ok) {
+      setPaying(false);
+      setConfirmingPlan(null);
       toast(r.data?.message || 'Erro ao assinar plano.', 'error');
+      return;
     }
+
+    // 3DS — raro para cartões adicionados via SetupIntent, mas tratamos
+    if (r.data.clientSecret && stripe) {
+      const { error } = await stripe.confirmCardPayment(r.data.clientSecret);
+      setPaying(false);
+      setConfirmingPlan(null);
+      if (error) { toast(error.message || 'Pagamento não confirmado pelo banco.', 'error'); return; }
+    } else {
+      setPaying(false);
+      setConfirmingPlan(null);
+    }
+
+    const msg = r.data.changeType === 'upgrade'
+      ? `Upgrade para ${planName} realizado!`
+      : r.data.changeType === 'downgrade'
+        ? `Downgrade para ${planName} realizado. Crédito aplicado na próxima fatura.`
+        : `Plano ${planName} ativado com sucesso!`;
+
+    toast(msg, 'success');
+    navigate('/settings/billing');
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Modal de confirmação */}
+      {confirmingPlan && (
+        <ConfirmModal
+          plan={confirmingPlan}
+          preview={loadingPreview ? null : preview}
+          paying={paying || loadingPreview}
+          onConfirm={handleConfirm}
+          onCancel={() => !paying && setConfirmingPlan(null)}
+        />
+      )}
+
       {/* Top bar */}
       <div className="sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-gray-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
@@ -309,5 +462,14 @@ export default function PlanSelection() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Export com Elements provider ─────────────────────────────────────────────
+export default function PlanSelection() {
+  return (
+    <Elements stripe={stripePromise}>
+      <PlanSelectionContent />
+    </Elements>
   );
 }

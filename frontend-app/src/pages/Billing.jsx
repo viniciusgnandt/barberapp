@@ -48,8 +48,7 @@ const PLAN_ICON = {
 
 // ── Stripe Element Styles ────────────────────────────────────────────────────
 function buildStripeStyle() {
-  const dark = document.documentElement.classList.contains('dark')
-    || window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const dark = document.documentElement.classList.contains('dark');
   return {
     style: {
       base: {
@@ -251,14 +250,15 @@ function BillingContent() {
   const navigate = useNavigate();
   const stripe   = useStripe();
 
-  const [billing,       setBilling]       = useState(null);
-  const [loading,       setLoading]       = useState(true);
-  const [buyingPkg,     setBuyingPkg]     = useState(false);
-  const [cancelling,    setCancelling]    = useState(false);
-  const [confirmCancel, setConfirmCancel] = useState(false);
-  const [showInvoices,  setShowInvoices]  = useState(true);
-  const [showPackages,  setShowPackages]  = useState(true);
-  const [showBuyPkg,    setShowBuyPkg]    = useState(false);
+  const [billing,        setBilling]        = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [buyingPkg,      setBuyingPkg]      = useState(false);
+  const [cancelling,     setCancelling]     = useState(false);
+  const [confirmCancel,  setConfirmCancel]  = useState(false);
+  const [showInvoices,   setShowInvoices]   = useState(true);
+  const [showPackages,   setShowPackages]   = useState(true);
+  const [showBuyPkg,     setShowBuyPkg]     = useState(false);
+  const [confirmPkg,     setConfirmPkg]     = useState(null); // tier to confirm
 
   // Cards
   const [cards, setCards]                = useState([]);
@@ -286,36 +286,37 @@ function BillingContent() {
 
   useEffect(() => { load(); loadCards(); }, []); // eslint-disable-line
 
-  const handleBuyPackage = async (messages) => {
+  // Abre modal de confirmação antes de comprar
+  const handleBuyPackage = (messages) => {
+    const tier = PACKAGE_TIERS.find(t => t.messages === messages);
+    if (tier) setConfirmPkg(tier);
+  };
+
+  const handleConfirmPkg = async () => {
+    if (!confirmPkg) return;
     setBuyingPkg(true);
     try {
-      const r = await BillingAPI.buyPackage(messages, 1);
+      const r = await BillingAPI.buyPackage(confirmPkg.messages, 1);
       if (!r.ok) {
         toast(r.data?.message || 'Erro ao comprar pacote.', 'error');
         return;
       }
 
-      // Payment succeeded immediately (no 3DS)
       if (!r.data.requiresAction) {
-        toast('Pacote adquirido com sucesso!', 'success');
+        toast(`Pacote de ${confirmPkg.label} mensagens adquirido com sucesso!`, 'success');
+        setConfirmPkg(null);
         load();
         return;
       }
 
-      // Needs 3DS confirmation
-      if (!stripe) {
-        toast('Erro interno: Stripe não inicializado.', 'error');
-        return;
-      }
+      // 3DS
+      if (!stripe) { toast('Erro interno: Stripe não inicializado.', 'error'); return; }
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(r.data.clientSecret);
-      if (stripeError) {
-        toast(stripeError.message || 'Pagamento não confirmado.', 'error');
-        return;
-      }
+      if (stripeError) { toast(stripeError.message || 'Pagamento não confirmado.', 'error'); return; }
       if (paymentIntent?.status === 'succeeded') {
-        const confirm = await BillingAPI.confirmPackage(paymentIntent.id);
-        if (confirm.ok) { toast('Pacote ativado!', 'success'); load(); }
-        else toast(confirm.data?.message || 'Erro ao ativar pacote.', 'error');
+        const conf = await BillingAPI.confirmPackage(paymentIntent.id);
+        if (conf.ok) { toast('Pacote ativado!', 'success'); setConfirmPkg(null); load(); }
+        else toast(conf.data?.message || 'Erro ao ativar pacote.', 'error');
       } else {
         toast('Pagamento não confirmado.', 'error');
       }
@@ -362,6 +363,49 @@ function BillingContent() {
 
   return (
     <div className="max-w-2xl animate-fade-up">
+
+      {/* ── Modal confirmação de pacote ──────────────────────────────── */}
+      {confirmPkg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+              <p className="font-bold text-gray-900 dark:text-gray-100">Confirmar compra</p>
+              <button onClick={() => !buyingPkg && setConfirmPkg(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <XCircle size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900/30 rounded-xl flex items-center justify-center shrink-0">
+                  <MessageSquare size={18} className="text-brand-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{confirmPkg.label} mensagens</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{fmtCurrency(confirmPkg.price)} · válido por 30 dias</p>
+                </div>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <li className="flex items-center gap-2.5"><CheckCircle size={14} className="text-green-500 shrink-0" /> Ativado imediatamente</li>
+                <li className="flex items-center gap-2.5"><CheckCircle size={14} className="text-green-500 shrink-0" /> Cobrado no cartão padrão</li>
+                <li className="flex items-center gap-2.5"><CheckCircle size={14} className="text-green-500 shrink-0" /> {confirmPkg.pricePerMsg} por mensagem</li>
+              </ul>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setConfirmPkg(null)} disabled={buyingPkg}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button onClick={handleConfirmPkg} disabled={buyingPkg}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {buyingPkg
+                    ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processando...</>
+                    : 'Confirmar compra'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meu Plano</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie sua assinatura, cartões e faturas</p>
@@ -371,24 +415,53 @@ function BillingContent() {
 
         {/* ── Plano atual ─────────────────────────────────────────────── */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', planIcon.bg, planIcon.text)}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5', planIcon.bg, planIcon.text)}>
                 {planIcon.el}
               </div>
-              <div>
-                <p className="text-base font-bold text-gray-900 dark:text-gray-100">Plano {PLAN_LABELS[plan] || plan}</p>
-                {billing?.planExpiresAt && !isCancelled && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                    {isExpired ? 'Expirado em' : 'Renova em'} {fmtDate(billing.planExpiresAt)}
-                    {!isExpired && billing.daysLeft != null && ` · ${billing.daysLeft} dias`}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-base font-bold text-gray-900 dark:text-gray-100">Plano {PLAN_LABELS[plan] || plan}</p>
+                  {isCancelled && (
+                    <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-bold rounded-full">CANCELADO</span>
+                  )}
+                  {isExpired && !isCancelled && (
+                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-full">EXPIRADO</span>
+                  )}
+                  {!isCancelled && !isExpired && plan && !['free','trial'].includes(plan) && (
+                    <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-full">ATIVO</span>
+                  )}
+                </div>
+
+                {/* Data de renovação — logo abaixo do nome */}
+                {billing?.planExpiresAt && !isCancelled && !isExpired && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Renova em{' '}
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">{fmtDate(billing.planExpiresAt)}</span>
+                    {billing.daysLeft != null && (
+                      <span className="ml-1.5 text-brand-600 dark:text-brand-400 font-medium">· {billing.daysLeft} dias</span>
+                    )}
                   </p>
                 )}
-                {isCancelled && <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">Cancelado</p>}
+                {billing?.planExpiresAt && isCancelled && (
+                  <p className="text-xs text-red-500 dark:text-red-400">
+                    Acesso até{' '}
+                    <span className="font-semibold">{fmtDate(billing.planExpiresAt)}</span>
+                    {billing.daysLeft != null && billing.daysLeft > 0 && (
+                      <span className="ml-1.5">· {billing.daysLeft} dias restantes</span>
+                    )}
+                  </p>
+                )}
+                {billing?.planExpiresAt && isExpired && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Expirou em <span className="font-semibold">{fmtDate(billing.planExpiresAt)}</span>
+                  </p>
+                )}
               </div>
             </div>
             {!isCancelled && (
-              <Button variant="outline" className="shrink-0"
+              <Button variant="outline" className="shrink-0 mt-0.5"
                 onClick={() => navigate('/settings/billing/plans', { state: { currentPlan: plan, hasCard } })}>
                 Ajustar Plano
               </Button>

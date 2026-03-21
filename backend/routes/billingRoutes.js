@@ -9,6 +9,7 @@ const {
   setDefaultCard,
   attachPaymentMethod,
   createSetupIntent,
+  previewChange,
   subscribe,
   cancelPlan,
   buyPackage,
@@ -28,6 +29,7 @@ router.use(authMiddleware);
 router.use(adminOnly);
 
 router.get ('/',                        getBilling);
+router.post('/preview-change',         previewChange);
 router.post('/subscribe',              subscribe);
 router.post('/buy-package',            buyPackage);
 router.post('/confirm-package',        confirmPackage);

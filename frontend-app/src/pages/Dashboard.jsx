@@ -197,34 +197,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Barber columns — today's appointments by professional */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Users size={18} className="text-gray-500 dark:text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Agenda por profissional</h2>
-        </div>
-
-        {loadingBarbers ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 h-48 animate-pulse" />
-            ))}
-          </div>
-        ) : barbers.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">Nenhum profissional encontrado.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {barbers.map(barber => (
-              <BarberColumn
-                key={barber._id}
-                barber={barber}
-                appointments={appointmentsByBarber[barber._id] || []}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
       <CalendarWidget />
     </div>
   );

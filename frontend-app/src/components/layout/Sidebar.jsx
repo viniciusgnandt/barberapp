@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Scissors, LogOut,
   Camera, ChevronUp, Check,
-  BarChart2, TrendingUp, Settings, ShoppingCart, Boxes,
+  BarChart2, TrendingUp, Settings, Boxes,
   PanelLeftClose, PanelLeftOpen, UserRound, Bot, Wallet,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -22,8 +22,7 @@ const NAV_MAIN = [
 ];
 
 const NAV_STORE = [
-  { to: '/sales',  icon: ShoppingCart, label: 'Vendas'  },
-  { to: '/stock',  icon: Boxes,        label: 'Estoque' },
+  { to: '/stock',  icon: Boxes, label: 'Estoque' },
 ];
 
 const NAV_FINANCIAL = [

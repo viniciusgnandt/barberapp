@@ -109,25 +109,30 @@ const getBilling = async (req, res) => {
 
     // Check subscription status from Stripe if active
     let subscriptionStatus = null;
+    let stripeRenewalDate  = null;
     if (shop.stripeSubscriptionId) {
       try {
         const sub = await stripe.subscriptions.retrieve(shop.stripeSubscriptionId);
-        subscriptionStatus = sub.status; // active, past_due, canceled, etc.
-        // Update local status based on Stripe
+        subscriptionStatus = sub.status;
+        if (sub.current_period_end) {
+          stripeRenewalDate = new Date(sub.current_period_end * 1000);
+        }
         if (sub.status === 'active' || sub.status === 'trialing') {
-          shop.planStatus    = 'active';
-          shop.planExpiresAt = new Date(sub.current_period_end * 1000);
+          shop.planStatus = 'active';
+          if (stripeRenewalDate) shop.planExpiresAt = stripeRenewalDate;
         } else if (sub.status === 'canceled') {
           shop.planStatus = 'cancelled';
         } else if (sub.status === 'past_due') {
-          shop.planStatus = 'active'; // still active but payment failed
+          shop.planStatus = 'active';
         }
         await shop.save();
       } catch (_) { /* subscription may have been deleted */ }
     }
 
-    const daysLeft = shop.planExpiresAt
-      ? Math.max(0, Math.ceil((new Date(shop.planExpiresAt) - new Date()) / (1000 * 60 * 60 * 24)))
+    // planExpiresAt: prefer DB value (already saved), fallback to live Stripe value
+    const expiresAt = shop.planExpiresAt || stripeRenewalDate;
+    const daysLeft  = expiresAt
+      ? Math.max(0, Math.ceil((new Date(expiresAt) - new Date()) / (1000 * 60 * 60 * 24)))
       : null;
 
     const activePackages = (shop.messagePackages || []).filter(
@@ -139,7 +144,7 @@ const getBilling = async (req, res) => {
       data: {
         plan:               shop.plan,
         planStatus:         shop.planStatus,
-        planExpiresAt:      shop.planExpiresAt,
+        planExpiresAt:      expiresAt,
         daysLeft,
         plans:              PLANS,
         subscriptionStatus,
@@ -198,6 +203,62 @@ const createSetupIntent = async (req, res) => {
   }
 };
 
+// ── POST /api/billing/preview-change — Preview proration before changing plan
+const previewChange = async (req, res) => {
+  try {
+    const { planKey } = req.body;
+    const plan = resolvePlan(planKey);
+    if (!plan || plan.priceCents === 0)
+      return res.status(400).json({ success: false, message: 'Plano inválido.' });
+
+    const shop = await Barbershop.findById(req.user.barbershop._id)
+      .select('+stripeCustomerId +stripeSubscriptionId');
+    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+
+    // No active subscription — full price
+    if (!shop.stripeSubscriptionId) {
+      return res.json({ success: true, data: { type: 'new', amount: plan.priceCents / 100, periodEnd: null } });
+    }
+
+    let sub;
+    try { sub = await stripe.subscriptions.retrieve(shop.stripeSubscriptionId); } catch (_) {}
+    if (!sub || sub.status === 'canceled') {
+      return res.json({ success: true, data: { type: 'new', amount: plan.priceCents / 100, periodEnd: null } });
+    }
+
+    const currentPriceCents = PLANS[shop.plan]?.priceCents || 0;
+    const isUpgrade = plan.priceCents > currentPriceCents;
+    const periodEnd = new Date(sub.current_period_end * 1000);
+
+    // Preview upcoming invoice with new price
+    let prorationAmount = null;
+    try {
+      const upcoming = await stripe.invoices.retrieveUpcoming({
+        customer:             shop.stripeCustomerId,
+        subscription:         shop.stripeSubscriptionId,
+        subscription_items:   [{ id: sub.items.data[0].id, price: plan.stripePriceId }],
+        subscription_proration_date: Math.floor(Date.now() / 1000),
+      });
+      prorationAmount = upcoming.amount_due / 100;
+    } catch (_) {
+      prorationAmount = isUpgrade ? (plan.priceCents - currentPriceCents) / 100 : 0;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        type:           isUpgrade ? 'upgrade' : 'downgrade',
+        amount:         prorationAmount,
+        periodEnd,
+        currentPlan:    shop.plan,
+        newPlan:        plan.key,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ── POST /api/billing/subscribe — Create or update subscription ─────────────
 const subscribe = async (req, res) => {
   try {
@@ -220,7 +281,6 @@ const subscribe = async (req, res) => {
       try {
         await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
       } catch (e) {
-        // Already attached is fine
         if (!e.message.includes('already been attached')) throw e;
       }
       await stripe.customers.update(customerId, {
@@ -234,38 +294,80 @@ const subscribe = async (req, res) => {
     if (!defaultPM)
       return res.status(400).json({ success: false, message: 'Adicione um cartão antes de assinar.' });
 
-    // If already has a subscription, update it (change plan)
+    // ── Change existing subscription (upgrade or downgrade) ──────────────────
     if (shop.stripeSubscriptionId) {
-      try {
-        const sub = await stripe.subscriptions.retrieve(shop.stripeSubscriptionId);
-        if (sub.status !== 'canceled') {
-          // Update the subscription to new price
-          const updated = await stripe.subscriptions.update(shop.stripeSubscriptionId, {
-            items: [{
-              id:    sub.items.data[0].id,
-              price: plan.stripePriceId,
-            }],
-            proration_behavior: 'create_prorations',
-            default_payment_method: defaultPM,
-          });
+      let sub;
+      try { sub = await stripe.subscriptions.retrieve(shop.stripeSubscriptionId); } catch (_) {}
 
-          shop.plan               = plan.key;
-          shop.planStatus         = 'active';
-          shop.stripePriceId      = plan.stripePriceId;
-          shop.planExpiresAt      = new Date(updated.current_period_end * 1000);
+      if (sub && sub.status !== 'canceled') {
+        const currentPriceCents = PLANS[shop.plan]?.priceCents || 0;
+        const isUpgrade = plan.priceCents > currentPriceCents;
+
+        // Upgrade: charge prorated difference immediately via always_invoice
+        // Downgrade: apply credit on next invoice via create_prorations (plan changes immediately)
+        const prorationBehavior = isUpgrade ? 'always_invoice' : 'create_prorations';
+
+        const updateParams = {
+          items: [{ id: sub.items.data[0].id, price: plan.stripePriceId }],
+          proration_behavior:     prorationBehavior,
+          default_payment_method: defaultPM,
+          metadata:               { barbershopId: String(shop._id), planKey: plan.key },
+        };
+
+        // Expand payment_intent only for upgrades (immediate charge)
+        if (isUpgrade) updateParams.expand = ['latest_invoice.payment_intent'];
+
+        const updated = await stripe.subscriptions.update(shop.stripeSubscriptionId, updateParams);
+
+        shop.plan          = plan.key;
+        shop.planStatus    = 'active';
+        shop.stripePriceId = plan.stripePriceId;
+        if (updated.current_period_end) {
+          shop.planExpiresAt = new Date(updated.current_period_end * 1000);
+        }
+
+        // Log proration invoice for upgrades
+        if (isUpgrade) {
+          const inv = updated.latest_invoice;
+          const pi  = inv?.payment_intent;
+          if (inv && !shop.invoices.some(i => i.stripeSessionId === (inv.id || inv))) {
+            shop.invoices.push({
+              description:     `Upgrade para ${plan.name} (proporcional)`,
+              amount:          (inv.amount_paid || inv.amount_due || 0) / 100,
+              status:          inv.status === 'paid' ? 'paid' : 'pending',
+              paidAt:          inv.status === 'paid' ? new Date() : undefined,
+              stripeSessionId: typeof inv === 'string' ? inv : inv.id,
+            });
+          }
           await shop.save();
 
-          return res.json({ success: true, message: `Plano atualizado para ${plan.name}.`, subscriptionId: updated.id });
+          const clientSecret = pi?.status === 'requires_action' ? pi.client_secret : null;
+          return res.json({
+            success: true,
+            message: `Upgrade para ${plan.name} efetuado! Cobrança proporcional realizada.`,
+            subscriptionId: updated.id,
+            clientSecret,
+            changeType: 'upgrade',
+          });
         }
-      } catch (_) { /* sub deleted, create new */ }
+
+        // Downgrade
+        await shop.save();
+        return res.json({
+          success: true,
+          message: `Plano alterado para ${plan.name}. O crédito proporcional será aplicado na próxima fatura.`,
+          subscriptionId: updated.id,
+          changeType: 'downgrade',
+        });
+      }
     }
 
-    // Create new subscription
+    // ── Nova assinatura ──────────────────────────────────────────────────────
     const subscription = await stripe.subscriptions.create({
       customer:               customerId,
       items:                  [{ price: plan.stripePriceId }],
       default_payment_method: defaultPM,
-      payment_behavior:       'default_incomplete',
+      payment_behavior:       'error_if_incomplete',
       expand:                 ['latest_invoice.payment_intent'],
       metadata:               { barbershopId: String(shop._id), planKey: plan.key },
     });
@@ -273,11 +375,14 @@ const subscribe = async (req, res) => {
     shop.stripeSubscriptionId = subscription.id;
     shop.stripePriceId        = plan.stripePriceId;
     shop.plan                 = plan.key;
-
-    // If subscription is active immediately (existing card works)
-    if (subscription.status === 'active') {
-      shop.planStatus    = 'active';
+    shop.planStatus           = 'active';
+    if (subscription.current_period_end) {
       shop.planExpiresAt = new Date(subscription.current_period_end * 1000);
+    }
+
+    const invoice       = subscription.latest_invoice;
+    const paymentIntent = invoice?.payment_intent;
+    if (!shop.invoices.some(inv => inv.stripeSessionId === subscription.id)) {
       shop.invoices.push({
         description:     `Assinatura ${plan.name}`,
         amount:          plan.priceCents / 100,
@@ -286,20 +391,18 @@ const subscribe = async (req, res) => {
         stripeSessionId: subscription.id,
       });
     }
-
     await shop.save();
 
-    // Return client_secret if payment needs confirmation (3D Secure etc)
-    const invoice       = subscription.latest_invoice;
-    const paymentIntent = invoice?.payment_intent;
-    const clientSecret  = paymentIntent?.client_secret || null;
+    const clientSecret = paymentIntent?.status === 'requires_action'
+      ? paymentIntent.client_secret : null;
 
     res.json({
       success:        true,
-      message:        subscription.status === 'active' ? `Plano ${plan.name} ativado!` : 'Confirme o pagamento.',
+      message:        `Plano ${plan.name} ativado!`,
       subscriptionId: subscription.id,
       status:         subscription.status,
-      clientSecret,   // frontend uses this for 3DS confirmation if needed
+      clientSecret,
+      changeType:     'new',
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -316,19 +419,31 @@ const cancelPlan = async (req, res) => {
     if (shop.planStatus === 'cancelled')
       return res.status(400).json({ success: false, message: 'Plano já cancelado.' });
 
-    // Cancel at period end (user keeps access until end of billing cycle)
+    let accessUntil = shop.planExpiresAt;
+
+    // Cancel at period end — user keeps access until end of billing cycle, no refund
     if (shop.stripeSubscriptionId) {
       try {
-        await stripe.subscriptions.update(shop.stripeSubscriptionId, {
+        const sub = await stripe.subscriptions.update(shop.stripeSubscriptionId, {
           cancel_at_period_end: true,
         });
-      } catch (_) { /* subscription may not exist */ }
+        accessUntil = new Date(sub.current_period_end * 1000);
+        shop.planExpiresAt = accessUntil;
+      } catch (_) { /* subscription may not exist in Stripe */ }
     }
 
     shop.planStatus = 'cancelled';
     await shop.save();
 
-    res.json({ success: true, message: 'Plano cancelado. O acesso continua até o fim do período.' });
+    const daysLeft = accessUntil
+      ? Math.max(0, Math.ceil((accessUntil - new Date()) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+    res.json({
+      success:      true,
+      message:      `Plano cancelado. Acesso mantido até ${accessUntil ? new Date(accessUntil).toLocaleDateString('pt-BR') : 'o fim do período'}.`,
+      data:         { accessUntil, daysLeft },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -612,7 +727,9 @@ const handleWebhook = async (req, res) => {
         shop.plan               = planKey;
         shop.planStatus         = 'active';
         shop.stripeSubscriptionId = sub.id;
-        shop.planExpiresAt      = new Date(sub.current_period_end * 1000);
+        if (sub.current_period_end) {
+          shop.planExpiresAt = new Date(sub.current_period_end * 1000);
+        }
 
         const already = shop.invoices.some(inv => inv.stripeSessionId === invoice.id);
         if (!already) {
@@ -659,8 +776,10 @@ const handleWebhook = async (req, res) => {
       if (sub.cancel_at_period_end) {
         shop.planStatus = 'cancelled';
       } else if (sub.status === 'active') {
-        shop.planStatus    = 'active';
-        shop.planExpiresAt = new Date(sub.current_period_end * 1000);
+        shop.planStatus = 'active';
+        if (sub.current_period_end) {
+          shop.planExpiresAt = new Date(sub.current_period_end * 1000);
+        }
       }
       await shop.save();
     }
@@ -704,6 +823,7 @@ module.exports = {
   setDefaultCard,
   attachPaymentMethod,
   createSetupIntent,
+  previewChange,
   subscribe,
   cancelPlan,
   buyPackage,

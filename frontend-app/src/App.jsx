@@ -33,7 +33,6 @@ import Reports from './pages/Reports';
 import Billing from './pages/Billing';
 import Clients from './pages/Clients';
 import Stock from './pages/Stock';
-import Sales from './pages/Sales';
 import Appearance from './pages/Appearance';
 import Settings, { SettingsIndex } from './pages/Settings';
 import Landing from './pages/Landing';
@@ -51,6 +50,7 @@ import FinancialTabs from './pages/financial/Tabs';
 import Commissions from './pages/financial/Commissions';
 import Transactions from './pages/financial/Transactions';
 import FinancialInvoices from './pages/financial/Invoices';
+import BalanceSheet from './pages/financial/BalanceSheet';
 
 // Platform admin
 import AdminLogin from './pages/admin/AdminLogin';
@@ -94,7 +94,6 @@ export default function App() {
               <Route path="/services"  element={<Services />}  />
               <Route path="/reports"   element={<Reports />}   />
               <Route path="/clients"   element={<Clients />}   />
-              <Route path="/sales"     element={<Sales />}     />
               <Route path="/stock"     element={<Stock />}     />
               <Route path="/business"   element={<Business />}    />
               <Route path="/reception" element={<ReceptionAI />} />
@@ -107,6 +106,7 @@ export default function App() {
                 <Route path="comissoes"     element={<Commissions />}       />
                 <Route path="lancamentos"   element={<Transactions />}      />
                 <Route path="notas"         element={<FinancialInvoices />} />
+                <Route path="balanco"       element={<BalanceSheet />}      />
               </Route>
 
               <Route path="/settings"  element={<Settings />}>

@@ -987,16 +987,22 @@ export default function ReportsPage() {
 
           {/* KPIs — Admin */}
           {isAdmin && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               <KpiCard label="Faturamento total" value={fmt(summary.revenue)}
                 icon={DollarSign} color="bg-teal-500" highlight
                 sub={`${summary.completed} serviços concluídos`} />
               <KpiCard label="Lucro bruto" value={fmt(summary.shopRevenue)}
                 icon={Store} color="bg-violet-500"
                 sub={summary.revenue > 0 ? `${Math.round(summary.shopRevenue / summary.revenue * 100)}% do faturamento` : undefined} />
-              <KpiCard label="Comissão a pagar" value={fmt(summary.barberCommission)}
+              <KpiCard label="Comissão calculada" value={fmt(summary.barberCommission)}
                 icon={Wallet} color="bg-brand-500"
                 sub={summary.revenue > 0 ? `${Math.round(summary.barberCommission / summary.revenue * 100)}% do faturamento` : undefined} />
+              <KpiCard label="Comissão paga" value={fmt(summary.commissionPaid)}
+                icon={TrendingDown} color="bg-emerald-500"
+                sub="Já repassado aos profissionais" />
+              <KpiCard label="Comissão pendente" value={fmt(summary.commissionPending)}
+                icon={TrendingUp} color="bg-amber-500"
+                sub="Aguardando pagamento" />
               <KpiCard label="Ticket médio" value={summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'}
                 icon={TrendingUp} color="bg-violet-500"
                 note="Valor médio faturado por serviço concluído no período" />
@@ -1096,9 +1102,10 @@ export default function ReportsPage() {
                   <div key={b.name} className="bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 rounded-xl p-3.5 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-colors">
                     <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate mb-1.5">{b.name}</p>
                     <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{fmt(b.barberCommission)}</p>
-                    <div className="flex gap-2 mt-1.5">
+                    <div className="flex gap-2 mt-1.5 flex-wrap">
                       <span className="text-[10px] text-gray-400 dark:text-gray-600">{b.completed} serv.</span>
-                      <span className="text-[10px] text-gray-400 dark:text-gray-600">fat. {fmt(b.revenue)}</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400">pago {fmt(b.commissionPaid || 0)}</span>
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400">pend. {fmt(b.commissionPending || 0)}</span>
                     </div>
                   </div>
                 ))}
@@ -1154,6 +1161,7 @@ export default function ReportsPage() {
                         <th className="text-left text-[11px] font-semibold text-gray-500 dark:text-gray-400 py-3 px-4 uppercase tracking-wide">Data</th>
                         <th className="text-left text-[11px] font-semibold text-gray-500 dark:text-gray-400 py-3 px-4 uppercase tracking-wide">Status</th>
                         <th className="text-right text-[11px] font-semibold text-gray-500 dark:text-gray-400 py-3 px-4 uppercase tracking-wide">Valor</th>
+                        <th className="text-right text-[11px] font-semibold text-gray-500 dark:text-gray-400 py-3 px-4 uppercase tracking-wide">Comissão</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1169,6 +1177,22 @@ export default function ReportsPage() {
                           <td className="py-3 px-4 text-right font-semibold text-gray-800 dark:text-gray-200">
                             {a.status === 'concluído' ? fmt(a.price) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                           </td>
+                          <td className="py-3 px-4 text-right">
+                            {a.status === 'concluído' ? (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-semibold text-brand-600 dark:text-brand-400">{fmt(a.commissionAmount || 0)}</span>
+                                {a.commissionStatus && (
+                                  <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full',
+                                    a.commissionStatus === 'pago'
+                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+                                  )}>
+                                    {a.commissionStatus === 'pago' ? 'Pago' : 'Pendente'}
+                                  </span>
+                                )}
+                              </div>
+                            ) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1179,6 +1203,11 @@ export default function ReportsPage() {
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-base text-brand-600 dark:text-brand-400">
                           {isAdmin ? fmt(summary.revenue) : fmt(summary.barberCommission)}
+                        </td>
+                        <td className="py-3 px-4 text-right text-xs text-gray-400 dark:text-gray-600">
+                          {isAdmin && summary.commissionPending > 0 && (
+                            <span className="text-amber-600 dark:text-amber-400 font-medium">{fmt(summary.commissionPending)} pend.</span>
+                          )}
                         </td>
                       </tr>
                     </tfoot>

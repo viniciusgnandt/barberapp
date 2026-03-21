@@ -189,6 +189,7 @@ export const Reception = {
 export const Billing = {
   get:                    ()                                        => request('/billing'),
   subscribe:              (planKey, paymentMethodId)                => request('/billing/subscribe',       { method: 'POST', body: { planKey, paymentMethodId } }),
+  previewChange:          (planKey)                               => request('/billing/preview-change',   { method: 'POST', body: { planKey } }),
   buyPackage:             (messages, quantity, paymentMethodId)     => request('/billing/buy-package',     { method: 'POST', body: { messages, quantity, paymentMethodId } }),
   confirmPackage:         (paymentIntentId)                        => request('/billing/confirm-package',  { method: 'POST', body: { paymentIntentId } }),
   applyCoupon:            (code)                                   => request('/billing/apply-coupon',     { method: 'POST', body: { code } }),
@@ -222,6 +223,8 @@ export const Financial = {
   addTabItem:       (id, data)  => request(`/financial/tabs/${id}/items`, { method: 'POST', body: data }),
   removeTabItem:    (id, itemId)=> request(`/financial/tabs/${id}/items/${itemId}`, { method: 'DELETE' }),
   closeTab:         (id, data)  => request(`/financial/tabs/${id}/close`, { method: 'POST', body: data }),
+  // Balanço Patrimonial
+  getBalanceSheet:  (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/balance-sheet${qs}`); },
 };
 
 // ── Platform Admin ────────────────────────────────────────────────────────────

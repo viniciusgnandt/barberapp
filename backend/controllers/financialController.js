@@ -243,22 +243,37 @@ const payCommission = async (req, res) => {
       { $set: { status: 'pago', paidAt: new Date(), paidBy: req.user._id, discount, discountReason } },
     );
 
-    // Record as transaction
-    const paid = await Commission.find({ _id: { $in: commissionIds } });
+    // Record as transaction — one entry per barber
+    const paid = await Commission.find({ _id: { $in: commissionIds } })
+      .populate('barber', 'name');
     const totalPaid = paid.reduce((s, c) => s + c.commissionAmount - (c.discount || 0), 0);
 
     if (totalPaid > 0) {
       const openCash = await CashRegister.findOne({ barbershop: shopId(req), status: 'open' });
-      await Transaction.create({
-        barbershop:    shopId(req),
-        cashRegister:  openCash?._id,
-        type:          'saida',
-        category:      'comissao',
-        amount:        totalPaid,
-        description:   `Pagamento de ${paid.length} comissão(ões)`,
-        paymentMethod: req.body.paymentMethod || 'dinheiro',
-        createdBy:     req.user._id,
+      const paymentMethod = req.body.paymentMethod || 'dinheiro';
+
+      // Group by barber to create one transaction per barber
+      const byBarber = {};
+      paid.forEach(c => {
+        const bid = String(c.barber?._id || c.barber);
+        if (!byBarber[bid]) byBarber[bid] = { barber: c.barber, amount: 0, count: 0 };
+        byBarber[bid].amount += c.commissionAmount - (c.discount || 0);
+        byBarber[bid].count++;
       });
+
+      await Promise.all(Object.values(byBarber).map(g =>
+        Transaction.create({
+          barbershop:    shopId(req),
+          cashRegister:  openCash?._id,
+          type:          'saida',
+          category:      'comissao',
+          amount:        g.amount,
+          description:   `Comissão — ${g.barber?.name || 'Profissional'} (${g.count} serviço(s))`,
+          paymentMethod,
+          barber:        g.barber?._id || g.barber,
+          createdBy:     req.user._id,
+        })
+      ));
     }
 
     res.json({ success: true, message: `${result.modifiedCount} comissão(ões) pagas.`, totalPaid });
@@ -449,9 +464,179 @@ const closeTab = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// BALANÇO PATRIMONIAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const getBalanceSheet = async (req, res) => {
+  try {
+    const shop = shopId(req);
+    const { startDate, endDate } = req.query;
+
+    // ── ATIVO CIRCULANTE ────────────────────────────────────────────────────
+
+    // 1. Disponibilidades — saldo acumulado de todas as transações do caixa
+    const txnAll = await Transaction.aggregate([
+      { $match: { barbershop: shop } },
+      { $group: { _id: '$type', total: { $sum: '$amount' } } },
+    ]);
+    const totalEntradas = txnAll.find(t => t._id === 'entrada')?.total || 0;
+    const totalSaidas   = txnAll.find(t => t._id === 'saida')?.total   || 0;
+    const saldoCaixa    = Math.max(0, totalEntradas - totalSaidas);
+
+    // 2. Caixa aberto agora
+    const openRegister = await CashRegister.findOne({ barbershop: shop, status: 'open' }).lean();
+
+    // 3. Contas a receber — comandas abertas ainda não pagas
+    const openTabsAgg = await Tab.aggregate([
+      { $match: { barbershop: shop, status: 'aberta' } },
+      { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
+    ]);
+    const contasAReceber      = openTabsAgg[0]?.total || 0;
+    const contasAReceberCount = openTabsAgg[0]?.count || 0;
+
+    // 4. Estoques — valor de custo dos produtos em estoque
+    const products     = await Product.find({ barbershop: shop, active: true }).lean();
+    const valorEstoque = products.reduce((s, p) => s + (p.stock || 0) * (p.costPrice || 0), 0);
+    const qtdEstoque   = products.reduce((s, p) => s + (p.stock || 0), 0);
+
+    // ── PASSIVO CIRCULANTE ──────────────────────────────────────────────────
+
+    // 5. Comissões a pagar — obrigações com profissionais
+    const commAgg = await Commission.aggregate([
+      { $match: { barbershop: shop, status: 'pendente' } },
+      { $group: { _id: null, total: { $sum: '$commissionAmount' }, count: { $sum: 1 } } },
+    ]);
+    const comissoesAPagar      = commAgg[0]?.total || 0;
+    const comissoesAPagarCount = commAgg[0]?.count || 0;
+
+    // 6. Saídas comprometidas por categoria (fornecedores/impostos/aluguel)
+    //    Considera o mês corrente como referência de despesas recorrentes
+    const now         = new Date();
+    const mesInicio   = new Date(now.getFullYear(), now.getMonth(), 1);
+    const mesActualAgg = await Transaction.aggregate([
+      { $match: { barbershop: shop, type: 'saida', createdAt: { $gte: mesInicio } } },
+      { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      { $sort: { total: -1 } },
+    ]);
+
+    // ── DRE — Demonstração do Resultado do Exercício ────────────────────────
+
+    const dreMatch = { barbershop: shop };
+    if (startDate || endDate) {
+      dreMatch.createdAt = {};
+      if (startDate) dreMatch.createdAt.$gte = new Date(startDate);
+      if (endDate)   dreMatch.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
+    }
+
+    const [dreAgg, dreByCat] = await Promise.all([
+      Transaction.aggregate([
+        { $match: dreMatch },
+        { $group: { _id: '$type', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Transaction.aggregate([
+        { $match: dreMatch },
+        { $group: { _id: { type: '$type', category: '$category' }, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+        { $sort: { total: -1 } },
+      ]),
+    ]);
+
+    const receitaBruta     = dreAgg.find(t => t._id === 'entrada')?.total || 0;
+    const despesasTotais   = dreAgg.find(t => t._id === 'saida')?.total   || 0;
+    const resultadoLiquido = receitaBruta - despesasTotais;
+
+    // Agrupa saídas por categoria para o DRE
+    const despesasPorCategoria = dreByCat
+      .filter(r => r._id.type === 'saida')
+      .map(r => ({ category: r._id.category || 'outros', total: r.total, count: r.count }));
+
+    const receitasPorCategoria = dreByCat
+      .filter(r => r._id.type === 'entrada')
+      .map(r => ({ category: r._id.category || 'outros', total: r.total, count: r.count }));
+
+    // ── Totais e equação contábil ───────────────────────────────────────────
+
+    const ativoCirculante    = saldoCaixa + contasAReceber + valorEstoque;
+    const ativoTotal         = ativoCirculante; // sem ativo não-circulante por ora
+    const passivoCirculante  = comissoesAPagar;
+    const passivoTotal       = passivoCirculante;
+    const patrimonioLiquido  = ativoTotal - passivoTotal;
+
+    // ── Indicadores ─────────────────────────────────────────────────────────
+
+    const capitalDeGiro     = ativoCirculante - passivoCirculante;
+    const liquidezCorrente  = passivoCirculante > 0
+      ? +(ativoCirculante / passivoCirculante).toFixed(2) : null;
+    const endividamento     = ativoTotal > 0
+      ? +((passivoTotal / ativoTotal) * 100).toFixed(1) : 0;
+    const margemLiquida     = receitaBruta > 0
+      ? +((resultadoLiquido / receitaBruta) * 100).toFixed(1) : 0;
+    const giroAtivo         = ativoTotal > 0
+      ? +(receitaBruta / ativoTotal).toFixed(2) : null;
+
+    res.json({
+      success: true,
+      data: {
+        referenceDate: new Date(),
+        caixaAberto:   !!openRegister,
+
+        ativo: {
+          circulante: {
+            caixa:          { valor: saldoCaixa,      label: 'Disponibilidades (Caixa)' },
+            contasAReceber: { valor: contasAReceber,   label: 'Contas a Receber', count: contasAReceberCount },
+            estoques:       { valor: valorEstoque,     label: 'Estoques', count: qtdEstoque },
+          },
+          totalCirculante: ativoCirculante,
+          total:           ativoTotal,
+        },
+
+        passivo: {
+          circulante: {
+            comissoesAPagar: { valor: comissoesAPagar, label: 'Comissões a Pagar', count: comissoesAPagarCount },
+          },
+          totalCirculante: passivoCirculante,
+          total:           passivoTotal,
+          mesAtual:        mesActualAgg,
+        },
+
+        patrimonioLiquido: {
+          capitalProprio: { valor: patrimonioLiquido, label: 'Patrimônio Líquido' },
+          total:          patrimonioLiquido,
+        },
+
+        equacao: {
+          ativo:        ativoTotal,
+          passivoPL:    passivoTotal + patrimonioLiquido,
+          equilibrado:  Math.abs(ativoTotal - (passivoTotal + patrimonioLiquido)) < 0.01,
+        },
+
+        dre: {
+          periodo:               { startDate: startDate || null, endDate: endDate || null },
+          receitaBruta,
+          despesasTotais,
+          resultadoLiquido,
+          receitasPorCategoria,
+          despesasPorCategoria,
+        },
+
+        indicadores: {
+          capitalDeGiro,
+          liquidezCorrente,
+          endividamento,
+          margemLiquida,
+          giroAtivo,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   openCashRegister, closeCashRegister, getCurrentCashRegister, getCashHistory,
   createTransaction, getTransactions, deleteTransaction,
   getCommissions, payCommission,
   createTab, getTabs, getTab, addTabItem, removeTabItem, closeTab,
+  getBalanceSheet,
 };

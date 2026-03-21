@@ -29,8 +29,31 @@ const PM_COLORS = {
   gray:    { bg: 'bg-gray-50 dark:bg-gray-800/40',       border: 'border-gray-300 dark:border-gray-600',        text: 'text-gray-700 dark:text-gray-300',        icon: 'text-gray-500 dark:text-gray-400',        badge: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
 };
 
-const CATEGORIES_IN  = ['serviço', 'produto', 'gorjeta', 'outros'];
-const CATEGORIES_OUT = ['fornecedor', 'salário', 'aluguel', 'manutenção', 'materiais', 'outros'];
+const CATEGORIES_IN = [
+  { key: 'servico',     label: 'Serviço' },
+  { key: 'produto',     label: 'Produto' },
+  { key: 'gorjeta',     label: 'Gorjeta' },
+  { key: 'comanda',     label: 'Comanda' },
+  { key: 'outros',      label: 'Outros' },
+];
+
+const CATEGORIES_OUT = [
+  { key: 'comissao',    label: 'Comissão' },
+  { key: 'fornecedor',  label: 'Fornecedor' },
+  { key: 'salario',     label: 'Salário' },
+  { key: 'aluguel',     label: 'Aluguel' },
+  { key: 'manutencao',  label: 'Manutenção' },
+  { key: 'materiais',   label: 'Materiais' },
+  { key: 'energia',     label: 'Energia / Água' },
+  { key: 'internet',    label: 'Internet / Telefone' },
+  { key: 'impostos',    label: 'Impostos / Taxas' },
+  { key: 'marketing',   label: 'Marketing / Publicidade' },
+  { key: 'equipamentos',label: 'Equipamentos' },
+  { key: 'limpeza',     label: 'Limpeza / Higiene' },
+  { key: 'alimentacao', label: 'Alimentação' },
+  { key: 'transporte',  label: 'Transporte' },
+  { key: 'outros',      label: 'Outros' },
+];
 
 // ── Modal de movimentação ─────────────────────────────────────────────────────
 function MovimentacaoModal({ type, cashId, onSuccess, onClose }) {
@@ -126,7 +149,7 @@ function MovimentacaoModal({ type, cashId, onSuccess, onClose }) {
               className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-brand-500 outline-none transition-colors"
             >
               <option value="">Selecionar categoria</option>
-              {cats.map(c => <option key={c} value={c} className="capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+              {cats.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
           </div>
 
@@ -446,9 +469,13 @@ export default function CashRegister() {
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <PmBadge method={t.paymentMethod || 'outro'} />
-                            {t.category && t.category !== 'outros' && (
-                              <span className="text-[10px] text-gray-400 dark:text-gray-500 capitalize">{t.category}</span>
-                            )}
+                            {t.category && t.category !== 'outros' && (() => {
+                              const all = [...CATEGORIES_IN, ...CATEGORIES_OUT];
+                              const found = all.find(c => c.key === t.category);
+                              return (
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500">{found?.label ?? t.category}</span>
+                              );
+                            })()}
                             <span className="text-[10px] text-gray-300 dark:text-gray-600">{fmtTime(t.createdAt)}</span>
                           </div>
                         </div>

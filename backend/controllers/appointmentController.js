@@ -1,14 +1,38 @@
 // controllers/appointmentController.js
 
 const Appointment = require('../models/Appointment');
+const Commission  = require('../models/Commission');
 const User        = require('../models/User');
 const crypto      = require('crypto');
 
 const populate = (q) =>
-  q.populate('service', 'name duration price')
+  q.populate('service', 'name duration price commission')
    .populate('barber', 'name email')
    .populate('barbershop', 'name')
    .populate('client', 'name phone email');
+
+// Cria comissão ao concluir agendamento (idempotente via appointment ref)
+async function upsertCommission(apt) {
+  if (!apt.barber || !apt.service) return;
+  const already = await Commission.findOne({ appointment: apt._id });
+  if (already) return;
+
+  const price = apt.service.price  || 0;
+  const pct   = apt.service.commission ?? 50;
+  if (price === 0) return;
+
+  await Commission.create({
+    barbershop:       apt.barbershop,
+    barber:           apt.barber._id || apt.barber,
+    appointment:      apt._id,
+    service:          apt.service._id || apt.service,
+    serviceName:      apt.service.name,
+    serviceAmount:    price,
+    commissionRate:   pct,
+    commissionAmount: price * pct / 100,
+    status:           'pendente',
+  });
+}
 
 // GET /api/appointments
 const getAppointments = async (req, res) => {
@@ -253,10 +277,17 @@ const updateAppointment = async (req, res) => {
       }
     }
 
+    const prevStatus = apt.status;
     const allowed = ['date', 'endDate', 'barber', 'service', 'status', 'notes', 'clientName', 'client', 'type'];
     allowed.forEach(f => { if (req.body[f] !== undefined) apt[f] = req.body[f]; });
     await apt.save();
     const data = await populate(Appointment.findById(apt._id));
+
+    // Gera comissão automaticamente quando concluído
+    if (prevStatus !== 'concluído' && data.status === 'concluído') {
+      upsertCommission(data).catch(() => {});
+    }
+
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

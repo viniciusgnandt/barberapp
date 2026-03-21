@@ -22,6 +22,9 @@ router.delete('/transactions/:id', ctrl.deleteTransaction);
 router.get ('/commissions',     ctrl.getCommissions);
 router.post('/commissions/pay', ctrl.payCommission);
 
+// ── Balanço Patrimonial ───────────────────────────────────────────────────────
+router.get('/balance-sheet', ctrl.getBalanceSheet);
+
 // ── Comandas ──────────────────────────────────────────────────────────────────
 router.get   ('/tabs',                      ctrl.getTabs);
 router.post  ('/tabs',                      ctrl.createTab);
