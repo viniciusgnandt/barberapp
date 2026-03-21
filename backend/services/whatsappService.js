@@ -80,21 +80,22 @@ async function createClient(barbershopId, barbershopName) {
   }
   if (clients.has(barbershopId)) return; // already running
 
-  // Resolve Chrome executable: try puppeteer bundled, then common paths
-  let executablePath;
-  try {
-    const puppeteer = require('puppeteer');
-    executablePath = puppeteer.executablePath();
-  } catch (_) {
-    // puppeteer not installed as full package; try common Chrome locations
-    const candidates = [
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-      '/usr/bin/google-chrome',
-      '/usr/bin/chromium-browser',
-      '/usr/bin/chromium',
-    ];
-    executablePath = candidates.find(p => fs.existsSync(p)) || undefined;
+  // Resolve Chrome executable: env var > puppeteer bundled > common paths
+  let executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+  if (!executablePath) {
+    try {
+      const puppeteer = require('puppeteer');
+      executablePath = puppeteer.executablePath();
+    } catch (_) {
+      const candidates = [
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/google-chrome',
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      ];
+      executablePath = candidates.find(p => fs.existsSync(p)) || undefined;
+    }
   }
 
   const client = new Client({
