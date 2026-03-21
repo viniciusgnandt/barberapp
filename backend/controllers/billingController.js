@@ -1,4 +1,4 @@
-// controllers/billingController.js
+// controllers/billingController.js — Stripe Subscriptions + Payment Methods API (NO Checkout)
 
 const Stripe     = require('stripe');
 const Barbershop = require('../models/Barbershop');
@@ -6,46 +6,74 @@ const Coupon     = require('../models/Coupon');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ── Planos disponíveis ────────────────────────────────────────────────────────
+// ── Planos SaaS (baseados em custos Gemini Flash-Lite) ──────────────────────
+// Gemini Flash-Lite: ~$0.075/1M input + ~$0.30/1M output ≈ R$0,002/msg
+// Margem saudável + valor agregado da plataforma
+
+// ── Análise de custos e margem ───────────────────────────────────────────────
+// Gemini Flash-Lite: ~$0.075/1M input + ~$0.30/1M output
+// Média por mensagem: ~400 tokens input + ~200 tokens output = ~R$0,002/msg
+// Custo infra (servidor, DB, storage): ~R$0,50/cliente/mês
+// Margem mínima: 80%+ sobre custo total
+//
+// Starter:      500 msgs × R$0,002 = R$1,00 + R$0,50 infra = R$1,50 custo → R$97 preço → 98,5% margem
+// Professional: 2000 msgs × R$0,002 = R$4,00 + R$0,50 = R$4,50 custo → R$197 preço → 97,7% margem
+// Business:     5000 msgs × R$0,002 = R$10,00 + R$0,50 = R$10,50 custo → R$397 preço → 97,4% margem
+
 const PLANS = {
   free: {
-    key:        'free',
-    name:       'Free',
-    priceCents: 0,
-    priceLabel: 'Grátis',
-    days:       30,
-    features:   ['1 profissional', 'Agendamento online básico', 'Portal do cliente'],
+    key:           'free',
+    name:          'Free',
+    priceCents:    0,
+    priceLabel:    'Grátis',
+    maxBarbers:    1,
+    aiMessages:    0,
+    features:      ['1 profissional', 'Agendamento online básico', 'Portal do cliente'],
+    stripePriceId: null,
   },
-  basic: {
-    key:        'basic',
-    name:       'Basic',
-    priceCents: 4900,
-    priceLabel: 'R$ 49,00/mês',
-    days:       30,
-    features:   ['Até 3 profissionais', 'Agendamentos ilimitados', 'Relatórios básicos', 'Suporte por email'],
+  starter: {
+    key:           'starter',
+    name:          'Starter',
+    priceCents:    9700,
+    priceLabel:    'R$ 97,00/mês',
+    maxBarbers:    3,
+    aiMessages:    500,
+    features:      ['Até 3 profissionais', 'Agendamentos ilimitados', '500 msgs IA/mês', 'Relatórios básicos', 'Suporte por email'],
+    stripePriceId: process.env.STRIPE_PRICE_STARTER || null,
   },
-  pro: {
-    key:        'pro',
-    name:       'Pro',
-    priceCents: 9900,
-    priceLabel: 'R$ 99,00/mês',
-    days:       30,
-    features:   ['Até 10 profissionais', 'IA receptionist (WhatsApp)', 'Relatórios completos', 'Notificações automáticas'],
+  professional: {
+    key:           'professional',
+    name:          'Professional',
+    priceCents:    19700,
+    priceLabel:    'R$ 197,00/mês',
+    maxBarbers:    10,
+    aiMessages:    2000,
+    features:      ['Até 10 profissionais', '2.000 msgs IA/mês', 'IA Recepcionista (WhatsApp)', 'Relatórios completos', 'Financeiro + Comandas', 'Notificações automáticas'],
+    stripePriceId: process.env.STRIPE_PRICE_PROFESSIONAL || null,
   },
-  premium: {
-    key:        'premium',
-    name:       'Premium',
-    priceCents: 19900,
-    priceLabel: 'R$ 199,00/mês',
-    days:       30,
-    features:   ['Profissionais ilimitados', 'Tudo do Pro', 'Suporte prioritário 24h', 'Pacotes de mensagens inclusos'],
+  business: {
+    key:           'business',
+    name:          'Business',
+    priceCents:    39700,
+    priceLabel:    'R$ 397,00/mês',
+    maxBarbers:    999,
+    aiMessages:    5000,
+    features:      ['Profissionais ilimitados', '5.000 msgs IA/mês', 'Tudo do Professional', 'Suporte prioritário 24h', 'Multi-unidades (em breve)'],
+    stripePriceId: process.env.STRIPE_PRICE_BUSINESS || null,
   },
 };
 
-// ── Pacotes adicionais de mensagens ───────────────────────────────────────────
+// Keep legacy plan keys for backward compatibility
+const PLAN_ALIASES = { basic: 'starter', pro: 'professional', premium: 'business', trial: 'free' };
+
+function resolvePlan(key) {
+  return PLANS[key] || PLANS[PLAN_ALIASES[key]] || null;
+}
+
+// ── Pacotes adicionais de mensagens ─────────────────────────────────────────
 const PACKAGE_TIERS = { 1000: 49, 3000: 139, 5000: 229 };
 
-// ── Helper: get or create Stripe customer ─────────────────────────────────────
+// ── Helper: get or create Stripe customer ───────────────────────────────────
 async function getOrCreateCustomer(shop, userEmail) {
   if (shop.stripeCustomerId) return shop.stripeCustomerId;
 
@@ -60,72 +88,47 @@ async function getOrCreateCustomer(shop, userEmail) {
   return customer.id;
 }
 
-// ── Helper: process a completed Stripe session (idempotent) ───────────────────
-async function processSession(session, shop) {
-  const alreadyProcessed = shop.invoices.some(inv => inv.stripeSessionId === session.id);
-  if (alreadyProcessed) return false;
-
-  const { type, planKey, messages, quantity } = session.metadata || {};
-
-  if (type === 'plan' && planKey && PLANS[planKey]) {
-    const plan = PLANS[planKey];
-    const base = (shop.planStatus === 'active' && shop.planExpiresAt && shop.planExpiresAt > new Date())
-      ? new Date(shop.planExpiresAt) : new Date();
-    shop.planExpiresAt = new Date(base.getTime() + plan.days * 24 * 60 * 60 * 1000);
-    shop.plan       = planKey;
-    shop.planStatus = 'active';
-    shop.invoices.push({
-      description:     `Plano ${plan.name} — ${plan.days} dias`,
-      amount:          plan.priceCents / 100,
-      status:          'paid',
-      paidAt:          new Date(),
-      stripeSessionId: session.id,
-    });
-    await shop.save();
-    return true;
-  }
-
-  if (type === 'package') {
-    const msgs      = parseInt(messages, 10);
-    const qty       = parseInt(quantity, 10) || 1;
-    const tier      = PACKAGE_TIERS[msgs];
-    const now       = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    for (let i = 0; i < qty; i++) {
-      shop.messagePackages.push({ messages: msgs, remaining: msgs, purchasedAt: now, expiresAt });
-    }
-    shop.invoices.push({
-      description:     `${qty}x Pacote ${msgs.toLocaleString('pt-BR')} msgs (30 dias)`,
-      amount:          (tier || 0) * qty,
-      status:          'paid',
-      paidAt:          now,
-      stripeSessionId: session.id,
-    });
-    await shop.save();
-    return true;
-  }
-
-  return false;
-}
-
-// ── GET /api/billing ──────────────────────────────────────────────────────────
+// ── GET /api/billing ────────────────────────────────────────────────────────
 const getBilling = async (req, res) => {
   try {
     const shop = await Barbershop.findById(req.user.barbershop._id)
+      .select('+stripeCustomerId +stripeSubscriptionId +stripePriceId')
       .select('name plan planStatus planExpiresAt invoices messagePackages createdAt');
     if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
-    // Normalize trial/legacy accounts to free
-    if (shop.plan === 'trial' || !shop.plan) {
-      shop.plan          = 'free';
-      shop.planStatus    = 'active';
-      shop.planExpiresAt = undefined;
+    // Normalize legacy plans
+    if (['trial', 'basic', 'pro', 'premium'].includes(shop.plan)) {
+      const alias = PLAN_ALIASES[shop.plan];
+      if (alias) shop.plan = alias;
+      if (!shop.plan || shop.plan === 'trial') {
+        shop.plan       = 'free';
+        shop.planStatus = 'active';
+      }
       await shop.save();
+    }
+
+    // Check subscription status from Stripe if active
+    let subscriptionStatus = null;
+    if (shop.stripeSubscriptionId) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(shop.stripeSubscriptionId);
+        subscriptionStatus = sub.status; // active, past_due, canceled, etc.
+        // Update local status based on Stripe
+        if (sub.status === 'active' || sub.status === 'trialing') {
+          shop.planStatus    = 'active';
+          shop.planExpiresAt = new Date(sub.current_period_end * 1000);
+        } else if (sub.status === 'canceled') {
+          shop.planStatus = 'cancelled';
+        } else if (sub.status === 'past_due') {
+          shop.planStatus = 'active'; // still active but payment failed
+        }
+        await shop.save();
+      } catch (_) { /* subscription may have been deleted */ }
     }
 
     const daysLeft = shop.planExpiresAt
       ? Math.max(0, Math.ceil((new Date(shop.planExpiresAt) - new Date()) / (1000 * 60 * 60 * 24)))
-      : 0;
+      : null;
 
     const activePackages = (shop.messagePackages || []).filter(
       p => p.remaining > 0 && (!p.expiresAt || p.expiresAt > new Date())
@@ -134,13 +137,15 @@ const getBilling = async (req, res) => {
     res.json({
       success: true,
       data: {
-        plan:            shop.plan,
-        planStatus:      shop.planStatus,
-        planExpiresAt:   shop.planExpiresAt,
+        plan:               shop.plan,
+        planStatus:         shop.planStatus,
+        planExpiresAt:      shop.planExpiresAt,
         daysLeft,
-        plans:           PLANS,
-        invoices:        shop.invoices.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt)),
-        messagePackages: activePackages,
+        plans:              PLANS,
+        subscriptionStatus,
+        hasSubscription:    !!shop.stripeSubscriptionId,
+        invoices:           shop.invoices.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt)),
+        messagePackages:    activePackages,
       },
     });
   } catch (err) {
@@ -148,35 +153,188 @@ const getBilling = async (req, res) => {
   }
 };
 
-// ── POST /api/billing/sync-session — força sincronização de sessão Stripe ─────
-const syncSession = async (req, res) => {
+// ── POST /api/billing/attach-payment-method — Attach a PM to customer ───────
+const attachPaymentMethod = async (req, res) => {
   try {
-    const { sessionId } = req.body;
-    if (!sessionId) return res.status(400).json({ success: false, message: 'sessionId obrigatório.' });
+    const { paymentMethodId } = req.body;
+    if (!paymentMethodId) return res.status(400).json({ success: false, message: 'paymentMethodId obrigatório.' });
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const shop = await Barbershop.findById(req.user.barbershop._id).select('+stripeCustomerId');
+    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
-    // Accept paid sessions (payment mode) or completed setup sessions
-    if (session.payment_status !== 'paid' && session.mode !== 'setup')
-      return res.status(400).json({ success: false, message: 'Sessão não concluída.' });
+    const customerId = await getOrCreateCustomer(shop, req.user.email);
 
-    const shopWithStripe = await Barbershop.findById(req.user.barbershop._id).select('+stripeCustomerId');
-    if (!shopWithStripe) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+    // Attach PM to customer
+    await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
 
-    // Verify session belongs to this shop's Stripe customer
-    if (shopWithStripe.stripeCustomerId && session.customer !== shopWithStripe.stripeCustomerId)
-      return res.status(403).json({ success: false, message: 'Sessão não pertence a este cadastro.' });
+    // Set as default
+    await stripe.customers.update(customerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
 
-    const shop = await Barbershop.findById(req.user.barbershop._id);
-    const processed = await processSession(session, shop);
-
-    res.json({ success: true, message: processed ? 'Plano atualizado.' : 'Já processado.' });
+    res.json({ success: true, message: 'Cartão adicionado com sucesso.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ── GET /api/billing/cards ────────────────────────────────────────────────────
+// ── POST /api/billing/create-setup-intent — For Stripe Elements card form ───
+const createSetupIntent = async (req, res) => {
+  try {
+    const shop = await Barbershop.findById(req.user.barbershop._id).select('+stripeCustomerId');
+    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+
+    const customerId = await getOrCreateCustomer(shop, req.user.email);
+
+    const setupIntent = await stripe.setupIntents.create({
+      customer:              customerId,
+      payment_method_types:  ['card'],
+      metadata:              { barbershopId: String(shop._id) },
+    });
+
+    res.json({ success: true, clientSecret: setupIntent.client_secret });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── POST /api/billing/subscribe — Create or update subscription ─────────────
+const subscribe = async (req, res) => {
+  try {
+    const { planKey, paymentMethodId } = req.body;
+    const plan = resolvePlan(planKey);
+    if (!plan || plan.priceCents === 0)
+      return res.status(400).json({ success: false, message: 'Plano inválido.' });
+
+    if (!plan.stripePriceId)
+      return res.status(400).json({ success: false, message: 'Plano não configurado no Stripe. Configure STRIPE_PRICE_* no .env.' });
+
+    const shop = await Barbershop.findById(req.user.barbershop._id)
+      .select('+stripeCustomerId +stripeSubscriptionId +stripePriceId');
+    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+
+    const customerId = await getOrCreateCustomer(shop, req.user.email);
+
+    // If a new PM was provided, attach and set as default
+    if (paymentMethodId) {
+      try {
+        await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
+      } catch (e) {
+        // Already attached is fine
+        if (!e.message.includes('already been attached')) throw e;
+      }
+      await stripe.customers.update(customerId, {
+        invoice_settings: { default_payment_method: paymentMethodId },
+      });
+    }
+
+    // Check if customer has a default PM
+    const customer = await stripe.customers.retrieve(customerId);
+    const defaultPM = customer.invoice_settings?.default_payment_method;
+    if (!defaultPM)
+      return res.status(400).json({ success: false, message: 'Adicione um cartão antes de assinar.' });
+
+    // If already has a subscription, update it (change plan)
+    if (shop.stripeSubscriptionId) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(shop.stripeSubscriptionId);
+        if (sub.status !== 'canceled') {
+          // Update the subscription to new price
+          const updated = await stripe.subscriptions.update(shop.stripeSubscriptionId, {
+            items: [{
+              id:    sub.items.data[0].id,
+              price: plan.stripePriceId,
+            }],
+            proration_behavior: 'create_prorations',
+            default_payment_method: defaultPM,
+          });
+
+          shop.plan               = plan.key;
+          shop.planStatus         = 'active';
+          shop.stripePriceId      = plan.stripePriceId;
+          shop.planExpiresAt      = new Date(updated.current_period_end * 1000);
+          await shop.save();
+
+          return res.json({ success: true, message: `Plano atualizado para ${plan.name}.`, subscriptionId: updated.id });
+        }
+      } catch (_) { /* sub deleted, create new */ }
+    }
+
+    // Create new subscription
+    const subscription = await stripe.subscriptions.create({
+      customer:               customerId,
+      items:                  [{ price: plan.stripePriceId }],
+      default_payment_method: defaultPM,
+      payment_behavior:       'default_incomplete',
+      expand:                 ['latest_invoice.payment_intent'],
+      metadata:               { barbershopId: String(shop._id), planKey: plan.key },
+    });
+
+    shop.stripeSubscriptionId = subscription.id;
+    shop.stripePriceId        = plan.stripePriceId;
+    shop.plan                 = plan.key;
+
+    // If subscription is active immediately (existing card works)
+    if (subscription.status === 'active') {
+      shop.planStatus    = 'active';
+      shop.planExpiresAt = new Date(subscription.current_period_end * 1000);
+      shop.invoices.push({
+        description:     `Assinatura ${plan.name}`,
+        amount:          plan.priceCents / 100,
+        status:          'paid',
+        paidAt:          new Date(),
+        stripeSessionId: subscription.id,
+      });
+    }
+
+    await shop.save();
+
+    // Return client_secret if payment needs confirmation (3D Secure etc)
+    const invoice       = subscription.latest_invoice;
+    const paymentIntent = invoice?.payment_intent;
+    const clientSecret  = paymentIntent?.client_secret || null;
+
+    res.json({
+      success:        true,
+      message:        subscription.status === 'active' ? `Plano ${plan.name} ativado!` : 'Confirme o pagamento.',
+      subscriptionId: subscription.id,
+      status:         subscription.status,
+      clientSecret,   // frontend uses this for 3DS confirmation if needed
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── POST /api/billing/cancel — Cancel subscription ──────────────────────────
+const cancelPlan = async (req, res) => {
+  try {
+    const shop = await Barbershop.findById(req.user.barbershop._id)
+      .select('+stripeSubscriptionId');
+    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+
+    if (shop.planStatus === 'cancelled')
+      return res.status(400).json({ success: false, message: 'Plano já cancelado.' });
+
+    // Cancel at period end (user keeps access until end of billing cycle)
+    if (shop.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.update(shop.stripeSubscriptionId, {
+          cancel_at_period_end: true,
+        });
+      } catch (_) { /* subscription may not exist */ }
+    }
+
+    shop.planStatus = 'cancelled';
+    await shop.save();
+
+    res.json({ success: true, message: 'Plano cancelado. O acesso continua até o fim do período.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── GET /api/billing/cards ──────────────────────────────────────────────────
 const getCards = async (req, res) => {
   try {
     const shop = await Barbershop.findById(req.user.barbershop._id).select('+stripeCustomerId');
@@ -208,30 +366,7 @@ const getCards = async (req, res) => {
   }
 };
 
-// ── POST /api/billing/cards/setup-session ─────────────────────────────────────
-const createSetupSession = async (req, res) => {
-  try {
-    const shop = await Barbershop.findById(req.user.barbershop._id).select('+stripeCustomerId');
-    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
-
-    const customerId = await getOrCreateCustomer(shop, req.user.email);
-
-    const session = await stripe.checkout.sessions.create({
-      customer:             customerId,
-      payment_method_types: ['card'],
-      mode:                 'setup',
-      success_url: `${process.env.FRONTEND_URL}/settings/billing?success=card`,
-      cancel_url:  `${process.env.FRONTEND_URL}/settings/billing?canceled=1`,
-      locale:      'pt-BR',
-    });
-
-    res.json({ success: true, url: session.url });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// ── DELETE /api/billing/cards/:pmId ───────────────────────────────────────────
+// ── DELETE /api/billing/cards/:pmId ─────────────────────────────────────────
 const deleteCard = async (req, res) => {
   try {
     const { pmId } = req.params;
@@ -250,7 +385,7 @@ const deleteCard = async (req, res) => {
   }
 };
 
-// ── POST /api/billing/cards/:pmId/set-default ─────────────────────────────────
+// ── POST /api/billing/cards/:pmId/set-default ───────────────────────────────
 const setDefaultCard = async (req, res) => {
   try {
     const { pmId } = req.params;
@@ -266,60 +401,26 @@ const setDefaultCard = async (req, res) => {
       invoice_settings: { default_payment_method: pmId },
     });
 
+    // Also update active subscription if exists
+    const shopFull = await Barbershop.findById(shop._id).select('+stripeSubscriptionId');
+    if (shopFull?.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.update(shopFull.stripeSubscriptionId, {
+          default_payment_method: pmId,
+        });
+      } catch (_) {}
+    }
+
     res.json({ success: true, message: 'Cartão padrão atualizado.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ── POST /api/billing/create-checkout-session ─────────────────────────────────
-const createCheckoutSession = async (req, res) => {
+// ── POST /api/billing/buy-package — One-time payment for message packages ───
+const buyPackage = async (req, res) => {
   try {
-    const { planKey = 'pro' } = req.body;
-    const plan = PLANS[planKey];
-    if (!plan || plan.priceCents === 0)
-      return res.status(400).json({ success: false, message: 'Plano inválido.' });
-
-    const shop = await Barbershop.findById(req.user.barbershop._id).select('+stripeCustomerId');
-    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
-
-    if (shop.planStatus === 'cancelled')
-      return res.status(400).json({ success: false, message: 'Plano cancelado. Entre em contato com o suporte.' });
-
-    const customerId = await getOrCreateCustomer(shop, req.user.email);
-
-    const session = await stripe.checkout.sessions.create({
-      customer:             customerId,
-      payment_method_types: ['card'],
-      saved_payment_method_options: { payment_method_save: 'enabled' },
-      line_items: [{
-        price_data: {
-          currency:     'brl',
-          product_data: {
-            name:        `Plano ${plan.name} — ${plan.days} dias`,
-            description: plan.features.join(' · '),
-          },
-          unit_amount: plan.priceCents,
-        },
-        quantity: 1,
-      }],
-      mode:        'payment',
-      success_url: `${process.env.FRONTEND_URL}/settings/billing?success=plan&plan=${planKey}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${process.env.FRONTEND_URL}/settings/billing?canceled=1`,
-      metadata:    { barbershopId: String(shop._id), type: 'plan', planKey },
-      locale:      'pt-BR',
-    });
-
-    res.json({ success: true, url: session.url, sessionId: session.id });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// ── POST /api/billing/create-package-checkout ─────────────────────────────────
-const createPackageCheckoutSession = async (req, res) => {
-  try {
-    const { messages, quantity = 1 } = req.body;
+    const { messages, quantity = 1, paymentMethodId } = req.body;
     const msgs  = parseInt(messages, 10);
     const qty   = Math.max(1, Math.min(10, parseInt(quantity, 10) || 1));
     const price = PACKAGE_TIERS[msgs];
@@ -330,93 +431,107 @@ const createPackageCheckoutSession = async (req, res) => {
 
     const customerId = await getOrCreateCustomer(shop, req.user.email);
 
-    const session = await stripe.checkout.sessions.create({
-      customer:             customerId,
-      payment_method_types: ['card'],
-      saved_payment_method_options: { payment_method_save: 'enabled' },
-      line_items: [{
-        price_data: {
-          currency:     'brl',
-          product_data: { name: `Pacote ${msgs.toLocaleString('pt-BR')} mensagens (30 dias)` },
-          unit_amount:  price * 100,
-        },
-        quantity: qty,
-      }],
-      mode:        'payment',
-      success_url: `${process.env.FRONTEND_URL}/settings/billing?success=package&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${process.env.FRONTEND_URL}/settings/billing?canceled=1`,
-      metadata:    { barbershopId: String(shop._id), type: 'package', messages: String(msgs), quantity: String(qty) },
-      locale:      'pt-BR',
+    // Use provided PM or customer's default
+    let pmId = paymentMethodId;
+    if (!pmId) {
+      const customer = await stripe.customers.retrieve(customerId);
+      pmId = customer.invoice_settings?.default_payment_method;
+    }
+    if (!pmId) return res.status(400).json({ success: false, message: 'Adicione um cartão antes de comprar.' });
+
+    // Create PaymentIntent (one-time charge, no subscription)
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount:         price * qty * 100, // cents
+      currency:       'brl',
+      customer:       customerId,
+      payment_method: pmId,
+      confirm:        true,
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      metadata: {
+        barbershopId: String(shop._id),
+        type:         'package',
+        messages:     String(msgs),
+        quantity:     String(qty),
+      },
+      description: `${qty}x Pacote ${msgs.toLocaleString('pt-BR')} mensagens`,
     });
 
-    res.json({ success: true, url: session.url, sessionId: session.id });
+    if (paymentIntent.status === 'succeeded') {
+      const now       = new Date();
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      for (let i = 0; i < qty; i++) {
+        shop.messagePackages.push({ messages: msgs, remaining: msgs, purchasedAt: now, expiresAt });
+      }
+      shop.invoices.push({
+        description:     `${qty}x Pacote ${msgs.toLocaleString('pt-BR')} msgs (30 dias)`,
+        amount:          price * qty,
+        status:          'paid',
+        paidAt:          now,
+        stripeSessionId: paymentIntent.id,
+      });
+      await shop.save();
+      return res.json({ success: true, message: 'Pacote adquirido com sucesso!' });
+    }
+
+    // Needs confirmation (3D Secure)
+    if (paymentIntent.status === 'requires_action') {
+      return res.json({
+        success:      true,
+        message:      'Confirme o pagamento.',
+        clientSecret: paymentIntent.client_secret,
+        requiresAction: true,
+      });
+    }
+
+    res.status(400).json({ success: false, message: `Status do pagamento: ${paymentIntent.status}` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ── POST /api/billing/webhook — Stripe events ─────────────────────────────────
-const handleWebhook = async (req, res) => {
-  const sig    = req.headers['stripe-signature'];
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  const isDev  = !secret || secret.startsWith('whsec_COLE');
-  let event;
+// ── POST /api/billing/confirm-package — After 3DS confirmation ──────────────
+const confirmPackage = async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body;
+    if (!paymentIntentId) return res.status(400).json({ success: false, message: 'paymentIntentId obrigatório.' });
 
-  if (isDev) {
-    try {
-      const body = req.body instanceof Buffer ? req.body.toString('utf8') : req.body;
-      event = typeof body === 'string' ? JSON.parse(body) : body;
-      console.warn('[Stripe Webhook] ⚠️  Sem verificação de assinatura (modo dev).');
-    } catch (err) {
-      return res.status(400).json({ message: 'Payload inválido.' });
-    }
-  } else {
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, secret);
-    } catch (err) {
-      console.error('[Stripe Webhook] Signature error:', err.message);
-      return res.status(400).json({ message: `Webhook Error: ${err.message}` });
-    }
-  }
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (pi.status !== 'succeeded')
+      return res.status(400).json({ success: false, message: 'Pagamento não confirmado.' });
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-
-    // Handle setup mode — set PM as default
-    if (session.mode === 'setup') {
-      if (session.setup_intent && session.customer) {
-        try {
-          const setupIntent = await stripe.setupIntents.retrieve(session.setup_intent);
-          if (setupIntent.payment_method) {
-            await stripe.customers.update(session.customer, {
-              invoice_settings: { default_payment_method: setupIntent.payment_method },
-            });
-            console.log(`[Stripe Webhook] Default PM set for customer ${session.customer}`);
-          }
-        } catch (err) {
-          console.error('[Stripe Webhook] Setup intent error:', err.message);
-        }
-      }
-      return res.json({ received: true });
-    }
-
-    // Handle payment mode
-    const { barbershopId } = session.metadata || {};
-    if (!barbershopId) return res.json({ received: true });
+    const { barbershopId, messages, quantity } = pi.metadata || {};
+    if (!barbershopId || barbershopId !== String(req.user.barbershop._id))
+      return res.status(403).json({ success: false, message: 'Pagamento não pertence a esta barbearia.' });
 
     const shop = await Barbershop.findById(barbershopId);
-    if (!shop) return res.json({ received: true });
+    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
 
-    const processed = await processSession(session, shop);
-    if (processed) {
-      console.log(`[Stripe Webhook] Processed session ${session.id} for barbershop ${barbershopId}`);
+    // Prevent double processing
+    const already = shop.invoices.some(inv => inv.stripeSessionId === paymentIntentId);
+    if (already) return res.json({ success: true, message: 'Já processado.' });
+
+    const msgs = parseInt(messages, 10);
+    const qty  = parseInt(quantity, 10) || 1;
+    const now  = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    for (let i = 0; i < qty; i++) {
+      shop.messagePackages.push({ messages: msgs, remaining: msgs, purchasedAt: now, expiresAt });
     }
+    shop.invoices.push({
+      description:     `${qty}x Pacote ${msgs.toLocaleString('pt-BR')} msgs (30 dias)`,
+      amount:          (PACKAGE_TIERS[msgs] || 0) * qty,
+      status:          'paid',
+      paidAt:          now,
+      stripeSessionId: paymentIntentId,
+    });
+    await shop.save();
+    res.json({ success: true, message: 'Pacote ativado!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
-
-  res.json({ received: true });
 };
 
-// ── POST /api/billing/apply-coupon ────────────────────────────────────────────
+// ── POST /api/billing/apply-coupon ──────────────────────────────────────────
 const applyCoupon = async (req, res) => {
   try {
     const { code } = req.body;
@@ -433,9 +548,6 @@ const applyCoupon = async (req, res) => {
 
     if (coupon.maxUses !== null && coupon.usedBy.length >= coupon.maxUses)
       return res.status(400).json({ success: false, message: 'Cupom esgotado.' });
-
-    if (shop.planStatus === 'cancelled')
-      return res.status(400).json({ success: false, message: 'Plano cancelado. Entre em contato com o suporte.' });
 
     const base = (shop.planExpiresAt && shop.planExpiresAt > new Date())
       ? new Date(shop.planExpiresAt) : new Date();
@@ -464,34 +576,138 @@ const applyCoupon = async (req, res) => {
   }
 };
 
-// ── POST /api/billing/cancel ──────────────────────────────────────────────────
-const cancelPlan = async (req, res) => {
-  try {
-    const shop = await Barbershop.findById(req.user.barbershop._id);
-    if (!shop) return res.status(404).json({ success: false, message: 'Barbearia não encontrada.' });
+// ── POST /api/billing/webhook — Stripe events ──────────────────────────────
+const handleWebhook = async (req, res) => {
+  const sig    = req.headers['stripe-signature'];
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const isDev  = !secret || secret.startsWith('whsec_COLE');
+  let event;
 
-    if (shop.planStatus === 'cancelled')
-      return res.status(400).json({ success: false, message: 'Plano já cancelado.' });
-
-    shop.planStatus = 'cancelled';
-    await shop.save();
-
-    res.json({ success: true, message: 'Plano cancelado. O acesso continua até o fim do período contratado.' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  if (isDev) {
+    try {
+      const body = req.body instanceof Buffer ? req.body.toString('utf8') : req.body;
+      event = typeof body === 'string' ? JSON.parse(body) : body;
+    } catch (err) {
+      return res.status(400).json({ message: 'Payload inválido.' });
+    }
+  } else {
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err) {
+      console.error('[Stripe Webhook] Signature error:', err.message);
+      return res.status(400).json({ message: `Webhook Error: ${err.message}` });
+    }
   }
+
+  const type = event.type;
+
+  // Subscription events
+  if (type === 'invoice.paid') {
+    const invoice = event.data.object;
+    if (invoice.subscription) {
+      const sub  = await stripe.subscriptions.retrieve(invoice.subscription);
+      const shop = await Barbershop.findOne({ stripeCustomerId: invoice.customer });
+      if (shop) {
+        const planKey = sub.metadata?.planKey || shop.plan;
+        shop.plan               = planKey;
+        shop.planStatus         = 'active';
+        shop.stripeSubscriptionId = sub.id;
+        shop.planExpiresAt      = new Date(sub.current_period_end * 1000);
+
+        const already = shop.invoices.some(inv => inv.stripeSessionId === invoice.id);
+        if (!already) {
+          shop.invoices.push({
+            description:     `Assinatura ${PLANS[planKey]?.name || planKey}`,
+            amount:          invoice.amount_paid / 100,
+            status:          'paid',
+            paidAt:          new Date(invoice.status_transitions?.paid_at * 1000 || Date.now()),
+            stripeSessionId: invoice.id,
+          });
+        }
+        await shop.save();
+        console.log(`[Stripe Webhook] invoice.paid → ${shop.name} → ${planKey}`);
+      }
+    }
+  }
+
+  if (type === 'invoice.payment_failed') {
+    const invoice = event.data.object;
+    const shop = await Barbershop.findOne({ stripeCustomerId: invoice.customer });
+    if (shop) {
+      console.log(`[Stripe Webhook] invoice.payment_failed → ${shop.name}`);
+      // Plan stays active (Stripe retries), but we log it
+    }
+  }
+
+  if (type === 'customer.subscription.deleted') {
+    const sub  = event.data.object;
+    const shop = await Barbershop.findOne({ stripeCustomerId: sub.customer });
+    if (shop) {
+      shop.planStatus = 'expired';
+      shop.plan       = 'free';
+      shop.stripeSubscriptionId = null;
+      shop.stripePriceId        = null;
+      await shop.save();
+      console.log(`[Stripe Webhook] subscription.deleted → ${shop.name} → free`);
+    }
+  }
+
+  if (type === 'customer.subscription.updated') {
+    const sub  = event.data.object;
+    const shop = await Barbershop.findOne({ stripeCustomerId: sub.customer });
+    if (shop) {
+      if (sub.cancel_at_period_end) {
+        shop.planStatus = 'cancelled';
+      } else if (sub.status === 'active') {
+        shop.planStatus    = 'active';
+        shop.planExpiresAt = new Date(sub.current_period_end * 1000);
+      }
+      await shop.save();
+    }
+  }
+
+  // One-time payment for packages
+  if (type === 'payment_intent.succeeded') {
+    const pi = event.data.object;
+    if (pi.metadata?.type === 'package') {
+      const shop = await Barbershop.findById(pi.metadata.barbershopId);
+      if (shop) {
+        const already = shop.invoices.some(inv => inv.stripeSessionId === pi.id);
+        if (!already) {
+          const msgs = parseInt(pi.metadata.messages, 10);
+          const qty  = parseInt(pi.metadata.quantity, 10) || 1;
+          const now  = new Date();
+          const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          for (let i = 0; i < qty; i++) {
+            shop.messagePackages.push({ messages: msgs, remaining: msgs, purchasedAt: now, expiresAt });
+          }
+          shop.invoices.push({
+            description:     `${qty}x Pacote ${msgs.toLocaleString('pt-BR')} msgs (30 dias)`,
+            amount:          (PACKAGE_TIERS[msgs] || 0) * qty,
+            status:          'paid',
+            paidAt:          now,
+            stripeSessionId: pi.id,
+          });
+          await shop.save();
+        }
+      }
+    }
+  }
+
+  res.json({ received: true });
 };
 
 module.exports = {
   getBilling,
-  syncSession,
   getCards,
-  createSetupSession,
   deleteCard,
   setDefaultCard,
-  createCheckoutSession,
-  createPackageCheckoutSession,
-  handleWebhook,
-  applyCoupon,
+  attachPaymentMethod,
+  createSetupIntent,
+  subscribe,
   cancelPlan,
+  buyPackage,
+  confirmPackage,
+  applyCoupon,
+  handleWebhook,
 };

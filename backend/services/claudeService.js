@@ -1,5 +1,6 @@
-// services/claudeService.js — Claude AI receptionist com tool use
+// services/claudeService.js — AI receptionist com tool use (Gemini + Claude fallback)
 
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Anthropic   = require('@anthropic-ai/sdk');
 const Client      = require('../models/Client');
 const Service     = require('../models/Service');
@@ -7,28 +8,90 @@ const Appointment = require('../models/Appointment');
 const User        = require('../models/User');
 const Barbershop  = require('../models/Barbershop');
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ── Gemini function declarations (converted from Claude tool format) ────────
 
-// ── Tool definitions ──────────────────────────────────────────────────────────
-
-const TOOLS = [
+const GEMINI_FUNCTION_DECLARATIONS = [
   {
-    name:        'verificar_cliente',
+    name: 'verificar_cliente',
+    description: 'Verifica se o contato já é um cliente cadastrado na barbearia, usando o número de WhatsApp automaticamente.',
+    parameters: { type: 'OBJECT', properties: {}, required: [] },
+  },
+  {
+    name: 'listar_servicos',
+    description: 'Lista todos os serviços disponíveis na barbearia com nome, duração e preço.',
+    parameters: { type: 'OBJECT', properties: {}, required: [] },
+  },
+  {
+    name: 'listar_profissionais',
+    description: 'Lista todos os profissionais (barbeiros) disponíveis na barbearia.',
+    parameters: { type: 'OBJECT', properties: {}, required: [] },
+  },
+  {
+    name: 'verificar_disponibilidade',
+    description: 'Verifica os horários disponíveis para agendamento em uma data específica.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        data:           { type: 'STRING', description: 'Data no formato YYYY-MM-DD' },
+        serviceId:      { type: 'STRING', description: 'ID do serviço (opcional, para calcular duração)' },
+        profissionalId: { type: 'STRING', description: 'ID do profissional (opcional, para filtrar)' },
+      },
+      required: ['data'],
+    },
+  },
+  {
+    name: 'criar_agendamento',
+    description: 'Cria um novo agendamento para o cliente. Usa o número de WhatsApp como identificador.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        serviceId:      { type: 'STRING', description: 'ID do serviço' },
+        profissionalId: { type: 'STRING', description: 'ID do profissional' },
+        data:           { type: 'STRING', description: 'Data no formato YYYY-MM-DD' },
+        horario:        { type: 'STRING', description: 'Horário no formato HH:MM' },
+        nomeCliente:    { type: 'STRING', description: 'Nome do cliente (se não cadastrado)' },
+      },
+      required: ['serviceId', 'profissionalId', 'data', 'horario'],
+    },
+  },
+  {
+    name: 'meus_agendamentos',
+    description: 'Lista os próximos agendamentos do cliente atual (identificado pelo WhatsApp).',
+    parameters: { type: 'OBJECT', properties: {}, required: [] },
+  },
+  {
+    name: 'cancelar_agendamento',
+    description: 'Cancela um agendamento do cliente.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        agendamentoId: { type: 'STRING', description: 'ID do agendamento a cancelar' },
+      },
+      required: ['agendamentoId'],
+    },
+  },
+];
+
+// ── Claude tool definitions (kept for fallback) ─────────────────────────────
+
+const CLAUDE_TOOLS = [
+  {
+    name: 'verificar_cliente',
     description: 'Verifica se o contato já é um cliente cadastrado na barbearia, usando o número de WhatsApp automaticamente.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name:        'listar_servicos',
+    name: 'listar_servicos',
     description: 'Lista todos os serviços disponíveis na barbearia com nome, duração e preço.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name:        'listar_profissionais',
+    name: 'listar_profissionais',
     description: 'Lista todos os profissionais (barbeiros) disponíveis na barbearia.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name:        'verificar_disponibilidade',
+    name: 'verificar_disponibilidade',
     description: 'Verifica os horários disponíveis para agendamento em uma data específica.',
     input_schema: {
       type: 'object',
@@ -41,7 +104,7 @@ const TOOLS = [
     },
   },
   {
-    name:        'criar_agendamento',
+    name: 'criar_agendamento',
     description: 'Cria um novo agendamento para o cliente. Usa o número de WhatsApp como identificador.',
     input_schema: {
       type: 'object',
@@ -56,12 +119,12 @@ const TOOLS = [
     },
   },
   {
-    name:        'meus_agendamentos',
+    name: 'meus_agendamentos',
     description: 'Lista os próximos agendamentos do cliente atual (identificado pelo WhatsApp).',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name:        'cancelar_agendamento',
+    name: 'cancelar_agendamento',
     description: 'Cancela um agendamento do cliente.',
     input_schema: {
       type: 'object',
@@ -99,29 +162,25 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
 
       case 'verificar_disponibilidade': {
         const { data, serviceId, profissionalId } = input;
-        const dateObj   = new Date(data + 'T12:00:00.000-03:00'); // noon BRT avoids day-boundary issues
-        const dayOfWeek = dateObj.getUTCDay(); // correct day in BRT
+        const dateObj   = new Date(data + 'T12:00:00.000-03:00');
+        const dayOfWeek = dateObj.getUTCDay();
 
-        // Check barbershop opening hours
         const shop = await Barbershop.findById(barbershopId).select('openingHours');
         const dayConfig = shop.openingHours.find(d => d.day === dayOfWeek);
         if (!dayConfig?.open) {
           return { disponivel: false, motivo: 'A barbearia não abre nesse dia da semana.' };
         }
 
-        // Service duration
         let duration = 30;
         if (serviceId) {
           const svc = await Service.findById(serviceId).select('duration');
           if (svc) duration = svc.duration;
         }
 
-        // Get barbers to check
         const barberFilter = { barbershop: barbershopId };
         if (profissionalId) barberFilter._id = profissionalId;
         const barbers = await User.find(barberFilter).select('_id name');
 
-        // Build time slots from opening hours
         const [fromH, fromM] = dayConfig.from.split(':').map(Number);
         const [toH,   toM]   = dayConfig.to.split(':').map(Number);
         const startMin = fromH * 60 + fromM;
@@ -132,7 +191,6 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           slots.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
         }
 
-        // Get existing appointments for this date (BRT boundaries)
         const startOfDay = new Date(data + 'T00:00:00.000-03:00');
         const endOfDay   = new Date(data + 'T23:59:59.999-03:00');
         const existing   = await Appointment.find({
@@ -142,7 +200,6 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           ...(profissionalId ? { barber: profissionalId } : {}),
         }).populate('service', 'duration');
 
-        // Filter available slots per barber — parse slot times in BRT (UTC-3)
         const result = [];
         for (const barber of barbers) {
           const barberAppts = existing.filter(a => String(a.barber) === String(barber._id));
@@ -168,18 +225,15 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
       case 'criar_agendamento': {
         const { serviceId, profissionalId, data, horario, nomeCliente } = input;
 
-        // Validate ISO date format YYYY-MM-DD
         if (!/^\d{4}-\d{2}-\d{2}$/.test(data))
           return { sucesso: false, erro: `Data inválida: "${data}". Use o formato YYYY-MM-DD.` };
 
         const service = await Service.findById(serviceId).select('name duration price');
         if (!service) return { sucesso: false, erro: 'Serviço não encontrado.' };
 
-        // Validate barber belongs to this barbershop (prevents cross-tenant injection)
         const barber = await User.findOne({ _id: profissionalId, barbershop: barbershopId });
         if (!barber) return { sucesso: false, erro: 'Profissional não encontrado.' };
 
-        // Find or create client — always register if we have any name info
         const phoneClean = String(contactPhone).replace(/\D/g, '');
         let clientDoc = await Client.findOne({ barbershop: barbershopId, phone: phoneClean });
         const clientName = nomeCliente || contactName;
@@ -191,13 +245,11 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           });
         }
 
-        // Parse as BRT (UTC-3) — consistent with portal and admin dashboard
         const dateObj = new Date(`${data}T${horario}:00.000-03:00`);
         const endDate = new Date(dateObj.getTime() + service.duration * 60000);
 
         console.log(`[Reception] Criando agendamento: ${service.name} em ${dateObj.toISOString()} (${data} ${horario} BRT)`);
 
-        // Conflict check — BRT day boundaries
         const dayStart = new Date(`${data}T00:00:00.000-03:00`);
         const dayEnd   = new Date(`${data}T23:59:59.999-03:00`);
         const existing = await Appointment.find({
@@ -227,7 +279,6 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
           notes:      `Agendado via WhatsApp (${contactPhone})`,
         });
 
-        // Format date as DD/MM
         const [ano, mes, dia] = data.split('-');
         const dataFmt = `${dia}/${mes}`;
 
@@ -250,7 +301,6 @@ async function executeTool(toolName, input, { barbershopId, contactPhone, contac
             status:     'agendado',
           }).populate('service', 'name').populate('barber', 'name').sort({ date: 1 }).limit(5);
         } else {
-          // Fallback: search by exact phone in notes — anchored to prevent partial matches
           const escapedPhone = String(contactPhone).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           appts = await Appointment.find({
             barbershop: barbershopId,
@@ -319,68 +369,115 @@ function sanitize(text) {
     .trim();
 }
 
-async function generateReply(barbershopName, messages, context) {
-  const { barbershopId, contactPhone, contactName } = context;
-
+function buildSystemPrompt(barbershopName, contactPhone, contactName) {
   const now = new Date();
   const dataHoje = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const horaAgora = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-  const systemPrompt = `Você é um recepcionista virtual da barbearia "${barbershopName}". Atende clientes via WhatsApp de forma amigável e profissional.
+  return `Recepcionista virtual da "${barbershopName}" via WhatsApp.
 
-Data e hora atual: ${dataHoje}, ${horaAgora}
-Data de hoje em ISO (use EXATAMENTE este valor ao chamar ferramentas): ${now.toISOString().slice(0, 10)}
-O número de WhatsApp do cliente atual é: ${contactPhone}
-${contactName ? `Nome do contato no WhatsApp: ${contactName}` : ''}
+Agora: ${dataHoje}, ${horaAgora}
+Data ISO (use nas ferramentas): ${now.toISOString().slice(0, 10)}
+WhatsApp do cliente: ${contactPhone}
+${contactName ? `Nome do contato: ${contactName}` : ''}
 
-Você tem acesso a ferramentas para:
-- Verificar se o cliente já está cadastrado
-- Listar serviços disponíveis e profissionais
-- Verificar disponibilidade de horários
-- Criar agendamentos
-- Consultar e cancelar agendamentos do cliente
+Ferramentas: verificar cliente, listar servicos/profissionais, verificar disponibilidade, criar/consultar/cancelar agendamentos.
 
-FORMATO OBRIGATÓRIO — NUNCA VIOLE ESTAS REGRAS:
-- Máximo 1 frase por resposta. Em casos excepcionais, 2 frases.
-- PROIBIDO: emojis, asteriscos (**), hashtags (#), markdown, negrito, itálico, listas numeradas com símbolos.
-- PROIBIDO: mencionar IDs internos (códigos alfanuméricos como "507f1f77bcf86cd799439011") nas respostas.
-- PROIBIDO: saudações ("Olá", "Oi"), despedidas ("Até logo", "Até breve"), frases motivacionais.
-- PROIBIDO: repetir o que o cliente disse, resumos, listas de agendamentos não solicitadas.
-- Texto simples apenas. Sem formatação de nenhum tipo.
-- Responda sempre em português.
+REGRAS:
+- Max 1-2 frases por resposta.
+- PROIBIDO: emojis, markdown, IDs internos, saudacoes, despedidas, resumos nao solicitados.
+- Texto simples, sem formatacao. Sempre em portugues.
+- Nao peca telefone (ja temos). Cliente nao cadastrado: peca so o nome.
+- SEMPRE use verificar_disponibilidade antes de sugerir horarios.
+- Apos escolha do cliente, verifique disponibilidade novamente antes de criar.
+- Quando criar_agendamento retornar sucesso=true, responda EXATAMENTE com o campo "resposta_final".`;
+}
 
-Outras regras:
-- Nunca peça o telefone — já temos.
-- Cliente não cadastrado: peça só o nome.
-- Use ferramentas para respostas precisas.
+// ── Gemini implementation ───────────────────────────────────────────────────
 
-Agendamento:
-- SEMPRE use verificar_disponibilidade antes de sugerir horários.
-- Após o cliente escolher, verifique disponibilidade novamente antes de criar.
-- Quando criar_agendamento retornar sucesso=true, responda EXATAMENTE com o campo "resposta_final", sem adicionar nem remover nada.`;
+async function generateReplyGemini(barbershopName, messages, context) {
+  const { barbershopId, contactPhone, contactName } = context;
+  const systemPrompt = buildSystemPrompt(barbershopName, contactPhone, contactName);
 
-  const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash-lite',
+    systemInstruction: systemPrompt,
+    tools: [{ functionDeclarations: GEMINI_FUNCTION_DECLARATIONS }],
+  });
+
+  // Convert messages to Gemini history format
+  // Gemini uses 'user' and 'model' roles, with { text } parts
+  const history = [];
+  for (let i = 0; i < messages.length - 1; i++) {
+    const m = messages[i];
+    history.push({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    });
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  const chat = model.startChat({ history });
+
+  let result = await chat.sendMessage(lastMessage.content);
 
   // Agentic loop — max 8 tool iterations
+  for (let i = 0; i < 8; i++) {
+    const functionCalls = result.response.functionCalls();
+
+    if (!functionCalls || functionCalls.length === 0) {
+      // No tool calls — extract text response
+      const text = result.response.text();
+      return sanitize(text || '...');
+    }
+
+    // Execute all function calls in parallel
+    const functionResponses = await Promise.all(
+      functionCalls.map(async (fc) => {
+        const toolResult = await executeTool(fc.name, fc.args || {}, { barbershopId, contactPhone, contactName });
+        return {
+          functionResponse: {
+            name: fc.name,
+            response: toolResult,
+          },
+        };
+      })
+    );
+
+    // Send tool results back
+    result = await chat.sendMessage(functionResponses);
+  }
+
+  return 'Desculpe, não consegui processar sua solicitação no momento.';
+}
+
+// ── Claude fallback implementation ──────────────────────────────────────────
+
+async function generateReplyClaude(barbershopName, messages, context) {
+  const { barbershopId, contactPhone, contactName } = context;
+  const systemPrompt = buildSystemPrompt(barbershopName, contactPhone, contactName);
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+
   for (let i = 0; i < 8; i++) {
     const response = await anthropic.messages.create({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system:     systemPrompt,
-      tools:      TOOLS,
+      tools:      CLAUDE_TOOLS,
       messages:   apiMessages,
     });
 
     if (response.stop_reason === 'end_turn') {
       const textBlock = response.content.find(b => b.type === 'text');
-      return sanitize(textBlock?.text || '…');
+      return sanitize(textBlock?.text || '...');
     }
 
     if (response.stop_reason === 'tool_use') {
-      // Add Claude's response (with tool_use blocks) to messages
       apiMessages.push({ role: 'assistant', content: response.content });
 
-      // Execute all requested tools in parallel
       const toolResults = await Promise.all(
         response.content
           .filter(b => b.type === 'tool_use')
@@ -398,11 +495,20 @@ Agendamento:
       continue;
     }
 
-    // Unexpected stop reason
     break;
   }
 
   return 'Desculpe, não consegui processar sua solicitação no momento.';
+}
+
+// ── Public API — Gemini primary, Claude fallback ────────────────────────────
+
+async function generateReply(barbershopName, messages, context) {
+  if (process.env.GEMINI_API_KEY) {
+    return generateReplyGemini(barbershopName, messages, context);
+  }
+  console.log('[AI] GEMINI_API_KEY not set, falling back to Claude (ANTHROPIC_API_KEY)');
+  return generateReplyClaude(barbershopName, messages, context);
 }
 
 module.exports = { generateReply };

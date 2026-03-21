@@ -4,7 +4,7 @@ import {
   LayoutDashboard, CalendarDays, Scissors, LogOut,
   Camera, ChevronUp, Check,
   BarChart2, TrendingUp, Settings, ShoppingCart, Boxes,
-  PanelLeftClose, PanelLeftOpen, UserRound, Bot,
+  PanelLeftClose, PanelLeftOpen, UserRound, Bot, Wallet,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Upload as UploadAPI } from '../../utils/api';
@@ -24,6 +24,10 @@ const NAV_MAIN = [
 const NAV_STORE = [
   { to: '/sales',  icon: ShoppingCart, label: 'Vendas'  },
   { to: '/stock',  icon: Boxes,        label: 'Estoque' },
+];
+
+const NAV_FINANCIAL = [
+  { to: '/financeiro', icon: Wallet, label: 'Financeiro' },
 ];
 
 const NAV_ANALYTICS = [
@@ -169,6 +173,25 @@ export default function Sidebar() {
             {collapsed && <div className="my-3 border-t border-gray-100 dark:border-gray-800" />}
             <div className="space-y-1">
               {NAV_STORE.map(({ to, icon: Icon, label }) => (
+                <NavLink key={to} to={to} title={collapsed ? label : undefined}
+                  className={({ isActive }) => navLinkClass(isActive, collapsed)}>
+                  <Icon size={16} className="shrink-0" />
+                  {!collapsed && label}
+                </NavLink>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Financeiro */}
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <p className="px-2 mt-5 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Financeiro</p>
+            )}
+            {collapsed && <div className="my-3 border-t border-gray-100 dark:border-gray-800" />}
+            <div className="space-y-1">
+              {NAV_FINANCIAL.map(({ to, icon: Icon, label }) => (
                 <NavLink key={to} to={to} title={collapsed ? label : undefined}
                   className={({ isActive }) => navLinkClass(isActive, collapsed)}>
                   <Icon size={16} className="shrink-0" />

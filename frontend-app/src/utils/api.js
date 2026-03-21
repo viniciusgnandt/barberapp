@@ -174,11 +174,69 @@ export const Reception = {
 
 // ── Billing ────────────────────────────────────────────────────────────────────
 export const Billing = {
-  get:                    ()                      => request('/billing'),
-  createCheckoutSession:  (planKey = 'pro')        => request('/billing/create-checkout-session', { method: 'POST', body: { planKey } }),
-  createPackageCheckout:  (messages, quantity)    => request('/billing/create-package-checkout',  { method: 'POST', body: { messages, quantity } }),
-  applyCoupon:            (code)                  => request('/billing/apply-coupon',             { method: 'POST', body: { code } }),
-  cancel:                 ()                      => request('/billing/cancel',                   { method: 'POST' }),
+  get:                    ()                                        => request('/billing'),
+  subscribe:              (planKey, paymentMethodId)                => request('/billing/subscribe',       { method: 'POST', body: { planKey, paymentMethodId } }),
+  buyPackage:             (messages, quantity, paymentMethodId)     => request('/billing/buy-package',     { method: 'POST', body: { messages, quantity, paymentMethodId } }),
+  confirmPackage:         (paymentIntentId)                        => request('/billing/confirm-package',  { method: 'POST', body: { paymentIntentId } }),
+  applyCoupon:            (code)                                   => request('/billing/apply-coupon',     { method: 'POST', body: { code } }),
+  cancel:                 ()                                       => request('/billing/cancel',           { method: 'POST' }),
+  // Card management (in-app, NO Checkout)
+  getCards:               ()                                       => request('/billing/cards'),
+  createSetupIntent:      ()                                       => request('/billing/cards/setup-intent', { method: 'POST' }),
+  attachPaymentMethod:    (paymentMethodId)                        => request('/billing/cards/attach',     { method: 'POST', body: { paymentMethodId } }),
+  deleteCard:             (pmId)                                   => request(`/billing/cards/${pmId}`,    { method: 'DELETE' }),
+  setDefaultCard:         (pmId)                                   => request(`/billing/cards/${pmId}/set-default`, { method: 'POST' }),
+};
+
+// ── Financial ─────────────────────────────────────────────────────────────────
+export const Financial = {
+  // Cash register
+  getCash:          ()          => request('/financial/cash'),
+  openCash:         (data)      => request('/financial/cash/open',     { method: 'POST', body: data }),
+  closeCash:        (data)      => request('/financial/cash/close',    { method: 'POST', body: data }),
+  getCashHistory:   (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/cash/history${qs}`); },
+  // Transactions
+  getTransactions:  (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/transactions${qs}`); },
+  createTransaction:(data)      => request('/financial/transactions',  { method: 'POST', body: data }),
+  deleteTransaction:(id)        => request(`/financial/transactions/${id}`, { method: 'DELETE' }),
+  // Commissions
+  getCommissions:   (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/commissions${qs}`); },
+  payCommissions:   (data)      => request('/financial/commissions/pay', { method: 'POST', body: data }),
+  // Tabs
+  getTabs:          (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/tabs${qs}`); },
+  createTab:        (data)      => request('/financial/tabs',           { method: 'POST', body: data }),
+  getTab:           (id)        => request(`/financial/tabs/${id}`),
+  addTabItem:       (id, data)  => request(`/financial/tabs/${id}/items`, { method: 'POST', body: data }),
+  removeTabItem:    (id, itemId)=> request(`/financial/tabs/${id}/items/${itemId}`, { method: 'DELETE' }),
+  closeTab:         (id, data)  => request(`/financial/tabs/${id}/close`, { method: 'POST', body: data }),
+};
+
+// ── Platform Admin ────────────────────────────────────────────────────────────
+function requestAdmin(endpoint, options = {}) {
+  const token = localStorage.getItem('adminToken');
+  return request(endpoint, {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+}
+
+export const PlatformAdmin = {
+  login:           (email, password)     => request('/platform/auth/login',         { method: 'POST', body: { email, password } }),
+  verify2FA:       (email, code)         => request('/platform/auth/verify-2fa',    { method: 'POST', body: { email, code } }),
+  acceptInvite:    (token, password)     => request('/platform/auth/accept-invite', { method: 'POST', body: { token, password } }),
+  forgotPassword:  (email)              => request('/platform/auth/forgot-password', { method: 'POST', body: { email } }),
+  resetPassword2:  (email, code, newPassword) => request('/platform/auth/reset-password', { method: 'POST', body: { email, code, newPassword } }),
+  changePassword:  (currentPassword, newPassword) => requestAdmin('/platform/auth/change-password', { method: 'PUT', body: { currentPassword, newPassword } }),
+  me:              ()                    => requestAdmin('/platform/auth/me'),
+  getDashboard:    ()                    => requestAdmin('/platform/dashboard'),
+  getClients:      (params)              => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return requestAdmin(`/platform/clients${qs}`); },
+  getAIStats:      ()                    => requestAdmin('/platform/ai-stats'),
+  getAdmins:       ()                    => requestAdmin('/platform/admins'),
+  inviteAdmin:     (data)                => requestAdmin('/platform/admins/invite', { method: 'POST', body: data }),
+  resetPassword:   (id)                  => requestAdmin(`/platform/admins/${id}/reset-password`, { method: 'POST' }),
 };
 
 // ── Chat (Lia — assistente profissional) ──────────────────────────────────────
@@ -219,5 +277,5 @@ export const Portal = {
   },
 };
 
-const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories, Reception, Chat, Portal };
+const API = { Auth, Users, Services, Appointments, Clients, Barbershops, Upload, Reports, Billing, Products, ServiceCategories, Reception, Chat, Portal, Financial, PlatformAdmin };
 export default API;

@@ -50,7 +50,9 @@ const barbershopSchema = new mongoose.Schema({
   planStatus:       { type: String, enum: ['active', 'expired', 'cancelled'], default: 'active' },
   planExpiresAt:    { type: Date },
   invoices:         { type: [invoiceSchema], default: [] },
-  stripeCustomerId: { type: String, select: false }, // Stripe customer ID
+  stripeCustomerId:     { type: String, select: false }, // Stripe customer ID
+  stripeSubscriptionId: { type: String, select: false }, // Stripe Subscription ID
+  stripePriceId:        { type: String, select: false }, // current Stripe Price ID
 
   // Pacotes de mensagens adicionais
   messagePackages: [{

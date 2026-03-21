@@ -115,8 +115,10 @@ const login = async (req, res) => {
     const users = await User.find({ email }).populate('barbershop');
 
     // Specific error when email doesn't exist at all
-    if (!users.length)
+    if (!users.length) {
+      if (req.bruteForce) req.bruteForce.recordFailure();
       return res.status(401).json({ success: false, message: 'Nenhuma conta encontrada com este e-mail.' });
+    }
 
     // Check password
     const matched = [];
@@ -124,8 +126,13 @@ const login = async (req, res) => {
       if (await u.comparePassword(password)) matched.push(u);
     }
 
-    if (!matched.length)
+    if (!matched.length) {
+      if (req.bruteForce) req.bruteForce.recordFailure();
       return res.status(401).json({ success: false, message: 'Senha incorreta.' });
+    }
+
+    // Record successful login (clears brute force counters)
+    if (req.bruteForce) req.bruteForce.recordSuccess();
 
     // Email verification check (skip for legacy accounts where emailVerified is null)
     const unverified = matched.filter(u => u.emailVerified === false);

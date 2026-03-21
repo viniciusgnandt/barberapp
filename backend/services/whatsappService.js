@@ -80,6 +80,23 @@ async function createClient(barbershopId, barbershopName) {
   }
   if (clients.has(barbershopId)) return; // already running
 
+  // Resolve Chrome executable: try puppeteer bundled, then common paths
+  let executablePath;
+  try {
+    const puppeteer = require('puppeteer');
+    executablePath = puppeteer.executablePath();
+  } catch (_) {
+    // puppeteer not installed as full package; try common Chrome locations
+    const candidates = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      '/usr/bin/google-chrome',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+    ];
+    executablePath = candidates.find(p => fs.existsSync(p)) || undefined;
+  }
+
   const client = new Client({
     authStrategy: new RemoteAuth({
       clientId:             String(barbershopId),
@@ -89,7 +106,8 @@ async function createClient(barbershopId, barbershopName) {
     }),
     puppeteer: {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      ...(executablePath ? { executablePath } : {}),
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     },
   });
 

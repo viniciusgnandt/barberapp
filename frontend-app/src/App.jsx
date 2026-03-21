@@ -43,6 +43,23 @@ import ReceptionAI from './pages/ReceptionAI';
 import UsageSettings from './pages/UsageSettings';
 import PlanSelection from './pages/PlanSelection';
 
+// Financial module
+import FinancialIndex from './pages/financial/FinancialIndex';
+import CashRegister from './pages/financial/CashRegister';
+import CashHistory from './pages/financial/CashHistory';
+import FinancialTabs from './pages/financial/Tabs';
+import Commissions from './pages/financial/Commissions';
+import Transactions from './pages/financial/Transactions';
+import FinancialInvoices from './pages/financial/Invoices';
+
+// Platform admin
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminClients from './pages/admin/AdminClients';
+import AdminAI from './pages/admin/AdminAI';
+import AdminAdmins from './pages/admin/AdminAdmins';
+
 // Client portal
 import ClientLogin from './pages/client/ClientLogin';
 import ClientRegister from './pages/client/ClientRegister';
@@ -81,6 +98,17 @@ export default function App() {
               <Route path="/stock"     element={<Stock />}     />
               <Route path="/business"   element={<Business />}    />
               <Route path="/reception" element={<ReceptionAI />} />
+
+              {/* Financial module */}
+              <Route path="/financeiro" element={<FinancialIndex />}>
+                <Route index                element={<CashRegister />}      />
+                <Route path="historico"     element={<CashHistory />}       />
+                <Route path="comandas"      element={<FinancialTabs />}     />
+                <Route path="comissoes"     element={<Commissions />}       />
+                <Route path="lancamentos"   element={<Transactions />}      />
+                <Route path="notas"         element={<FinancialInvoices />} />
+              </Route>
+
               <Route path="/settings"  element={<Settings />}>
                 <Route index                element={<SettingsIndex />}  />
                 <Route path="account"       element={<Profile />}        />
@@ -91,6 +119,15 @@ export default function App() {
                 <Route path="billing/plans" element={<PlanSelection />}  />
                 <Route path="usage"         element={<UsageSettings />}  />
               </Route>
+            </Route>
+
+            {/* Platform admin panel */}
+            <Route path="/painel-administrativo/login" element={<AdminLogin />} />
+            <Route path="/painel-administrativo" element={<AdminLayout />}>
+              <Route index              element={<AdminDashboard />} />
+              <Route path="clientes"    element={<AdminClients />}   />
+              <Route path="ia"          element={<AdminAI />}        />
+              <Route path="admins"      element={<AdminAdmins />}    />
             </Route>
 
             {/* Client portal — public */}

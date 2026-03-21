@@ -56,4 +56,9 @@ const sendPasswordResetEmail = async (to, name, token) => {
   });
 };
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail };
+// Generic email sender for any purpose (2FA, invites, etc.)
+const sendEmail = async ({ to, subject, html }) => {
+  await resend.emails.send({ from: FROM, to, subject, html });
+};
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendEmail };

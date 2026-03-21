@@ -1,175 +1,284 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Zap, Star, Crown, Check, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Zap, Star, Crown, Check, Shield, MessageSquare, Sparkles, Users, BarChart3, Headphones } from 'lucide-react';
 import { Billing as BillingAPI } from '../utils/api';
 import { toast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
 
-// ── Plan config ───────────────────────────────────────────────────────────────
+// ── Plan config ─────────────────────────────────────────────────────────────
 
 const PLANS = [
   {
     key:      'free',
     name:     'Free',
-    price:    'Grátis',
+    price:    '0',
     period:   '',
+    subtitle: 'Para conhecer a plataforma',
     color:    'gray',
-    icon:     <Zap size={22} />,
+    icon:     Zap,
     badge:    null,
-    features: ['1 profissional', 'Agendamento online básico', 'Portal do cliente'],
+    aiMsgs:   null,
+    barbers:  '1 profissional',
+    features: ['Agendamento online', 'Portal do cliente', 'Gestao basica'],
   },
   {
-    key:      'basic',
-    name:     'Basic',
-    price:    'R$ 49',
-    period:   '/mês',
+    key:      'starter',
+    name:     'Starter',
+    price:    '97',
+    period:   '/mes',
+    subtitle: 'Para quem esta comecando',
     color:    'amber',
-    icon:     <Zap size={22} />,
+    icon:     Zap,
     badge:    null,
-    features: ['Até 3 profissionais', 'Agendamentos ilimitados', 'Relatórios básicos', 'Suporte por email'],
+    aiMsgs:   '500',
+    barbers:  'Ate 3 profissionais',
+    features: ['Agendamentos ilimitados', 'Relatorios basicos', 'Suporte por email', '500 msgs IA/mes'],
   },
   {
-    key:      'pro',
-    name:     'Pro',
-    price:    'R$ 99',
-    period:   '/mês',
+    key:      'professional',
+    name:     'Professional',
+    price:    '197',
+    period:   '/mes',
+    subtitle: 'O mais escolhido',
     color:    'brand',
-    icon:     <Star size={22} />,
-    badge:    'Popular',
-    features: ['Até 10 profissionais', 'IA receptionist (WhatsApp)', 'Relatórios completos', 'Notificações automáticas'],
+    icon:     Star,
+    badge:    'Recomendado',
+    aiMsgs:   '2.000',
+    barbers:  'Ate 10 profissionais',
+    features: ['IA Recepcionista WhatsApp', 'Relatorios completos', 'Financeiro + Comandas', 'Notificacoes automaticas', '2.000 msgs IA/mes'],
   },
   {
-    key:      'premium',
-    name:     'Premium',
-    price:    'R$ 199',
-    period:   '/mês',
+    key:      'business',
+    name:     'Business',
+    price:    '397',
+    period:   '/mes',
+    subtitle: 'Para redes e grandes operacoes',
     color:    'violet',
-    icon:     <Crown size={22} />,
+    icon:     Crown,
     badge:    'Completo',
-    features: ['Profissionais ilimitados', 'Tudo do Pro', 'Suporte prioritário 24h', 'Pacotes de mensagens inclusos'],
+    aiMsgs:   '5.000',
+    barbers:  'Profissionais ilimitados',
+    features: ['Tudo do Professional', 'Suporte prioritario 24h', 'Multi-unidades (em breve)', '5.000 msgs IA/mes'],
   },
 ];
 
 const colorMap = {
-  gray:   { bg: 'bg-gray-100 dark:bg-gray-800',        icon: 'text-gray-400 dark:text-gray-500',    badge: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',       ring: 'ring-gray-300 dark:ring-gray-600',    btn: 'bg-gray-800 hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 text-white' },
-  amber:  { bg: 'bg-amber-100 dark:bg-amber-900/30',   icon: 'text-amber-600 dark:text-amber-400',  badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', ring: 'ring-amber-400 dark:ring-amber-500',  btn: 'bg-amber-500 hover:bg-amber-600 text-white' },
-  brand:  { bg: 'bg-brand-100 dark:bg-brand-900/30',   icon: 'text-brand-600 dark:text-brand-400',  badge: 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400', ring: 'ring-brand-500 dark:ring-brand-400',  btn: 'bg-brand-600 hover:bg-brand-700 text-white' },
-  violet: { bg: 'bg-violet-100 dark:bg-violet-900/30', icon: 'text-violet-600 dark:text-violet-400', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', ring: 'ring-violet-500 dark:ring-violet-400', btn: 'bg-violet-600 hover:bg-violet-700 text-white' },
+  gray:   {
+    bg: 'bg-gray-100 dark:bg-gray-800', icon: 'text-gray-400', badge: '', ring: '',
+    btn: 'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-default',
+    gradient: 'from-gray-50 to-white dark:from-gray-900 dark:to-gray-900',
+    border: 'border-gray-200 dark:border-gray-800',
+    aiBar: 'bg-gray-200 dark:bg-gray-700',
+  },
+  amber: {
+    bg: 'bg-amber-100 dark:bg-amber-900/30', icon: 'text-amber-500',
+    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+    ring: 'ring-amber-400/50 dark:ring-amber-500/30',
+    btn: 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25',
+    gradient: 'from-amber-50/50 to-white dark:from-amber-950/20 dark:to-gray-900',
+    border: 'border-amber-200/70 dark:border-amber-800/40',
+    aiBar: 'bg-amber-400 dark:bg-amber-500',
+  },
+  brand: {
+    bg: 'bg-brand-100 dark:bg-brand-900/40', icon: 'text-brand-500',
+    badge: 'bg-brand-500 text-white shadow-lg shadow-brand-500/30',
+    ring: 'ring-2 ring-brand-500/50 dark:ring-brand-400/40',
+    btn: 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-lg shadow-brand-500/30',
+    gradient: 'from-brand-50/60 to-white dark:from-brand-950/30 dark:to-gray-900',
+    border: 'border-brand-300/70 dark:border-brand-700/50',
+    aiBar: 'bg-brand-500 dark:bg-brand-400',
+  },
+  violet: {
+    bg: 'bg-violet-100 dark:bg-violet-900/30', icon: 'text-violet-500',
+    badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400',
+    ring: 'ring-violet-400/40 dark:ring-violet-500/30',
+    btn: 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg shadow-violet-500/25',
+    gradient: 'from-violet-50/50 to-white dark:from-violet-950/20 dark:to-gray-900',
+    border: 'border-violet-200/70 dark:border-violet-800/40',
+    aiBar: 'bg-violet-500 dark:bg-violet-400',
+  },
 };
 
-// ── Plan Card ─────────────────────────────────────────────────────────────────
+// ── Plan Card ───────────────────────────────────────────────────────────────
 
-function PlanCard({ plan, currentPlan, paying, onSelect }) {
-  const colors   = colorMap[plan.color];
+function PlanCard({ plan, currentPlan, paying, onSelect, hasCard, isPopular }) {
+  const c        = colorMap[plan.color];
   const isActive = currentPlan === plan.key;
-  const isFree   = plan.price === 'Grátis';
+  const isFree   = plan.key === 'free';
+  const Icon     = plan.icon;
 
   return (
     <div className={cn(
-      'relative flex flex-col rounded-2xl border bg-white dark:bg-gray-900 p-6 gap-5 transition-all',
-      isActive
-        ? `ring-2 ${colors.ring} border-transparent shadow-md`
-        : 'border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700',
+      'relative flex flex-col rounded-3xl border bg-gradient-to-b p-0 overflow-hidden transition-all duration-300',
+      c.gradient, c.border,
+      isPopular && c.ring,
+      isPopular && 'scale-[1.02] lg:scale-105 z-10',
+      !isPopular && 'hover:scale-[1.01]',
     )}>
       {/* Badge */}
       {plan.badge && (
-        <span className={cn(
-          'absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap',
-          colors.badge,
-        )}>
-          {plan.badge}
-        </span>
+        <div className="flex justify-center pt-4 -mb-1">
+          <span className={cn('px-4 py-1 rounded-full text-xs font-bold flex items-center gap-1.5', c.badge)}>
+            {isPopular && <Sparkles size={11} />}
+            {plan.badge}
+          </span>
+        </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', colors.bg, colors.icon)}>
-          {plan.icon}
+      <div className="p-6 pb-0 flex flex-col gap-4">
+        {/* Icon + Name */}
+        <div className="flex items-center gap-3">
+          <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center shrink-0', c.bg)}>
+            <Icon size={22} className={c.icon} />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{plan.name}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{plan.subtitle}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{plan.name}</p>
-          <p className="text-sm text-gray-400 dark:text-gray-500">
-            <span className="text-xl font-bold text-gray-900 dark:text-gray-100">{plan.price}</span>
-            {plan.period}
-          </p>
+
+        {/* Price */}
+        <div className="flex items-baseline gap-1">
+          <span className="text-sm text-gray-400 dark:text-gray-500">R$</span>
+          <span className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">{plan.price}</span>
+          {plan.period && <span className="text-sm text-gray-400 dark:text-gray-500">{plan.period}</span>}
+        </div>
+
+        {/* AI Messages bar */}
+        {plan.aiMsgs && (
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+            <MessageSquare size={16} className={c.icon} />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Mensagens IA</span>
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{plan.aiMsgs}/mes</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                <div className={cn('h-full rounded-full transition-all', c.aiBar)}
+                  style={{ width: plan.key === 'starter' ? '25%' : plan.key === 'professional' ? '55%' : '100%' }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Barbers */}
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <Users size={14} className="shrink-0" />
+          <span>{plan.barbers}</span>
         </div>
       </div>
 
       {/* Features */}
-      <ul className="space-y-2.5 flex-1">
-        {plan.features.map(f => (
-          <li key={f} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-            <Check size={15} className="shrink-0 mt-0.5 text-green-500" />
-            {f}
-          </li>
-        ))}
-      </ul>
+      <div className="p-6 pt-3 flex-1">
+        <ul className="space-y-2.5">
+          {plan.features.map(f => (
+            <li key={f} className="flex items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+              <div className="w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center shrink-0 mt-0.5">
+                <Check size={10} className="text-green-600 dark:text-green-400" strokeWidth={3} />
+              </div>
+              {f}
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {/* CTA */}
-      {isActive ? (
-        <div className="py-2.5 text-center text-sm text-gray-400 dark:text-gray-500 border border-gray-100 dark:border-gray-800 rounded-xl">
-          Plano atual
-        </div>
-      ) : !isFree ? (
-        <button
-          onClick={() => onSelect(plan.key)}
-          disabled={paying}
-          className={cn(
-            'w-full py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50',
-            colors.btn,
-          )}
-        >
-          {paying ? 'Aguarde...' : `Assinar ${plan.name}`}
-        </button>
-      ) : null}
+      <div className="px-6 pb-6">
+        {isActive ? (
+          <div className="py-3 text-center text-sm font-medium text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+            Plano atual
+          </div>
+        ) : isFree ? (
+          <div className="py-3 text-center text-sm text-gray-400 dark:text-gray-500">
+            Plano gratuito
+          </div>
+        ) : (
+          <button
+            onClick={() => onSelect(plan.key)}
+            disabled={paying || !hasCard}
+            className={cn(
+              'w-full py-3 rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-50 disabled:shadow-none',
+              c.btn,
+            )}
+          >
+            {!hasCard ? 'Cadastre um cartao' : paying ? 'Processando...' : `Assinar ${plan.name}`}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── Page ────────────────────────────────────────────────────────────────────
 
 export default function PlanSelection() {
   const navigate    = useNavigate();
   const location    = useLocation();
-  const [paying,    setPaying]    = useState(false);
+  const [paying, setPaying] = useState(false);
   const currentPlan = location.state?.currentPlan || null;
+  const hasCard     = location.state?.hasCard ?? true;
 
   const handleSelect = async (planKey) => {
     setPaying(true);
-    const r = await BillingAPI.createCheckoutSession(planKey);
+    const r = await BillingAPI.subscribe(planKey);
     setPaying(false);
-    if (r.ok && r.data.url) {
-      window.location.href = r.data.url;
+
+    if (r.ok) {
+      if (r.data.clientSecret) {
+        toast('Pagamento requer confirmacao adicional no seu banco.', 'info');
+      } else {
+        toast(r.data.message || `Plano ${planKey} ativado!`);
+        navigate('/settings/billing');
+      }
     } else {
-      toast(r.data?.message || 'Erro ao iniciar pagamento.', 'error');
+      toast(r.data?.message || 'Erro ao assinar plano.', 'error');
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+      <div className="sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-gray-800">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
           >
-            <ArrowLeft size={16} />
-            Voltar
+            <ArrowLeft size={16} /> Voltar
           </button>
           <span className="text-gray-200 dark:text-gray-700">|</span>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Ajustar plano</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Escolher plano</p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Escolha seu plano</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Cancele a qualquer momento. Sem fidelidade.</p>
+      {/* Hero */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-4">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium mb-4">
+            <Sparkles size={12} /> Potencialize sua barbearia
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+            Escolha o plano ideal
+          </h1>
+          <p className="text-lg text-gray-500 dark:text-gray-400 mt-3 max-w-xl mx-auto">
+            Cobranca recorrente mensal. Cancele a qualquer momento. Sem fidelidade.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {!hasCard && (
+          <div className="mb-8 max-w-lg mx-auto p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 text-center">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Cadastre um cartao na pagina de{' '}
+              <button onClick={() => navigate('/settings/billing')} className="underline font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition-colors">
+                cobranca
+              </button>{' '}
+              antes de assinar.
+            </p>
+          </div>
+        )}
+
+        {/* Plans grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
           {PLANS.map(plan => (
             <PlanCard
               key={plan.key}
@@ -177,20 +286,26 @@ export default function PlanSelection() {
               currentPlan={currentPlan}
               paying={paying}
               onSelect={handleSelect}
+              hasCard={hasCard}
+              isPopular={plan.key === 'professional'}
             />
           ))}
         </div>
 
-        {/* Stripe badge */}
-        <div className="flex items-center justify-center gap-2 mt-8">
-          <svg className="h-4 w-4 text-[#635BFF]" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.594-7.305h.003z"/>
-          </svg>
-          <p className="text-sm text-gray-400 dark:text-gray-500">
-            Pagamentos processados com segurança via{' '}
-            <span className="font-medium text-gray-600 dark:text-gray-300">Stripe</span>
-          </p>
-          <ExternalLink size={11} className="text-gray-300 dark:text-gray-600" />
+        {/* Trust bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-12 pb-8">
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+            <Shield size={15} className="text-green-500" />
+            Pagamentos seguros via Stripe
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+            <BarChart3 size={15} className="text-brand-500" />
+            IA com Gemini Flash-Lite
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+            <Headphones size={15} className="text-violet-500" />
+            Suporte em portugues
+          </div>
         </div>
       </div>
     </div>
