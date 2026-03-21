@@ -2,6 +2,19 @@
 
 const API_BASE = window.__APP_CONFIG__?.apiUrl || import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// ── Public config (fetched once from backend) ──────────────────────────────
+let _config = null;
+export async function getPublicConfig() {
+  if (_config) return _config;
+  try {
+    const res = await fetch(`${API_BASE}/config`);
+    _config = await res.json();
+  } catch (_) {
+    _config = {};
+  }
+  return _config;
+}
+
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
 

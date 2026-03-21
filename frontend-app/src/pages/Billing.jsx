@@ -1,19 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import {
+  Elements, useStripe, useElements,
+  CardNumberElement, CardExpiryElement, CardCvcElement,
+} from '@stripe/react-stripe-js';
+import { getPublicConfig } from '../utils/api';
 import {
   Zap, Crown, XCircle, Package, ChevronDown,
   CheckCircle, MessageSquare, Star, Sparkles,
-  CreditCard, Plus, Trash2, X,
+  CreditCard, Plus, Trash2, Shield,
 } from 'lucide-react';
 import { Billing as BillingAPI } from '../utils/api';
 import Button from '../components/ui/Button';
 import { toast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
 
-// ── Stripe init ─────────────────────────────────────────────────────────────
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
+// ── Stripe init (chave carregada do backend) ─────────────────────────────────
+// Usamos uma Promise que resolve quando a chave estiver disponível
+const stripePromise = getPublicConfig().then(cfg => {
+  const key = cfg?.stripePublishableKey;
+  return key && key.startsWith('pk_') ? loadStripe(key) : null;
+});
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const fmtDate = (d) =>
@@ -38,17 +46,23 @@ const PLAN_ICON = {
   business:     { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-600 dark:text-violet-400', el: <Crown size={18} /> },
 };
 
-// ── Card Element Styles ─────────────────────────────────────────────────────
-const CARD_ELEMENT_OPTIONS = {
-  style: {
-    base: {
-      fontSize: '16px',
-      color: '#e5e7eb',
-      '::placeholder': { color: '#6b7280' },
+// ── Stripe Element Styles ────────────────────────────────────────────────────
+function buildStripeStyle() {
+  const dark = document.documentElement.classList.contains('dark')
+    || window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  return {
+    style: {
+      base: {
+        fontSize: '15px',
+        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+        color: dark ? '#f3f4f6' : '#111827',
+        '::placeholder': { color: dark ? '#6b7280' : '#9ca3af' },
+        iconColor: dark ? '#9ca3af' : '#6b7280',
+      },
+      invalid: { color: '#ef4444', iconColor: '#ef4444' },
     },
-    invalid: { color: '#ef4444' },
-  },
-};
+  };
+}
 
 // ── Invoice Status ──────────────────────────────────────────────────────────
 function InvStatus({ status }) {
@@ -112,12 +126,33 @@ function PackageCard({ tier, onBuy, loading, hasCard }) {
   );
 }
 
+// ── Field wrapper com label e foco ──────────────────────────────────────────
+function StripeField({ label, children, focused }) {
+  return (
+    <div className={cn(
+      'rounded-xl border px-4 py-3 transition-all duration-200',
+      focused
+        ? 'bg-white dark:bg-gray-800 border-brand-400 dark:border-brand-500 shadow-sm shadow-brand-200/40 dark:shadow-brand-900/20'
+        : 'bg-gray-50 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700',
+    )}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
 // ── Add Card Form (Stripe Elements, in-app) ─────────────────────────────────
 function AddCardForm({ onSuccess, onCancel }) {
   const stripe   = useStripe();
   const elements = useElements();
-  const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState('');
+  const [focused,    setFocused]    = useState(null);
+  const [stripeOpts, setStripeOpts] = useState(() => buildStripeStyle());
+
+  useEffect(() => { setStripeOpts(buildStripeStyle()); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -125,44 +160,87 @@ function AddCardForm({ onSuccess, onCancel }) {
     setSaving(true);
     setError('');
 
-    // 1. Get setup intent from backend
     const r = await BillingAPI.createSetupIntent();
-    if (!r.ok) { setError(r.data?.message || 'Erro.'); setSaving(false); return; }
+    if (!r.ok) { setError(r.data?.message || 'Erro ao iniciar configuração.'); setSaving(false); return; }
 
-    // 2. Confirm setup with card element
     const { error: stripeError, setupIntent } = await stripe.confirmCardSetup(r.data.clientSecret, {
-      payment_method: { card: elements.getElement(CardElement) },
+      payment_method: { card: elements.getElement(CardNumberElement) },
     });
 
-    if (stripeError) {
-      setError(stripeError.message);
-      setSaving(false);
-      return;
-    }
+    if (stripeError) { setError(stripeError.message); setSaving(false); return; }
 
-    // 3. Attach PM to customer via our backend
     const attach = await BillingAPI.attachPaymentMethod(setupIntent.payment_method);
     setSaving(false);
 
-    if (attach.ok) {
-      toast('Cartão adicionado!');
-      onSuccess();
-    } else {
-      setError(attach.data?.message || 'Erro ao salvar cartão.');
-    }
+    if (attach.ok) { toast('Cartão adicionado com sucesso!'); onSuccess(); }
+    else setError(attach.data?.message || 'Erro ao salvar cartão.');
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-      <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-        <CardElement options={CARD_ELEMENT_OPTIONS} />
+  if (!stripe) {
+    return (
+      <div className="mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+        <p className="text-xs text-amber-700 dark:text-amber-400 text-center">
+          Configure <code className="font-mono font-bold">STRIPE_PUBLISHABLE_KEY</code> no .env do backend para habilitar o formulário de cartão.
+        </p>
       </div>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <div className="flex gap-2">
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+
+      {/* Número do cartão — linha inteira */}
+      <StripeField label="Número do cartão" focused={focused === 'number'}>
+        <CardNumberElement
+          options={{ ...stripeOpts, showIcon: true }}
+          onFocus={() => setFocused('number')}
+          onBlur={() => setFocused(null)}
+        />
+      </StripeField>
+
+      {/* Validade + CVV — lado a lado */}
+      <div className="grid grid-cols-2 gap-3">
+        <StripeField label="Validade" focused={focused === 'expiry'}>
+          <CardExpiryElement
+            options={stripeOpts}
+            onFocus={() => setFocused('expiry')}
+            onBlur={() => setFocused(null)}
+          />
+        </StripeField>
+
+        <StripeField label="CVV" focused={focused === 'cvc'}>
+          <CardCvcElement
+            options={stripeOpts}
+            onFocus={() => setFocused('cvc')}
+            onBlur={() => setFocused(null)}
+          />
+        </StripeField>
+      </div>
+
+      {/* Erro */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
+          <XCircle size={14} className="text-red-500 shrink-0" />
+          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {/* Segurança */}
+      <div className="flex items-center gap-2 py-1">
+        <Shield size={12} className="text-green-500 shrink-0" />
+        <p className="text-xs text-gray-400 dark:text-gray-500">
+          Dados criptografados e processados com segurança pela <span className="font-medium text-gray-500 dark:text-gray-400">Stripe</span>.
+        </p>
+      </div>
+
+      {/* Ações */}
+      <div className="flex gap-2 pt-1">
         <Button type="submit" loading={saving} disabled={!stripe}>
-          Salvar cartão
+          <CreditCard size={14} className="mr-1.5" /> Salvar cartão
         </Button>
-        <Button variant="outline" type="button" onClick={onCancel}>Cancelar</Button>
+        <Button variant="outline" type="button" onClick={onCancel}>
+          Cancelar
+        </Button>
       </div>
     </form>
   );
@@ -171,6 +249,7 @@ function AddCardForm({ onSuccess, onCancel }) {
 // ── Main Page ───────────────────────────────────────────────────────────────
 function BillingContent() {
   const navigate = useNavigate();
+  const stripe   = useStripe();
 
   const [billing,       setBilling]       = useState(null);
   const [loading,       setLoading]       = useState(true);
@@ -209,16 +288,39 @@ function BillingContent() {
 
   const handleBuyPackage = async (messages) => {
     setBuyingPkg(true);
-    const r = await BillingAPI.buyPackage(messages, 1);
-    setBuyingPkg(false);
-    if (r.ok && !r.data.requiresAction) {
-      toast('Pacote adquirido!');
-      load();
-    } else if (r.data?.requiresAction) {
-      toast('Pagamento requer confirmação...', 'info');
-      // 3DS would need stripe.confirmCardPayment but for simplicity, retry
-    } else {
-      toast(r.data?.message || 'Erro ao comprar pacote.', 'error');
+    try {
+      const r = await BillingAPI.buyPackage(messages, 1);
+      if (!r.ok) {
+        toast(r.data?.message || 'Erro ao comprar pacote.', 'error');
+        return;
+      }
+
+      // Payment succeeded immediately (no 3DS)
+      if (!r.data.requiresAction) {
+        toast('Pacote adquirido com sucesso!', 'success');
+        load();
+        return;
+      }
+
+      // Needs 3DS confirmation
+      if (!stripe) {
+        toast('Erro interno: Stripe não inicializado.', 'error');
+        return;
+      }
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(r.data.clientSecret);
+      if (stripeError) {
+        toast(stripeError.message || 'Pagamento não confirmado.', 'error');
+        return;
+      }
+      if (paymentIntent?.status === 'succeeded') {
+        const confirm = await BillingAPI.confirmPackage(paymentIntent.id);
+        if (confirm.ok) { toast('Pacote ativado!', 'success'); load(); }
+        else toast(confirm.data?.message || 'Erro ao ativar pacote.', 'error');
+      } else {
+        toast('Pagamento não confirmado.', 'error');
+      }
+    } finally {
+      setBuyingPkg(false);
     }
   };
 

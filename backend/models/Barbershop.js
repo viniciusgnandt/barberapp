@@ -46,7 +46,7 @@ const barbershopSchema = new mongoose.Schema({
     ],
   },
   // Billing
-  plan:             { type: String, enum: ['trial', 'free', 'basic', 'pro', 'premium'], default: 'trial' },
+  plan:             { type: String, enum: ['trial', 'free', 'basic', 'pro', 'premium', 'starter', 'professional', 'business'], default: 'trial' },
   planStatus:       { type: String, enum: ['active', 'expired', 'cancelled'], default: 'active' },
   planExpiresAt:    { type: Date },
   invoices:         { type: [invoiceSchema], default: [] },

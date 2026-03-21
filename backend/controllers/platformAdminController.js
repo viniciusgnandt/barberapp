@@ -326,7 +326,7 @@ const inviteAdmin = async (req, res) => {
       createdBy:      req.platformAdmin._id,
     });
 
-    const inviteUrl = `${process.env.FRONTEND_URL}/painel-administrativo/accept-invite?token=${inviteToken}`;
+    const inviteUrl = `${process.env.APP_URL || 'http://localhost:5173'}/painel-administrativo/accept-invite?token=${inviteToken}`;
 
     try {
       await sendEmail({

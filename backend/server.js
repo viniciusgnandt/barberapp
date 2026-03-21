@@ -27,9 +27,8 @@ const app = express();
 app.use(securityHeaders());
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://localhost:5500', 'http://127.0.0.1:5500'];
+const appUrl = process.env.APP_URL || 'http://localhost:5173';
+const allowedOrigins = [appUrl, 'http://localhost:5500', 'http://127.0.0.1:5500'].filter(Boolean);
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
@@ -118,6 +117,13 @@ app.use('/api/financial',           require('./routes/financialRoutes'));
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) =>
   res.json({ success: true, message: 'API online', ts: new Date() })
+);
+
+// ── Public config (chaves públicas para o frontend) ───────────────────────────
+app.get('/api/config', (_req, res) =>
+  res.json({
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+  })
 );
 
 // ── Erro global ───────────────────────────────────────────────────────────────
