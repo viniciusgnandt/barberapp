@@ -12,7 +12,8 @@ const bruteForce        = require('./middleware/bruteForce');
 const securityHeaders   = require('./middleware/securityHeaders');
 const sanitize          = require('./middleware/sanitize');
 const { handleWebhook } = require('./controllers/billingController');
-const { seedInitialAdmin } = require('./scripts/seedAdmin');
+let seedInitialAdmin = () => Promise.resolve();
+try { ({ seedInitialAdmin } = require('./scripts/seedAdmin')); } catch (_) {}
 
 connectDB().then(() => {
   reconnectAll().catch(() => {});
