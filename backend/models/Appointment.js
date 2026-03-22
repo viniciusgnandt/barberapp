@@ -11,7 +11,7 @@ const appointmentSchema = new mongoose.Schema({
   barbershop: { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   date:       { type: Date, required: true },
   endDate:    { type: Date },
-  status:     { type: String, enum: ['agendado', 'concluído', 'cancelado', 'bloqueado'], default: 'agendado' },
+  status:     { type: String, enum: ['agendado', 'concluído', 'cancelado', 'bloqueado', 'ausente'], default: 'agendado' },
   notes:      { type: String, trim: true },
   recurrence: { type: String, enum: ['none', 'weekly', 'biweekly', 'monthly'], default: 'none' },
   recurrenceGroupId: { type: String },

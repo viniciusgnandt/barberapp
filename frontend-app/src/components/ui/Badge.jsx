@@ -6,6 +6,7 @@ const variants = {
   'concluído':'bg-green-50  dark:bg-green-900/30  text-green-700  dark:text-green-300  border-green-200  dark:border-green-800',
   cancelado:  'bg-red-50    dark:bg-red-900/30    text-red-700    dark:text-red-300    border-red-200    dark:border-red-800',
   bloqueado:  'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+  ausente:    'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
   admin:      'bg-brand-50  dark:bg-brand-900/30  text-brand-700  dark:text-brand-300  border-brand-200  dark:border-brand-800',
   barbeiro:   'bg-gray-50   dark:bg-gray-800      text-gray-600   dark:text-gray-300   border-gray-200   dark:border-gray-700',
 };
@@ -16,6 +17,7 @@ const labels = {
   'concluído':'Concluído',
   cancelado:  'Cancelado',
   bloqueado:  'Bloqueado',
+  ausente:    'Ausente',
   admin:      'Admin',
   barbeiro:   'Barbeiro',
 };

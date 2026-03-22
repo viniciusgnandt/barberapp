@@ -26,15 +26,23 @@ function periodShortcuts() {
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  // Quinzena: 1–15 ou 16–fim do mês
+  const day = now.getDate();
+  const quinzenaStart = new Date(now.getFullYear(), now.getMonth(), day <= 15 ? 1 : 16);
+  const quinzenaEnd   = day <= 15
+    ? new Date(now.getFullYear(), now.getMonth(), 15)
+    : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0);
 
   return [
-    { label: 'Hoje',       start: today,           end: today },
-    { label: 'Esta semana',start: fmt_(weekStart),  end: today },
-    { label: 'Este mês',   start: fmt_(monthStart), end: today },
-    { label: 'Mês passado',start: fmt_(lastMonthStart), end: fmt_(lastMonthEnd) },
-    { label: 'Tudo',       start: '',               end: '' },
+    { label: 'Hoje',           start: today,                 end: today },
+    { label: 'Esta semana',    start: fmt_(weekStart),        end: today },
+    { label: 'Esta quinzena',  start: fmt_(quinzenaStart),    end: fmt_(quinzenaEnd) },
+    { label: 'Este mês',       start: fmt_(monthStart),       end: today },
+    { label: 'Mês passado',    start: fmt_(lastMonthStart),   end: fmt_(lastMonthEnd) },
+    { label: 'Tudo',           start: '',                     end: '' },
   ];
 }
 

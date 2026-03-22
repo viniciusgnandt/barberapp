@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, Calendar, CheckCircle2, XCircle, Lock, RefreshCw, UserPlus, X, ChevronDown, LayoutGrid, List, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, CheckCircle2, Lock, RefreshCw, UserPlus, X, ChevronDown, LayoutGrid, List, ArrowUpDown, ChevronLeft, ChevronRight, UserX, Banknote, CreditCard, Wallet, Smartphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Appointments, Services, Barbershops, Clients as ClientsAPI } from '../utils/api';
+import { Appointments, Services, Barbershops, Clients as ClientsAPI, Financial } from '../utils/api';
 import { ServiceIcon } from '../utils/serviceIcons';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -276,13 +276,50 @@ function BarberRichSelect({ barbers, value, onChange }) {
   );
 }
 
+// ── Status action buttons (shared by Card and Row) ────────────────────────────
+function StatusActions({ appt, onConfirm, isChanging, compact = false }) {
+  const isBlock = appt.type === 'block';
+  if (isBlock) return null;
+  const st = appt.status;
+
+  const btn = (newStatus, label, icon, colorCls) => {
+    const isCurrent = st === newStatus;
+    return (
+      <button
+        key={newStatus}
+        onClick={() => !isCurrent && onConfirm(appt, newStatus)}
+        disabled={isChanging || isCurrent}
+        title={label}
+        className={cn(
+          compact
+            ? 'p-1.5 rounded-lg transition-colors disabled:opacity-40'
+            : 'flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-40',
+          isCurrent ? 'opacity-40 cursor-default' : colorCls,
+        )}
+      >
+        {isChanging && !isCurrent
+          ? <div className={cn('border border-t-transparent rounded-full animate-spin', compact ? 'w-3.5 h-3.5' : 'w-3 h-3')} />
+          : icon
+        }
+        {!compact && <span>{label}</span>}
+      </button>
+    );
+  };
+
+  return (
+    <>
+      {btn('concluído', 'Concluir', <CheckCircle2 size={compact ? 14 : 13} />, 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20')}
+      {btn('ausente',   'Ausente',  <UserX        size={compact ? 14 : 13} />, 'text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20')}
+    </>
+  );
+}
+
 // ── Appointment Card ──────────────────────────────────────────────────────────
-function AppointmentCard({ appt, onEdit, onDelete, onStatusChange, isAdmin, changingStatus }) {
+function AppointmentCard({ appt, onEdit, onDelete, onConfirm, isAdmin, changingStatus }) {
   const date     = new Date(appt.date);
   const dateStr  = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   const timeStr  = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const isPending = appt.status === 'agendado';
-  const isBlock   = appt.type   === 'block';
+  const isBlock  = appt.type === 'block';
   const isChanging = changingStatus === appt._id;
 
   return (
@@ -329,39 +366,13 @@ function AppointmentCard({ appt, onEdit, onDelete, onStatusChange, isAdmin, chan
         )}
       </div>
 
-      <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-        {!isBlock && isPending && (
-          <>
-            <button
-              onClick={() => onStatusChange(appt, 'concluído')}
-              disabled={isChanging}
-              title="Marcar como concluído"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
-            >
-              {isChanging
-                ? <div className="w-3 h-3 border border-green-600 border-t-transparent rounded-full animate-spin" />
-                : <CheckCircle2 size={13} />
-              }
-              Concluir
-            </button>
-            <button
-              onClick={() => onStatusChange(appt, 'cancelado')}
-              disabled={isChanging}
-              title="Marcar como cancelado"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
-            >
-              <XCircle size={13} />
-              Cancelar
-            </button>
-          </>
-        )}
+      <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex-wrap">
+        <StatusActions appt={appt} onConfirm={onConfirm} isChanging={isChanging} />
         <div className="flex gap-1 ml-auto">
-          {!isBlock && (
-            <button onClick={() => onEdit(appt)} title="Editar"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
-              <Edit2 size={13} />
-            </button>
-          )}
+          <button onClick={() => onEdit(appt)} title="Editar"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+            <Edit2 size={13} />
+          </button>
           <button onClick={() => onDelete(appt)} title="Remover"
             className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
             <Trash2 size={13} />
@@ -373,11 +384,10 @@ function AppointmentCard({ appt, onEdit, onDelete, onStatusChange, isAdmin, chan
 }
 
 // ── Appointment Row (list view) ───────────────────────────────────────────────
-function AppointmentRow({ appt, onEdit, onDelete, onStatusChange, isAdmin, changingStatus }) {
+function AppointmentRow({ appt, onEdit, onDelete, onConfirm, isAdmin, changingStatus }) {
   const date      = new Date(appt.date);
   const dateStr   = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   const timeStr   = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const isPending  = appt.status === 'agendado';
   const isBlock    = appt.type   === 'block';
   const isChanging = changingStatus === appt._id;
 
@@ -433,35 +443,11 @@ function AppointmentRow({ appt, onEdit, onDelete, onStatusChange, isAdmin, chang
 
       {/* actions */}
       <div className="flex items-center gap-1 shrink-0">
-        {!isBlock && isPending && (
-          <>
-            <button
-              onClick={() => onStatusChange(appt, 'concluído')}
-              disabled={isChanging}
-              title="Concluir"
-              className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
-            >
-              {isChanging
-                ? <div className="w-3.5 h-3.5 border border-green-600 border-t-transparent rounded-full animate-spin" />
-                : <CheckCircle2 size={14} />
-              }
-            </button>
-            <button
-              onClick={() => onStatusChange(appt, 'cancelado')}
-              disabled={isChanging}
-              title="Cancelar"
-              className="p-1.5 rounded-lg text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
-            >
-              <XCircle size={14} />
-            </button>
-          </>
-        )}
-        {!isBlock && (
-          <button onClick={() => onEdit(appt)} title="Editar"
-            className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
-            <Edit2 size={13} />
-          </button>
-        )}
+        <StatusActions appt={appt} onConfirm={onConfirm} isChanging={isChanging} compact />
+        <button onClick={() => onEdit(appt)} title="Editar"
+          className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+          <Edit2 size={13} />
+        </button>
         <button onClick={() => onDelete(appt)} title="Remover"
           className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
           <Trash2 size={13} />
@@ -492,20 +478,25 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy,   setSortBy]   = useState('date-asc');
 
-  const [modal,    setModal]    = useState(false);
-  const [editing,  setEditing]  = useState(null);
-  const [form,     setForm]     = useState(EMPTY_FORM);
-  const [saving,   setSaving]   = useState(false);
-  const [formErr,  setFormErr]  = useState('');
+  const [modal,       setModal]       = useState(false);
+  const [editing,     setEditing]     = useState(null);
+  const [form,        setForm]        = useState(EMPTY_FORM);
+  const [forceCreate, setForceCreate] = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [formErr,     setFormErr]     = useState('');
 
-  const [blockModal,  setBlockModal]  = useState(false);
-  const [blockForm,   setBlockForm]   = useState(EMPTY_BLOCK);
-  const [blockSaving, setBlockSaving] = useState(false);
-  const [blockErr,    setBlockErr]    = useState('');
+  const [blockModal,    setBlockModal]    = useState(false);
+  const [editingBlock,  setEditingBlock]  = useState(null);
+  const [blockForm,     setBlockForm]     = useState(EMPTY_BLOCK);
+  const [blockSaving,   setBlockSaving]   = useState(false);
+  const [blockErr,      setBlockErr]      = useState('');
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting,     setDeleting]     = useState(false);
   const [changingStatus, setChangingStatus] = useState(null);
+
+  const [confirmAction,  setConfirmAction]  = useState(null); // { appt, newStatus }
+  const [confirmPayment, setConfirmPayment] = useState('pix');
 
   const set      = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const setBlock = k => e => setBlockForm(f => ({ ...f, [k]: e.target.value }));
@@ -540,11 +531,34 @@ export default function Agenda() {
   const openCreate = () => {
     setEditing(null);
     setForm({ ...EMPTY_FORM, barber: isAdmin ? '' : (user?._id || '') });
+    setForceCreate(false);
     setFormErr('');
     setModal(true);
   };
 
   const openEdit = appt => {
+    // Redirect blocks to block modal
+    if (appt.type === 'block') {
+      const toLocalTime = iso => { if (!iso) return ''; const d = new Date(iso); const p = n => String(n).padStart(2,'0'); return `${p(d.getHours())}:${p(d.getMinutes())}`; };
+      const toLocalDate = iso => { if (!iso) return ''; const d = new Date(iso); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
+      const sT = toLocalTime(appt.date);
+      const eT = appt.endDate ? toLocalTime(appt.endDate) : '';
+      const aDay = sT === '00:00' && (!eT || eT === '23:59');
+      setEditingBlock(appt);
+      setBlockForm({
+        reason:     appt.clientName  || '',
+        barber:     String(appt.barber?._id || appt.barber || ''),
+        allBarbers: appt.allBarbers  || false,
+        allDay:     aDay,
+        date:       toLocalDate(appt.date),
+        startTime:  aDay ? '' : sT,
+        endTime:    aDay ? '' : eT,
+        notes:      appt.notes || '',
+      });
+      setBlockErr('');
+      setBlockModal(true);
+      return;
+    }
     setEditing(appt);
     const dt = toLocalDatetimeStr(appt.date);
     setForm({
@@ -559,6 +573,7 @@ export default function Agenda() {
       recurrence:  'none',
       occurrences: 4,
     });
+    setForceCreate(false);
     setFormErr('');
     setModal(true);
   };
@@ -570,8 +585,20 @@ export default function Agenda() {
   };
 
   useEffect(() => {
-    if (location.state?.openCreate) openCreate();
+    if (location.state?.openCreate) {
+      const pre = location.state.prefill;
+      if (pre) {
+        setEditing(null);
+        setForm(f => ({ ...EMPTY_FORM, barber: isAdmin ? (pre.barber || '') : (user?._id || ''), date: pre.date || '', time: pre.time || '' }));
+        setForceCreate(false);
+        setFormErr('');
+        setModal(true);
+      } else {
+        openCreate();
+      }
+    }
     if (location.state?.openBlock)  openBlock();
+    if (location.state?.editAppt)   openEdit(location.state.editAppt);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
@@ -591,6 +618,7 @@ export default function Agenda() {
       notes:       form.notes,
       recurrence:  form.recurrence,
       occurrences: parseInt(form.occurrences) || 1,
+      ...(forceCreate ? { forceCreate: true } : {}),
     };
 
     const r = editing
@@ -637,27 +665,53 @@ export default function Agenda() {
       notes:      blockForm.notes,
     };
 
-    const r = await Appointments.create(payload);
+    const r = editingBlock
+      ? await Appointments.update(editingBlock._id, payload)
+      : await Appointments.create(payload);
     setBlockSaving(false);
     if (r.ok) {
-      toast(blockForm.allBarbers ? 'Agenda de todos bloqueada!' : 'Bloqueio criado!');
+      toast(editingBlock ? 'Bloqueio atualizado!' : blockForm.allBarbers ? 'Agenda de todos bloqueada!' : 'Bloqueio criado!');
       setBlockModal(false);
+      setEditingBlock(null);
       load();
     } else {
-      setBlockErr(r.data?.message || 'Erro ao criar bloqueio.');
+      setBlockErr(r.data?.message || 'Erro ao salvar bloqueio.');
     }
   };
 
-  const handleStatusChange = async (appt, newStatus) => {
+  const handleStatusChange = async (appt, newStatus, paymentMethod) => {
     setChangingStatus(appt._id);
-    const r = await Appointments.update(appt._id, { status: newStatus });
+    const payload = { status: newStatus };
+    if (newStatus === 'concluído' && paymentMethod) payload.paymentMethod = paymentMethod;
+    const r = await Appointments.update(appt._id, payload);
     setChangingStatus(null);
     if (r.ok) {
-      toast(newStatus === 'concluído' ? 'Serviço concluído!' : 'Agendamento cancelado.');
+      const msgs = { 'concluído': 'Serviço concluído!', ausente: 'Cliente marcado como ausente.', cancelado: 'Agendamento cancelado.', agendado: 'Agendamento reaberto.' };
+      toast(msgs[newStatus] || 'Status atualizado.');
       load();
     } else {
       toast(r.data?.message || 'Erro ao atualizar status.', 'error');
     }
+  };
+
+  const openConfirm = (appt, newStatus) => {
+    setConfirmPayment('pix');
+    setConfirmAction({ appt, newStatus });
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmAction) return;
+    const { appt, newStatus } = confirmAction;
+    if (newStatus === 'concluído') {
+      const cashRes = await Financial.getCash();
+      if (!cashRes.ok || !cashRes.data?.data) {
+        setConfirmAction(null);
+        toast('O caixa precisa estar aberto para concluir um serviço.', 'error');
+        return;
+      }
+    }
+    setConfirmAction(null);
+    await handleStatusChange(appt, newStatus, newStatus === 'concluído' ? confirmPayment : undefined);
   };
 
   const handleDelete = async () => {
@@ -723,6 +777,8 @@ export default function Agenda() {
 
   const filtered = appointments
     .filter(a => {
+      // Hide cancelled unless explicitly filtering for them
+      if (a.status === 'cancelado' && filterStatus !== 'cancelado') return false;
       // period range filter (day view is handled by API; week/month filtered here)
       if (period !== 'day') {
         const apptDate = new Date(a.date);
@@ -836,6 +892,7 @@ export default function Agenda() {
           <option value="agendado">Agendado</option>
           <option value="concluído">Concluído</option>
           <option value="cancelado">Cancelado</option>
+          <option value="ausente">Ausente</option>
           <option value="bloqueado">Bloqueado</option>
         </select>
         <select value={filterService} onChange={e => setFilterService(e.target.value)}
@@ -913,14 +970,14 @@ export default function Agenda() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(appt => (
             <AppointmentCard key={appt._id} appt={appt} onEdit={openEdit} onDelete={setDeleteTarget}
-              onStatusChange={handleStatusChange} isAdmin={isAdmin} changingStatus={changingStatus} />
+              onConfirm={openConfirm} isAdmin={isAdmin} changingStatus={changingStatus} />
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map(appt => (
             <AppointmentRow key={appt._id} appt={appt} onEdit={openEdit} onDelete={setDeleteTarget}
-              onStatusChange={handleStatusChange} isAdmin={isAdmin} changingStatus={changingStatus} />
+              onConfirm={openConfirm} isAdmin={isAdmin} changingStatus={changingStatus} />
           ))}
         </div>
       )}
@@ -960,6 +1017,7 @@ export default function Agenda() {
               <option value="agendado">Agendado</option>
               <option value="concluído">Concluído</option>
               <option value="cancelado">Cancelado</option>
+              <option value="ausente">Ausente</option>
             </Select>
           )}
 
@@ -993,6 +1051,19 @@ export default function Agenda() {
 
           <Input label="Observações" placeholder="Observações opcionais..." value={form.notes} onChange={set('notes')} />
 
+          <label className="flex items-start gap-3 cursor-pointer select-none p-3 rounded-xl border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/15 hover:bg-amber-100/60 dark:hover:bg-amber-900/25 transition-colors">
+            <input
+              type="checkbox"
+              checked={forceCreate}
+              onChange={e => setForceCreate(e.target.checked)}
+              className="w-4 h-4 mt-0.5 rounded border-gray-300 text-amber-500 focus:ring-amber-400 shrink-0"
+            />
+            <div>
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Forçar encaixe</p>
+              <p className="text-xs text-amber-600/80 dark:text-amber-500/80 mt-0.5">Ignora conflitos de horário mesmo que o profissional já esteja ocupado.</p>
+            </div>
+          </label>
+
           {formErr && (
             <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{formErr}</p>
           )}
@@ -1007,7 +1078,7 @@ export default function Agenda() {
       </Modal>
 
       {/* Block Modal */}
-      <Modal open={blockModal} onClose={() => setBlockModal(false)} title="Bloquear Horário na Agenda" size="full">
+      <Modal open={blockModal} onClose={() => { setBlockModal(false); setEditingBlock(null); }} title={editingBlock ? 'Editar Bloqueio' : 'Bloquear Horário na Agenda'} size="full">
         <div className="space-y-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">Bloqueios impedem novos agendamentos no horário indicado.</p>
 
@@ -1062,6 +1133,57 @@ export default function Agenda() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Status Confirm Modal */}
+      <Modal open={!!confirmAction} onClose={() => setConfirmAction(null)}
+        title={confirmAction?.newStatus === 'concluído' ? 'Concluir serviço' : 'Marcar como ausente'}>
+        {confirmAction && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {confirmAction.newStatus === 'concluído' && <>Confirmar conclusão do serviço de <strong className="text-gray-900 dark:text-gray-100">{confirmAction.appt.clientName}</strong>?</>}
+              {confirmAction.newStatus === 'ausente' && <>Marcar <strong className="text-gray-900 dark:text-gray-100">{confirmAction.appt.clientName}</strong> como ausente (no-show)?</>}
+            </p>
+
+            {confirmAction.newStatus === 'concluído' && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Forma de pagamento</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'dinheiro',        label: 'Dinheiro',       icon: <Banknote size={16} /> },
+                    { id: 'pix',             label: 'PIX',            icon: <Smartphone size={16} /> },
+                    { id: 'cartao_debito',   label: 'Débito',         icon: <CreditCard size={16} /> },
+                    { id: 'cartao_credito',  label: 'Crédito',        icon: <Wallet size={16} /> },
+                  ].map(pm => (
+                    <button
+                      key={pm.id}
+                      type="button"
+                      onClick={() => setConfirmPayment(pm.id)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors',
+                        confirmPayment === pm.id
+                          ? 'bg-brand-50 dark:bg-brand-900/20 border-brand-500 text-brand-700 dark:text-brand-300'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brand-300 dark:hover:border-brand-700',
+                      )}
+                    >
+                      <span className={confirmPayment === pm.id ? 'text-brand-500' : 'text-gray-400'}>{pm.icon}</span>
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end pt-1">
+              <Button variant="secondary" onClick={() => setConfirmAction(null)}>Cancelar</Button>
+              <Button variant="primary" onClick={handleConfirm}>
+                {confirmAction.newStatus === 'concluído' ? 'Confirmar e concluir' :
+                 confirmAction.newStatus === 'cancelado' ? 'Sim, cancelar' :
+                 confirmAction.newStatus === 'ausente'   ? 'Marcar ausente' : 'Confirmar'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Delete Confirm */}

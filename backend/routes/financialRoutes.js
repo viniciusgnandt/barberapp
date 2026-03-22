@@ -16,6 +16,7 @@ router.get ('/cash/history',  ctrl.getCashHistory);
 // ── Transações (entradas e saídas) ────────────────────────────────────────────
 router.get   ('/transactions',     ctrl.getTransactions);
 router.post  ('/transactions',     ctrl.createTransaction);
+router.put   ('/transactions/:id', ctrl.updateTransaction);
 router.delete('/transactions/:id', ctrl.deleteTransaction);
 
 // ── Comissões ─────────────────────────────────────────────────────────────────
@@ -32,5 +33,6 @@ router.get   ('/tabs/:id',                  ctrl.getTab);
 router.post  ('/tabs/:id/items',            ctrl.addTabItem);
 router.delete('/tabs/:id/items/:itemId',    ctrl.removeTabItem);
 router.post  ('/tabs/:id/close',            ctrl.closeTab);
+router.post  ('/tabs/:id/reopen',           ctrl.reopenTab);
 
 module.exports = router;

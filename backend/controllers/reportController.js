@@ -38,6 +38,7 @@ const getReport = async (req, res) => {
     const total     = appointments.length;
     const completed = appointments.filter(a => a.status === 'concluído').length;
     const cancelled = appointments.filter(a => a.status === 'cancelado').length;
+    const absent    = appointments.filter(a => a.status === 'ausente').length;
     const pending   = appointments.filter(a => a.status === 'agendado').length;
     const revenue   = appointments
       .filter(a => a.status === 'concluído')
@@ -144,7 +145,7 @@ const getReport = async (req, res) => {
       success: true,
       data: {
         summary: {
-          total, completed, cancelled, pending,
+          total, completed, cancelled, absent, pending,
           revenue, barberCommission, shopRevenue,
           commissionPaid, commissionPending,
         },

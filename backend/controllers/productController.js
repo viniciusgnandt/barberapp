@@ -2,6 +2,8 @@
 
 const Product       = require('../models/Product');
 const StockMovement = require('../models/StockMovement');
+const Transaction   = require('../models/Transaction');
+const CashRegister  = require('../models/CashRegister');
 
 const adminOnly = (req, res, next) => {
   if (req.user?.role !== 'admin')
@@ -116,16 +118,37 @@ const addMovement = [adminOnly, async (req, res) => {
 
     await product.save();
 
+    const resolvedUnitCost  = unitCost  !== undefined ? Number(unitCost)  : product.costPrice;
+    const resolvedUnitPrice = unitPrice !== undefined ? Number(unitPrice) : (product.salePrice || 0);
+
     const movement = await StockMovement.create({
       product:    product._id,
       barbershop: req.user.barbershop._id,
       type,
       quantity:  qty,
-      unitCost:  unitCost  !== undefined ? Number(unitCost)  : product.costPrice,
-      unitPrice: unitPrice !== undefined ? Number(unitPrice) : (product.salePrice || 0),
+      unitCost:  resolvedUnitCost,
+      unitPrice: resolvedUnitPrice,
       notes:     notes || '',
       createdBy: req.user._id,
     });
+
+    // Registra transação financeira apenas para vendas diretas
+    if (type === 'venda') {
+      const openCash = await CashRegister.findOne({ barbershop: req.user.barbershop._id, status: 'open' });
+      const amount   = resolvedUnitPrice * qty;
+      if (amount > 0) {
+        await Transaction.create({
+          barbershop:    req.user.barbershop._id,
+          cashRegister:  openCash?._id,
+          type:          'entrada',
+          category:      'produto',
+          amount,
+          description:   `Venda — ${product.name} (${qty} ${product.unit || 'un'})`,
+          paymentMethod: 'dinheiro',
+          createdBy:     req.user._id,
+        });
+      }
+    }
 
     res.status(201).json({ success: true, data: { product, movement } });
   } catch (err) {

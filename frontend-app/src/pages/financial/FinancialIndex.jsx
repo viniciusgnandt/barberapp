@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  Wallet, History, Receipt, Percent, ArrowUpDown, FileText, Scale,
+  Wallet, History, Receipt, Percent, ArrowUpDown, FileText, Settings,
 } from 'lucide-react';
 
 const TABS = [
-  { to: '/financeiro',            label: 'Caixa',       icon: Wallet,      end: true },
-  { to: '/financeiro/historico',  label: 'Histórico',   icon: History },
-  { to: '/financeiro/comandas',   label: 'Comandas',    icon: Receipt },
-  { to: '/financeiro/comissoes',  label: 'Comissões',   icon: Percent },
-  { to: '/financeiro/lancamentos',label: 'Lançamentos', icon: ArrowUpDown },
-  { to: '/financeiro/notas',      label: 'Notas',       icon: FileText },
-  { to: '/financeiro/balanco',    label: 'Balanço',     icon: Scale },
+  { to: '/financeiro',               label: 'Caixa',          icon: Wallet,      end: true },
+  { to: '/financeiro/historico',     label: 'Histórico',      icon: History },
+  { to: '/financeiro/comandas',      label: 'Comandas',       icon: Receipt },
+  { to: '/financeiro/comissoes',     label: 'Comissões',      icon: Percent },
+  { to: '/financeiro/lancamentos',   label: 'Lançamentos',    icon: ArrowUpDown },
+  { to: '/financeiro/notas',         label: 'Notas',          icon: FileText },
+  { to: '/financeiro/configuracoes', label: 'Configurações',  icon: Settings },
 ];
 
 export default function FinancialIndex() {

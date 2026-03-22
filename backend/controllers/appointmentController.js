@@ -1,9 +1,11 @@
 // controllers/appointmentController.js
 
-const Appointment = require('../models/Appointment');
-const Commission  = require('../models/Commission');
-const User        = require('../models/User');
-const crypto      = require('crypto');
+const Appointment    = require('../models/Appointment');
+const Commission     = require('../models/Commission');
+const Transaction    = require('../models/Transaction');
+const CashRegister   = require('../models/CashRegister');
+const User           = require('../models/User');
+const crypto         = require('crypto');
 
 const populate = (q) =>
   q.populate('service', 'name duration price commission')
@@ -34,14 +36,51 @@ async function upsertCommission(apt) {
   });
 }
 
+// Registra entrada no caixa ao concluir agendamento (idempotente via appointment ref)
+// Normaliza método de pagamento do frontend para os valores do modelo
+function normalizePaymentMethod(raw) {
+  if (!raw) return 'dinheiro';
+  const map = { cartao_credito: 'credito', cartao_debito: 'debito', pix: 'pix', dinheiro: 'dinheiro', credito: 'credito', debito: 'debito' };
+  return map[raw] || 'dinheiro';
+}
+
+async function autoRegisterCashEntry(apt, createdByUser, paymentMethod) {
+  if (!apt.service?.price) return;
+  const already = await Transaction.findOne({ appointment: apt._id, type: 'entrada' });
+  if (already) return;
+
+  const barbershopId = apt.barbershop?._id || apt.barbershop;
+  const createdById  = createdByUser?._id || createdByUser;
+
+  const openRegister = await CashRegister.findOne({ barbershop: barbershopId, status: 'open' }).sort({ openedAt: -1 });
+
+  const clientName = apt.client?.name || apt.clientName || 'Cliente';
+  const barberName = apt.barber?.name  || '';
+
+  await Transaction.create({
+    barbershop:    barbershopId,
+    cashRegister:  openRegister?._id || undefined,
+    type:          'entrada',
+    category:      'servico',
+    amount:        apt.service.price,
+    description:   `${apt.service.name} — ${clientName}${barberName ? ` (${barberName})` : ''}`,
+    appointment:   apt._id,
+    barber:        apt.barber?._id || apt.barber || undefined,
+    client:        apt.client?._id || apt.client || undefined,
+    createdBy:     createdById,
+    paymentMethod: normalizePaymentMethod(paymentMethod),
+  });
+}
+
 // GET /api/appointments
 const getAppointments = async (req, res) => {
   try {
-    const { status, date, startDate, endDate, barber, type } = req.query;
+    const { status, date, startDate, endDate, barber, type, client } = req.query;
     const filter = { barbershop: req.user.barbershop._id };
 
     if (status) filter.status = status;
     if (type)   filter.type   = type;
+    if (client) filter.client = client;
 
     // Barbeiro só vê seus próprios; admin pode filtrar por barbeiro
     if (req.user.role !== 'admin') {
@@ -187,8 +226,9 @@ const createAppointment = async (req, res) => {
       }
     }
 
-    // Check conflicts for all occurrences
-    for (const d of dates) {
+    // Check conflicts for all occurrences (skip if forceCreate is true)
+    const forceCreate = req.body.forceCreate === true || req.body.forceCreate === 'true';
+    if (!forceCreate) for (const d of dates) {
       if (await checkConflict(d))
         return res.status(400).json({ success: false, message: 'Horário indisponível para este barbeiro.' });
     }
@@ -286,6 +326,8 @@ const updateAppointment = async (req, res) => {
     // Gera comissão automaticamente quando concluído
     if (prevStatus !== 'concluído' && data.status === 'concluído') {
       upsertCommission(data).catch(() => {});
+      // Registra entrada no caixa (idempotente via appointment ref)
+      autoRegisterCashEntry(data, req.user, req.body.paymentMethod).catch(() => {});
     }
 
     res.json({ success: true, data });

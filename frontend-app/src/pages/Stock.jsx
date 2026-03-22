@@ -304,9 +304,12 @@ export default function Stock() {
     if (movForm.type === 'venda' && !movForm.unitPrice) return setMovErr('Informe o preço de venda.');
     setMovErr(''); setSaving(true);
 
+    const qty = Number(movForm.quantity);
+    const isAjusteVenda = movForm.type === 'ajuste' && movProduct?.category === 'venda';
     const payload = {
       type:      movForm.type,
-      quantity:  Number(movForm.quantity),
+      quantity:  qty,
+      ...(isAjusteVenda ? { delta: -qty } : {}),
       unitCost:  movForm.unitCost  ? Number(movForm.unitCost)  : undefined,
       unitPrice: movForm.unitPrice ? Number(movForm.unitPrice) : undefined,
       notes:     movForm.notes || undefined,
@@ -578,7 +581,10 @@ export default function Stock() {
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de movimentação <span className="text-red-400 ml-0.5">*</span></label>
             <div className="grid grid-cols-2 gap-2">
-              {MOV_TYPES.filter(t => t.value !== 'venda' || movProduct?.category === 'venda').map(({ value, label, icon: Icon, color }) => (
+              {MOV_TYPES.filter(t => {
+                if (movProduct?.category === 'venda') return t.value === 'entrada' || t.value === 'ajuste';
+                return t.value !== 'venda';
+              }).map(({ value, label, icon: Icon, color }) => (
                 <button
                   key={value}
                   type="button"
@@ -595,6 +601,16 @@ export default function Stock() {
                 </button>
               ))}
             </div>
+            {movProduct?.category === 'venda' && movForm.type === 'entrada' && (
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 leading-relaxed">
+                Use ao receber mercadoria do fornecedor. O estoque será incrementado pela quantidade informada.
+              </p>
+            )}
+            {movProduct?.category === 'venda' && movForm.type === 'ajuste' && (
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 leading-relaxed">
+                Use para registrar perdas, devoluções ou correções de inventário. A quantidade informada será <strong className="text-gray-500 dark:text-gray-400">subtraída</strong> do estoque.
+              </p>
+            )}
           </div>
 
           <Input

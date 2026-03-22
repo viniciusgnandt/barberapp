@@ -3,8 +3,14 @@ import { Financial } from '../../utils/api';
 import {
   Scale, TrendingUp, TrendingDown, Wallet, Package, FileText,
   RefreshCw, AlertCircle, CheckCircle, Info, ChevronDown, ChevronRight,
-  BarChart2, Landmark, CircleDollarSign, ArrowUpRight, ArrowDownRight,
+  BarChart2, Landmark, CircleDollarSign, ArrowUpRight, ArrowDownRight, Percent,
 } from 'lucide-react';
+
+const DEFAULT_FEES = { dinheiro: 0, pix: 0, debito: 1.5, credito: 2.99, outro: 0 };
+function loadFees() {
+  try { return { ...DEFAULT_FEES, ...JSON.parse(localStorage.getItem('cashregister_fees') || '{}') }; }
+  catch { return DEFAULT_FEES; }
+}
 import { cn } from '../../utils/cn';
 
 const fmt = (v) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -236,7 +242,12 @@ export default function BalanceSheet() {
 
       {data && !loading && (() => {
         const { ativo, passivo, patrimonioLiquido, equacao, dre, indicadores } = data;
-        const resultadoPositivo = dre.resultadoLiquido >= 0;
+        const fees      = loadFees();
+        const taxasDRE  = (dre.receitasPorMetodo || []).reduce((s, r) =>
+          s + r.total * ((fees[r.method] || 0) / 100), 0);
+        const receitaLiquida    = dre.receitaBruta - taxasDRE;
+        const resultadoLiquido  = receitaLiquida - dre.despesasTotais;
+        const resultadoPositivo = resultadoLiquido >= 0;
 
         return (
           <div className="space-y-6">
@@ -420,7 +431,7 @@ export default function BalanceSheet() {
               <div className="p-5 space-y-5">
 
                 {/* Resumo DRE */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800/40">
                     <div className="flex items-center gap-1.5 mb-1">
                       <ArrowUpRight size={13} className="text-emerald-500" />
@@ -428,6 +439,16 @@ export default function BalanceSheet() {
                     </div>
                     <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(dre.receitaBruta)}</p>
                   </div>
+                  {taxasDRE > 0 && (
+                    <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-4 border border-amber-100 dark:border-amber-800/40">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Percent size={13} className="text-amber-500" />
+                        <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Taxas</p>
+                      </div>
+                      <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums">− {fmt(taxasDRE)}</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Líq.: {fmt(receitaLiquida)}</p>
+                    </div>
+                  )}
                   <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-4 border border-red-100 dark:border-red-800/40">
                     <div className="flex items-center gap-1.5 mb-1">
                       <ArrowDownRight size={13} className="text-red-500" />
@@ -449,7 +470,7 @@ export default function BalanceSheet() {
                       'text-xl font-extrabold tabular-nums',
                       resultadoPositivo ? 'text-brand-600 dark:text-brand-400' : 'text-red-500 dark:text-red-400',
                     )}>
-                      {fmt(dre.resultadoLiquido)}
+                      {fmt(resultadoLiquido)}
                     </p>
                   </div>
                 </div>

@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
     themeColor: { type: String, default: 'amber' },
     themeFont:  { type: String, default: 'inter' },
   },
+  calendarToken: { type: String },  // Token estático para feed iCal
   createdAt:    { type: Date, default: Date.now },
 });
 

@@ -88,6 +88,7 @@ export const Appointments = {
   create: (data)     => request('/appointments',        { method: 'POST',   body: data }),
   update: (id, data) => request(`/appointments/${id}`,  { method: 'PUT',    body: data }),
   delete: (id)       => request(`/appointments/${id}`,  { method: 'DELETE' }),
+  getIcalToken: ()   => request('/appointments/ical-token'),
 };
 
 // ── Users ──────────────────────────────────────────────────────────────────────
@@ -132,11 +133,13 @@ export const Upload = {
 
 // ── Clients ────────────────────────────────────────────────────────────────────
 export const Clients = {
-  getAll:  (params = {}) => { const qs = new URLSearchParams(params).toString(); return request(`/clients${qs ? '?' + qs : ''}`); },
-  get:     (id)          => request(`/clients/${id}`),
-  create:  (data)        => request('/clients',        { method: 'POST',   body: data }),
-  update:  (id, data)    => request(`/clients/${id}`,  { method: 'PUT',    body: data }),
-  delete:  (id)          => request(`/clients/${id}`,  { method: 'DELETE' }),
+  getAll:          (params = {}) => { const qs = new URLSearchParams(params).toString(); return request(`/clients${qs ? '?' + qs : ''}`); },
+  get:             (id)          => request(`/clients/${id}`),
+  create:          (data)        => request('/clients',        { method: 'POST',   body: data }),
+  update:          (id, data)    => request(`/clients/${id}`,  { method: 'PUT',    body: data }),
+  delete:          (id)          => request(`/clients/${id}`,  { method: 'DELETE' }),
+  getAppointments: (id)          => request(`/clients/${id}/appointments`),
+  rectify:         ()            => request('/clients/rectify', { method: 'POST' }),
 };
 
 // ── Reports ────────────────────────────────────────────────────────────────────
@@ -212,6 +215,7 @@ export const Financial = {
   // Transactions
   getTransactions:  (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/transactions${qs}`); },
   createTransaction:(data)      => request('/financial/transactions',  { method: 'POST', body: data }),
+  updateTransaction:(id, data)  => request(`/financial/transactions/${id}`, { method: 'PUT',    body: data }),
   deleteTransaction:(id)        => request(`/financial/transactions/${id}`, { method: 'DELETE' }),
   // Commissions
   getCommissions:   (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/commissions${qs}`); },
@@ -222,7 +226,8 @@ export const Financial = {
   getTab:           (id)        => request(`/financial/tabs/${id}`),
   addTabItem:       (id, data)  => request(`/financial/tabs/${id}/items`, { method: 'POST', body: data }),
   removeTabItem:    (id, itemId)=> request(`/financial/tabs/${id}/items/${itemId}`, { method: 'DELETE' }),
-  closeTab:         (id, data)  => request(`/financial/tabs/${id}/close`, { method: 'POST', body: data }),
+  closeTab:         (id, data)  => request(`/financial/tabs/${id}/close`,  { method: 'POST', body: data }),
+  reopenTab:        (id)        => request(`/financial/tabs/${id}/reopen`, { method: 'POST' }),
   // Balanço Patrimonial
   getBalanceSheet:  (params)    => { const qs = params ? '?' + new URLSearchParams(params).toString() : ''; return request(`/financial/balance-sheet${qs}`); },
 };

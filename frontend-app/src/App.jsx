@@ -49,8 +49,8 @@ import CashHistory from './pages/financial/CashHistory';
 import FinancialTabs from './pages/financial/Tabs';
 import Commissions from './pages/financial/Commissions';
 import Transactions from './pages/financial/Transactions';
-import FinancialInvoices from './pages/financial/Invoices';
-import BalanceSheet from './pages/financial/BalanceSheet';
+import FinancialInvoices   from './pages/financial/Invoices';
+import FinancialSettings  from './pages/financial/FinancialSettings';
 
 // Platform admin
 import AdminLogin from './pages/admin/AdminLogin';
@@ -105,8 +105,8 @@ export default function App() {
                 <Route path="comandas"      element={<FinancialTabs />}     />
                 <Route path="comissoes"     element={<Commissions />}       />
                 <Route path="lancamentos"   element={<Transactions />}      />
-                <Route path="notas"         element={<FinancialInvoices />} />
-                <Route path="balanco"       element={<BalanceSheet />}      />
+                <Route path="notas"          element={<FinancialInvoices />} />
+                <Route path="configuracoes" element={<FinancialSettings />} />
               </Route>
 
               <Route path="/settings"  element={<Settings />}>

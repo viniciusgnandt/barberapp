@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, FileText, Cake, X } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, FileText, Cake, X, ChevronRight, Clock, Scissors, CheckCircle2, XCircle, UserX, CalendarDays } from 'lucide-react';
 import { Clients as ClientsAPI } from '../utils/api';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -28,9 +28,135 @@ function initials(name) {
   return name?.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() || '?';
 }
 
-function ClientCard({ client, onEdit, onDelete }) {
+const STATUS_STYLE = {
+  agendado:   { label: 'Agendado',  cls: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',       icon: CalendarDays },
+  'concluído':{ label: 'Concluído', cls: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300', icon: CheckCircle2 },
+  concluido:  { label: 'Concluído', cls: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300', icon: CheckCircle2 },
+  cancelado:  { label: 'Cancelado', cls: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',           icon: XCircle      },
+  ausente:    { label: 'Ausente',   cls: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300', icon: UserX       },
+};
+
+function ClientHistoryModal({ client, onClose, onEdit }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    ClientsAPI.getAppointments(client._id).then(r => {
+      if (r.ok) setHistory(r.data?.data || []);
+      setLoading(false);
+    });
+  }, [client._id]);
+
+  const concluded   = history.filter(a => a.status === 'concluído' || a.status === 'concluido');
+  const totalSpent  = concluded.reduce((s, a) => s + (a.service?.price || 0), 0);
+  // Visitas = dias únicos com pelo menos um serviço concluído
+  const totalVisits = new Set(concluded.map(a => new Date(a.date).toDateString())).size;
+  const lastVisit   = concluded[0]; // já vem ordenado desc
+
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-4 hover:border-brand-200 dark:hover:border-brand-800 transition-colors">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative bg-white dark:bg-gray-900 w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90vh] animate-fade-up"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <div className="w-11 h-11 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold text-base shrink-0">
+            {initials(client.name)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{client.name}</h2>
+            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+              {client.phone && <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={10}/>{fmtPhone(client.phone)}</span>}
+              {client.email && <span className="text-xs text-gray-400 flex items-center gap-1"><Mail size={10}/>{client.email}</span>}
+            </div>
+          </div>
+          <button onClick={() => { onClose(); onEdit(client); }}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors" title="Editar">
+            <Edit2 size={14} />
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 px-5 py-3 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          {[
+            { label: 'Visitas',      value: totalVisits },
+            { label: 'Total gasto',  value: `R$${totalSpent.toFixed(0)}` },
+            { label: 'Última visita', value: lastVisit ? fmtDate(lastVisit.date) : '—' },
+          ].map(s => (
+            <div key={s.label} className="text-center">
+              <p className="text-base font-bold text-gray-900 dark:text-gray-100">{s.value}</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* History list */}
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Histórico de serviços</p>
+          {loading ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />)}
+            </div>
+          ) : history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Scissors size={32} className="text-gray-200 dark:text-gray-700 mb-2" />
+              <p className="text-sm text-gray-400 dark:text-gray-500">Nenhum serviço encontrado para este cliente.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {history.map(appt => {
+                const st = STATUS_STYLE[appt.status] || STATUS_STYLE['agendado'];
+                const StatusIcon = st.icon;
+                return (
+                  <div key={appt._id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', st.cls)}>
+                      <StatusIcon size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                        {appt.service?.name || 'Serviço'}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-2 mt-0.5">
+                        <CalendarDays size={10} className="shrink-0" />
+                        {fmtDate(appt.date)}
+                        {appt.barber?.name && <><span>·</span><span>{appt.barber.name}</span></>}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {appt.service?.price != null && (
+                        <p className="text-sm font-bold text-gray-700 dark:text-gray-300">R${appt.service.price.toFixed(0)}</p>
+                      )}
+                      <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full', st.cls)}>{st.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {client.notes && (
+          <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 shrink-0">
+            <p className="text-xs text-gray-400 dark:text-gray-500 flex items-start gap-1.5">
+              <FileText size={11} className="shrink-0 mt-0.5" /> {client.notes}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClientCard({ client, onEdit, onDelete, onView }) {
+  return (
+    <div
+      onClick={() => onView(client)}
+      className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-4 hover:border-brand-200 dark:hover:border-brand-800 transition-colors cursor-pointer">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400 text-sm font-bold shrink-0">
           {initials(client.name)}
@@ -69,23 +195,22 @@ function ClientCard({ client, onEdit, onDelete }) {
         </p>
       )}
 
-      <div className="flex gap-1 mt-3 justify-end">
+      <div className="flex items-center gap-1 mt-3 justify-end">
         <button
-          onClick={() => onEdit(client)}
+          onClick={e => { e.stopPropagation(); onEdit(client); }}
           className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
           title="Editar cliente"
-          aria-label={`Editar ${client.name}`}
         >
           <Edit2 size={13} />
         </button>
         <button
-          onClick={() => onDelete(client)}
+          onClick={e => { e.stopPropagation(); onDelete(client); }}
           className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           title="Remover cliente"
-          aria-label={`Remover ${client.name}`}
         >
           <Trash2 size={13} />
         </button>
+        <ChevronRight size={13} className="text-gray-300 dark:text-gray-600 ml-1" />
       </div>
     </div>
   );
@@ -102,8 +227,9 @@ export default function ClientsPage() {
   const [saving,   setSaving]   = useState(false);
   const [formErr,  setFormErr]  = useState('');
 
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting,     setDeleting]     = useState(false);
+  const [deleteTarget,  setDeleteTarget]  = useState(null);
+  const [deleting,      setDeleting]      = useState(false);
+  const [historyClient, setHistoryClient] = useState(null);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -114,7 +240,7 @@ export default function ClientsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); ClientsAPI.rectify(); }, [load]);
 
   // Debounced search
   useEffect(() => {
@@ -233,7 +359,7 @@ export default function ClientsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {clients.map(c => (
-            <ClientCard key={c._id} client={c} onEdit={openEdit} onDelete={setDeleteTarget} />
+            <ClientCard key={c._id} client={c} onEdit={openEdit} onDelete={setDeleteTarget} onView={setHistoryClient} />
           ))}
         </div>
       )}
@@ -301,6 +427,15 @@ export default function ClientsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Client History */}
+      {historyClient && (
+        <ClientHistoryModal
+          client={historyClient}
+          onClose={() => setHistoryClient(null)}
+          onEdit={client => { setHistoryClient(null); openEdit(client); }}
+        />
+      )}
 
       {/* Delete Confirm */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Remover cliente">

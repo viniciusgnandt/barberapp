@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, CalendarDays, Scissors, LogOut,
+  LayoutDashboard, Scissors, LogOut,
   Camera, ChevronUp, Check,
   BarChart2, TrendingUp, Settings, Boxes,
   PanelLeftClose, PanelLeftOpen, UserRound, Bot, Wallet,
@@ -15,8 +15,7 @@ import JubaOSLogo from '../ui/JubaOSLogo';
 
 // ── Navigation structure ───────────────────────────────────────────────────────
 const NAV_MAIN = [
-  { to: '/agenda',    icon: CalendarDays,    label: 'Agenda',    adminOnly: false },
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Agenda', adminOnly: false },
   { to: '/services',  icon: Scissors,        label: 'Serviços',  adminOnly: false },
   { to: '/clients',   icon: UserRound,       label: 'Clientes',  adminOnly: false },
 ];

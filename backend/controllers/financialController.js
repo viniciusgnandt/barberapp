@@ -170,6 +170,23 @@ const getTransactions = async (req, res) => {
   }
 };
 
+const updateTransaction = async (req, res) => {
+  try {
+    const allowed = ['amount', 'description', 'category', 'paymentMethod'];
+    const updates = {};
+    allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+    const txn = await Transaction.findOneAndUpdate(
+      { _id: req.params.id, barbershop: shopId(req) },
+      updates,
+      { new: true }
+    );
+    if (!txn) return res.status(404).json({ success: false, message: 'Transação não encontrada.' });
+    res.json({ success: true, data: txn });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 const deleteTransaction = async (req, res) => {
   try {
     const txn = await Transaction.findOneAndDelete({ _id: req.params.id, barbershop: shopId(req) });
@@ -344,8 +361,8 @@ const getTab = async (req, res) => {
 
 const addTabItem = async (req, res) => {
   try {
-    const tab = await Tab.findOne({ _id: req.params.id, barbershop: shopId(req), status: 'aberta' });
-    if (!tab) return res.status(404).json({ success: false, message: 'Comanda não encontrada ou já fechada.' });
+    const tab = await Tab.findOne({ _id: req.params.id, barbershop: shopId(req) });
+    if (!tab) return res.status(404).json({ success: false, message: 'Comanda não encontrada.' });
 
     const { type, serviceId, productId, quantity = 1 } = req.body;
     let item;
@@ -375,8 +392,8 @@ const addTabItem = async (req, res) => {
 
 const removeTabItem = async (req, res) => {
   try {
-    const tab = await Tab.findOne({ _id: req.params.id, barbershop: shopId(req), status: 'aberta' });
-    if (!tab) return res.status(404).json({ success: false, message: 'Comanda não encontrada ou já fechada.' });
+    const tab = await Tab.findOne({ _id: req.params.id, barbershop: shopId(req) });
+    if (!tab) return res.status(404).json({ success: false, message: 'Comanda não encontrada.' });
 
     tab.items.id(req.params.itemId)?.deleteOne();
     tab.subtotal = tab.items.reduce((s, i) => s + i.total, 0);
@@ -404,22 +421,49 @@ const closeTab = async (req, res) => {
     tab.closedBy      = req.user._id;
     await tab.save();
 
-    // Record transaction
+    // Record transactions — separate per category (servico / produto)
     const openCash = await CashRegister.findOne({ barbershop: shopId(req), status: 'open' });
     if (tab.total > 0) {
-      await Transaction.create({
+      const ratio = tab.subtotal > 0 ? tab.total / tab.subtotal : 1; // apply discount proportionally
+      const svcTotal  = tab.items.filter(i => i.type === 'servico').reduce((s, i) => s + (i.total || 0), 0);
+      const prodTotal = tab.items.filter(i => i.type === 'produto').reduce((s, i) => s + (i.total || 0), 0);
+
+      const baseEntry = {
         barbershop:    shopId(req),
         cashRegister:  openCash?._id,
         type:          'entrada',
-        category:      'servico',
-        amount:        tab.total,
-        description:   `Comanda #${tab._id.toString().slice(-6)} — ${tab.clientName || 'Cliente'}`,
         barber:        tab.barber,
         client:        tab.client,
         tab:           tab._id,
         paymentMethod: tab.paymentMethod,
         createdBy:     req.user._id,
-      });
+      };
+
+      if (svcTotal > 0) {
+        await Transaction.create({
+          ...baseEntry,
+          category:    'servico',
+          amount:      Math.round(svcTotal * ratio * 100) / 100,
+          description: `Comanda #${tab._id.toString().slice(-6)} — ${tab.clientName || 'Cliente'} (serviços)`,
+        });
+      }
+      if (prodTotal > 0) {
+        await Transaction.create({
+          ...baseEntry,
+          category:    'produto',
+          amount:      Math.round(prodTotal * ratio * 100) / 100,
+          description: `Comanda #${tab._id.toString().slice(-6)} — ${tab.clientName || 'Cliente'} (produtos)`,
+        });
+      }
+      // Fallback: if no typed items (edge case), record as comanda
+      if (svcTotal === 0 && prodTotal === 0) {
+        await Transaction.create({
+          ...baseEntry,
+          category:    'comanda',
+          amount:      tab.total,
+          description: `Comanda #${tab._id.toString().slice(-6)} — ${tab.clientName || 'Cliente'}`,
+        });
+      }
     }
 
     // Generate commissions for services
@@ -459,6 +503,25 @@ const closeTab = async (req, res) => {
     }
 
     res.json({ success: true, data: tab });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const reopenTab = async (req, res) => {
+  try {
+    const tab = await Tab.findOne({ _id: req.params.id, barbershop: shopId(req) });
+    if (!tab) return res.status(404).json({ success: false, message: 'Comanda não encontrada.' });
+    if (tab.status === 'aberta') return res.json({ success: true, data: tab });
+    tab.status    = 'aberta';
+    tab.closedAt  = undefined;
+    tab.closedBy  = undefined;
+    await tab.save();
+    const populated = await Tab.findById(tab._id)
+      .populate('barber', 'name')
+      .populate('client', 'name phone')
+      .populate('items.service', 'name price commission duration');
+    res.json({ success: true, data: populated });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -529,7 +592,7 @@ const getBalanceSheet = async (req, res) => {
       if (endDate)   dreMatch.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
     }
 
-    const [dreAgg, dreByCat] = await Promise.all([
+    const [dreAgg, dreByCat, dreByMethod] = await Promise.all([
       Transaction.aggregate([
         { $match: dreMatch },
         { $group: { _id: '$type', total: { $sum: '$amount' }, count: { $sum: 1 } } },
@@ -538,6 +601,10 @@ const getBalanceSheet = async (req, res) => {
         { $match: dreMatch },
         { $group: { _id: { type: '$type', category: '$category' }, total: { $sum: '$amount' }, count: { $sum: 1 } } },
         { $sort: { total: -1 } },
+      ]),
+      Transaction.aggregate([
+        { $match: { ...dreMatch, type: 'entrada' } },
+        { $group: { _id: '$paymentMethod', total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
     ]);
 
@@ -617,6 +684,7 @@ const getBalanceSheet = async (req, res) => {
           resultadoLiquido,
           receitasPorCategoria,
           despesasPorCategoria,
+          receitasPorMetodo: dreByMethod.map(r => ({ method: r._id || 'dinheiro', total: r.total, count: r.count })),
         },
 
         indicadores: {
@@ -635,8 +703,8 @@ const getBalanceSheet = async (req, res) => {
 
 module.exports = {
   openCashRegister, closeCashRegister, getCurrentCashRegister, getCashHistory,
-  createTransaction, getTransactions, deleteTransaction,
+  createTransaction, getTransactions, updateTransaction, deleteTransaction,
   getCommissions, payCommission,
-  createTab, getTabs, getTab, addTabItem, removeTabItem, closeTab,
+  createTab, getTabs, getTab, addTabItem, removeTabItem, closeTab, reopenTab,
   getBalanceSheet,
 };

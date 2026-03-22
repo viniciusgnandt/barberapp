@@ -5,12 +5,14 @@ import {
   Download, Search,
   DollarSign, Calendar, Package, AlertTriangle, ShoppingCart,
   RefreshCw, Filter, Wallet, Store, FileSpreadsheet, ChevronDown, Bot, MessageSquare, MessagesSquare,
+  Scale, Landmark, CircleDollarSign, ArrowUpRight, ArrowDownRight, FileText, Info,
+  CheckCircle, AlertCircle, ChevronRight,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../context/AuthContext';
-import { Reports, Barbershops, Products as ProductsAPI, Reception as ReceptionAPI } from '../utils/api';
+import { Reports, Barbershops, Products as ProductsAPI, Reception as ReceptionAPI, Financial } from '../utils/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { cn } from '../utils/cn';
@@ -484,6 +486,283 @@ function generateStockPDF({ reportData, startDate, endDate }) {
   doc.save(`estoque-${new Date().toLocaleDateString('sv')}.pdf`);
 }
 
+// ── Balance Sheet helpers ─────────────────────────────────────────────────────
+const BS_CAT_LABELS = {
+  servico: 'Serviços', produto: 'Produtos', gorjeta: 'Gorjetas', comanda: 'Comandas',
+  comissao: 'Comissões', fornecedor: 'Fornecedores', salario: 'Salários',
+  aluguel: 'Aluguel', manutencao: 'Manutenção', materiais: 'Materiais',
+  energia: 'Energia / Água', internet: 'Internet / Telefone', impostos: 'Impostos / Taxas',
+  marketing: 'Marketing', equipamentos: 'Equipamentos', limpeza: 'Limpeza / Higiene',
+  alimentacao: 'Alimentação', transporte: 'Transporte', despesa: 'Despesa Geral',
+  ajuste: 'Ajuste', outros: 'Outros',
+};
+const bsFmt = (v) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const bsFmtPct = (v) => (v ?? 0).toFixed(1) + '%';
+
+function BLine({ label, value, sub, indent = 0, bold, positive, negative, muted }) {
+  return (
+    <div className={cn(
+      'flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800/60 last:border-0',
+      indent === 1 && 'pl-4',
+      indent === 2 && 'pl-8',
+    )}>
+      <span className={cn(
+        'text-sm',
+        bold ? 'font-bold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400',
+        muted && 'text-gray-400 dark:text-gray-600 text-xs',
+      )}>
+        {label}
+        {sub && <span className="ml-2 text-[10px] text-gray-400 dark:text-gray-600">({sub})</span>}
+      </span>
+      <span className={cn(
+        'text-sm tabular-nums',
+        bold ? 'font-bold' : 'font-medium',
+        positive && 'text-emerald-600 dark:text-emerald-400',
+        negative && 'text-red-500 dark:text-red-400',
+        !positive && !negative && 'text-gray-800 dark:text-gray-200',
+        muted && 'text-gray-400 dark:text-gray-600 text-xs',
+      )}>
+        {bsFmt(value)}
+      </span>
+    </div>
+  );
+}
+
+function BSSection({ title, icon: Icon, color, children, total, totalLabel, totalPositive, totalNegative }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+      >
+        <div className={cn('p-2 rounded-xl shrink-0', color)}>
+          <Icon size={15} className="text-white" />
+        </div>
+        <span className="font-bold text-sm text-gray-900 dark:text-gray-100 flex-1">{title}</span>
+        {open ? <ChevronDown size={15} className="text-gray-400" /> : <ChevronRight size={15} className="text-gray-400" />}
+      </button>
+      {open && (
+        <div className="px-5 pb-4 border-t border-gray-50 dark:border-gray-800">
+          <div className="pt-3 space-y-0">{children}</div>
+          {totalLabel !== undefined && (
+            <div className={cn(
+              'flex items-center justify-between mt-3 pt-3 border-t-2',
+              totalPositive ? 'border-emerald-200 dark:border-emerald-800/60'
+              : totalNegative ? 'border-red-200 dark:border-red-800/60'
+              : 'border-gray-200 dark:border-gray-700',
+            )}>
+              <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{totalLabel}</span>
+              <span className={cn(
+                'font-extrabold text-base tabular-nums',
+                totalPositive ? 'text-emerald-600 dark:text-emerald-400'
+                : totalNegative ? 'text-red-500 dark:text-red-400'
+                : 'text-gray-900 dark:text-gray-100',
+              )}>
+                {bsFmt(total)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BSKPI({ label, value, icon: Icon, color, note, positive, negative, neutral }) {
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 flex items-start gap-3">
+      <div className={cn('p-2.5 rounded-xl shrink-0 shadow-sm', color)}>
+        <Icon size={16} className="text-white" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">{label}</p>
+        <p className={cn(
+          'text-xl font-extrabold leading-none tabular-nums',
+          positive ? 'text-emerald-600 dark:text-emerald-400'
+          : negative ? 'text-red-500 dark:text-red-400'
+          : 'text-gray-900 dark:text-gray-100',
+        )}>
+          {value}
+        </p>
+        {note && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 italic">{note}</p>}
+      </div>
+    </div>
+  );
+}
+
+function DRECatRow({ label, value, total, isExpense }) {
+  const pct = total > 0 ? (value / total) * 100 : 0;
+  return (
+    <div className="flex items-center gap-3 py-1.5">
+      <div className="w-32 shrink-0">
+        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{label}</p>
+      </div>
+      <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+        <div
+          className={cn('h-full rounded-full', isExpense ? 'bg-red-400 dark:bg-red-500' : 'bg-emerald-400 dark:bg-emerald-500')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-300 w-24 text-right">{bsFmt(value)}</span>
+      <span className="text-[10px] text-gray-400 w-10 text-right">{bsFmtPct(pct)}</span>
+    </div>
+  );
+}
+
+function generateBalancePDF(bsData, startDate, endDate) {
+  const { ativo, passivo, patrimonioLiquido, equacao, dre, indicadores } = bsData;
+  const doc = new jsPDF();
+  const ts = new Date().toLocaleString('pt-BR');
+  const period = startDate && endDate
+    ? `${new Date(startDate + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(endDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
+    : 'Todo o período';
+
+  doc.setFillColor(124, 58, 237);
+  doc.rect(0, 0, 210, 2, 'F');
+  doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
+  doc.text('JubaOS — Balanço Patrimonial', 14, 18);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
+  doc.text(`Período DRE: ${period}`, 14, 26);
+  doc.text(`Gerado em: ${ts}`, 14, 31);
+  doc.setDrawColor(230); doc.setLineWidth(0.3);
+  doc.line(14, 35, 196, 35);
+  doc.setTextColor(0);
+  let y = 41;
+
+  // Equação
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(60);
+  doc.text('EQUAÇÃO CONTÁBIL', 14, y); y += 5;
+  autoTable(doc, {
+    startY: y,
+    head: [['Ativo Total', 'Passivo', 'Patrimônio Líquido', 'Equilibrado?']],
+    body: [[bsFmt(equacao.ativo), bsFmt(passivo.total), bsFmt(patrimonioLiquido.total), equacao.equilibrado ? '✓ Sim' : '⚠ Verificar']],
+    styles: { fontSize: 8, cellPadding: 3 }, headStyles: { fillColor: [40, 40, 40], textColor: [255,255,255], fontSize: 8 },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  // Ativo
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(60);
+  doc.text('ATIVO', 14, y); y += 5;
+  autoTable(doc, {
+    startY: y,
+    head: [['Item', 'Valor']],
+    body: [
+      ['Caixa (Disponibilidades)', bsFmt(ativo.circulante.caixa.valor)],
+      ['Contas a Receber (Comandas abertas)', bsFmt(ativo.circulante.contasAReceber.valor)],
+      ['Estoques', bsFmt(ativo.circulante.estoques.valor)],
+      ['TOTAL DO ATIVO', bsFmt(ativo.total)],
+    ],
+    styles: { fontSize: 8, cellPadding: 3 }, headStyles: { fillColor: [40, 40, 40], textColor: [255,255,255], fontSize: 8 },
+    columnStyles: { 1: { halign: 'right' } },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  // Passivo + PL
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(60);
+  doc.text('PASSIVO E PATRIMÔNIO LÍQUIDO', 14, y); y += 5;
+  autoTable(doc, {
+    startY: y,
+    head: [['Item', 'Valor']],
+    body: [
+      ['Comissões a Pagar', bsFmt(passivo.circulante.comissoesAPagar.valor)],
+      ['TOTAL DO PASSIVO', bsFmt(passivo.total)],
+      ['Patrimônio Líquido (Capital Próprio)', bsFmt(patrimonioLiquido.total)],
+    ],
+    styles: { fontSize: 8, cellPadding: 3 }, headStyles: { fillColor: [40, 40, 40], textColor: [255,255,255], fontSize: 8 },
+    columnStyles: { 1: { halign: 'right' } },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  // DRE
+  if (y > 200) { doc.addPage(); y = 14; }
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(60);
+  doc.text('DRE — DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO', 14, y); y += 5;
+  autoTable(doc, {
+    startY: y,
+    head: [['Métrica', 'Valor']],
+    body: [
+      ['Receita Bruta', bsFmt(dre.receitaBruta)],
+      ['(-) Despesas Totais', bsFmt(dre.despesasTotais)],
+      ['(=) Resultado Líquido', bsFmt(dre.resultadoLiquido)],
+    ],
+    styles: { fontSize: 8, cellPadding: 3 }, headStyles: { fillColor: [40, 40, 40], textColor: [255,255,255], fontSize: 8 },
+    columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  // Indicadores
+  if (y > 230) { doc.addPage(); y = 14; }
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(60);
+  doc.text('INDICADORES FINANCEIROS', 14, y); y += 5;
+  autoTable(doc, {
+    startY: y,
+    head: [['Indicador', 'Valor']],
+    body: [
+      ['Capital de Giro', bsFmt(indicadores.capitalDeGiro)],
+      ['Liquidez Corrente', indicadores.liquidezCorrente !== null ? indicadores.liquidezCorrente.toFixed(2) : '—'],
+      ['Endividamento', bsFmtPct(indicadores.endividamento)],
+      ['Margem Líquida', bsFmtPct(indicadores.margemLiquida)],
+      ['Giro do Ativo', indicadores.giroAtivo !== null ? indicadores.giroAtivo.toFixed(2) + 'x' : '—'],
+    ],
+    styles: { fontSize: 8, cellPadding: 3 }, headStyles: { fillColor: [40, 40, 40], textColor: [255,255,255], fontSize: 8 },
+    columnStyles: { 1: { halign: 'right' } },
+  });
+
+  doc.save(`balanco-patrimonial-${new Date().toLocaleDateString('sv')}.pdf`);
+}
+
+function generateBalanceExcel(bsData, startDate, endDate) {
+  const { ativo, passivo, patrimonioLiquido, equacao, dre, indicadores } = bsData;
+  const wb = XLSX.utils.book_new();
+  const period = startDate && endDate ? `${startDate} a ${endDate}` : 'Todo o período';
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Balanço Patrimonial — JubaOS'],
+    ['Período DRE', period],
+    [],
+    ['ATIVO'],
+    ['Caixa (Disponibilidades)', ativo.circulante.caixa.valor],
+    ['Contas a Receber', ativo.circulante.contasAReceber.valor],
+    ['Estoques', ativo.circulante.estoques.valor],
+    ['TOTAL DO ATIVO', ativo.total],
+    [],
+    ['PASSIVO'],
+    ['Comissões a Pagar', passivo.circulante.comissoesAPagar.valor],
+    ['TOTAL DO PASSIVO', passivo.total],
+    [],
+    ['PATRIMÔNIO LÍQUIDO'],
+    ['Capital Próprio', patrimonioLiquido.total],
+    [],
+    ['DRE'],
+    ['Receita Bruta', dre.receitaBruta],
+    ['Despesas Totais', dre.despesasTotais],
+    ['Resultado Líquido', dre.resultadoLiquido],
+    [],
+    ['INDICADORES'],
+    ['Capital de Giro', indicadores.capitalDeGiro],
+    ['Liquidez Corrente', indicadores.liquidezCorrente ?? '—'],
+    ['Endividamento (%)', indicadores.endividamento],
+    ['Margem Líquida (%)', indicadores.margemLiquida],
+    ['Giro do Ativo', indicadores.giroAtivo ?? '—'],
+  ]), 'Balanço Patrimonial');
+
+  if (dre.receitasPorCategoria?.length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Categoria', 'Receita (R$)'],
+      ...dre.receitasPorCategoria.map(r => [BS_CAT_LABELS[r.category] || r.category, r.total]),
+    ]), 'Receitas por Categoria');
+  }
+  if (dre.despesasPorCategoria?.length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Categoria', 'Despesa (R$)'],
+      ...dre.despesasPorCategoria.map(r => [BS_CAT_LABELS[r.category] || r.category, r.total]),
+    ]), 'Despesas por Categoria');
+  }
+
+  XLSX.writeFile(wb, `balanco-patrimonial-${new Date().toLocaleDateString('sv')}.xlsx`);
+}
+
 // ── Stock Report Tab ──────────────────────────────────────────────────────────
 function StockReportTab({ onDataChange }) {
   const todayStr  = new Date().toLocaleDateString('sv');
@@ -757,10 +1036,27 @@ export default function ReportsPage() {
   const [stockPDF,    setStockPDF]    = useState(null); // { reportData, startDate, endDate }
   const [servicesOpen,     setServicesOpen]     = useState(true);
   const [appointmentsOpen, setAppointmentsOpen] = useState(true);
+  const [serviceSubTab,    setServiceSubTab]    = useState('resumo');
   const [aiUsage,          setAiUsage]          = useState(null);
   const [aiUsageLoading,   setAiUsageLoading]   = useState(false);
   const [aiStartDate,      setAiStartDate]      = useState(firstDay);
   const [aiEndDate,        setAiEndDate]        = useState(today);
+
+  // Balance Sheet state
+  const [bsData,      setBsData]      = useState(null);
+  const [bsLoading,   setBsLoading]   = useState(false);
+  const [bsStart,     setBsStart]     = useState(firstDay);
+  const [bsEnd,       setBsEnd]       = useState(today);
+
+  const loadBalanceSheet = useCallback(async (s, e) => {
+    setBsLoading(true);
+    const params = {};
+    if (s) params.startDate = s;
+    if (e) params.endDate   = e;
+    const r = await Financial.getBalanceSheet(params);
+    setBsLoading(false);
+    if (r.ok) setBsData(r.data.data);
+  }, []);
 
   const loadAiUsage = async (start, end) => {
     setAiUsageLoading(true);
@@ -777,6 +1073,13 @@ export default function ReportsPage() {
     if (activeTab !== 'ia') return;
     if (aiUsage) return; // already loaded
     loadAiUsage(aiStartDate, aiEndDate);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load balance sheet when tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'balanco') return;
+    if (bsData) return;
+    loadBalanceSheet(bsStart, bsEnd);
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close export dropdown on outside click
@@ -834,7 +1137,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Export dropdown */}
-        {((data && activeTab === 'services') || (stockPDF && activeTab === 'stock')) && (
+        {((data && activeTab === 'services') || (stockPDF && activeTab === 'stock') || (bsData && activeTab === 'balanco')) && (
           <div className="relative" ref={exportRef}>
             <Button variant="secondary" onClick={() => setExportOpen(o => !o)} loading={generating || genXlsx}>
               <Download size={15} className="mr-1.5" /> Exportar
@@ -851,6 +1154,7 @@ export default function ReportsPage() {
                     setGenerating(true);
                     try {
                       if (activeTab === 'stock') generateStockPDF(stockPDF);
+                      else if (activeTab === 'balanco') generateBalancePDF(bsData, bsStart, bsEnd);
                       else handleDownload();
                     } finally { setGenerating(false); }
                   }}
@@ -864,6 +1168,7 @@ export default function ReportsPage() {
                     setGenXlsx(true);
                     try {
                       if (activeTab === 'stock') generateStockExcel(stockPDF);
+                      else if (activeTab === 'balanco') generateBalanceExcel(bsData, bsStart, bsEnd);
                       else handleDownloadExcel();
                     } finally { setGenXlsx(false); }
                   }}
@@ -881,6 +1186,7 @@ export default function ReportsPage() {
         {[
           { id: 'services',  label: 'Serviços',   icon: Scissors,  adminOnly: false },
           { id: 'stock',     label: 'Vendas',      icon: Package,   adminOnly: true  },
+          { id: 'balanco',   label: 'Balanço',     icon: Scale,     adminOnly: true  },
           { id: 'ia',        label: 'Recepção IA', icon: Bot,       adminOnly: true  },
         ].filter(t => !t.adminOnly || isAdmin).map(({ id, label, icon: Icon }) => (
           <button
@@ -983,175 +1289,216 @@ export default function ReportsPage() {
 
       {/* ── Tab: Desempenho (Serviços + Gestão Financeira) ───────────────── */}
       {data && activeTab === 'services' && (
-        <div className="space-y-6">
+        <div className="space-y-5">
 
-          {/* KPIs — Admin */}
-          {isAdmin && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              <KpiCard label="Faturamento total" value={fmt(summary.revenue)}
-                icon={DollarSign} color="bg-teal-500" highlight
-                sub={`${summary.completed} serviços concluídos`} />
-              <KpiCard label="Lucro bruto" value={fmt(summary.shopRevenue)}
-                icon={Store} color="bg-violet-500"
-                sub={summary.revenue > 0 ? `${Math.round(summary.shopRevenue / summary.revenue * 100)}% do faturamento` : undefined} />
-              <KpiCard label="Comissão calculada" value={fmt(summary.barberCommission)}
-                icon={Wallet} color="bg-brand-500"
-                sub={summary.revenue > 0 ? `${Math.round(summary.barberCommission / summary.revenue * 100)}% do faturamento` : undefined} />
-              <KpiCard label="Comissão paga" value={fmt(summary.commissionPaid)}
-                icon={TrendingDown} color="bg-emerald-500"
-                sub="Já repassado aos profissionais" />
-              <KpiCard label="Comissão pendente" value={fmt(summary.commissionPending)}
-                icon={TrendingUp} color="bg-amber-500"
-                sub="Aguardando pagamento" />
-              <KpiCard label="Ticket médio" value={summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'}
-                icon={TrendingUp} color="bg-violet-500"
-                note="Valor médio faturado por serviço concluído no período" />
-            </div>
-          )}
+          {/* ── Sub-tab pills ───────────────────────────────────────────────── */}
+          {(() => {
+            const subTabs = [
+              { id: 'resumo',       label: 'Resumo',        icon: BarChart2  },
+              { id: 'atendimentos', label: 'Atendimentos',  icon: Scissors   },
+              ...(isAdmin ? [{ id: 'financeiro', label: 'Financeiro', icon: Wallet }] : []),
+              { id: 'detalhes',     label: 'Detalhes',      icon: Calendar   },
+            ];
+            return (
+              <div className="flex gap-2 flex-wrap">
+                {subTabs.map(st => {
+                  const Icon = st.icon;
+                  const active = serviceSubTab === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      onClick={() => setServiceSubTab(st.id)}
+                      className={cn(
+                        'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
+                        active
+                          ? 'bg-brand-500 text-white border-brand-500 shadow-sm'
+                          : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:text-brand-600 dark:hover:text-brand-400',
+                      )}
+                    >
+                      <Icon size={14} />
+                      {st.label}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
-          {/* KPIs — Barbeiro */}
-          {!isAdmin && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <KpiCard label="Comissão a receber" value={fmt(summary.barberCommission)}
-                icon={Wallet} color="bg-brand-500" highlight
-                sub={`${summary.completed} serviços concluídos`} />
-              <KpiCard label="Ticket médio" value={summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'}
-                icon={TrendingUp} color="bg-violet-500"
-                note="Valor médio faturado por serviço concluído no período" />
-              {summary.completed > 0 && (
-                <KpiCard label="Total gerado" value={fmt(summary.revenue)}
-                  icon={DollarSign} color="bg-teal-500"
-                  sub="Faturamento dos seus serviços" />
+          {/* ── Sub-tab: Resumo ─────────────────────────────────────────────── */}
+          {serviceSubTab === 'resumo' && (
+            <div className="space-y-5">
+              {/* Status breakdown pills */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'Total', value: summary.total, color: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' },
+                  { label: 'Concluídos', value: summary.completed, color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' },
+                  { label: 'Pendentes', value: summary.pending, color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
+                  { label: 'Cancelados', value: summary.cancelled, color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+                  ...(summary.absent > 0 ? [{ label: 'Ausentes', value: summary.absent, color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' }] : []),
+                ].map(({ label, value, color }) => (
+                  <div key={label} className={cn('flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold', color)}>
+                    <span>{label}:</span><strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+
+              {/* KPIs — Admin */}
+              {isAdmin && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <KpiCard label="Faturamento total" value={fmt(summary.revenue)}
+                    icon={DollarSign} color="bg-teal-500" highlight
+                    sub={`${summary.completed} serviços concluídos`} />
+                  <KpiCard label="Lucro bruto" value={fmt(summary.shopRevenue)}
+                    icon={Store} color="bg-violet-500"
+                    sub={summary.revenue > 0 ? `${Math.round(summary.shopRevenue / summary.revenue * 100)}% do faturamento` : undefined} />
+                  <KpiCard label="Comissão calculada" value={fmt(summary.barberCommission)}
+                    icon={Wallet} color="bg-brand-500"
+                    sub={summary.revenue > 0 ? `${Math.round(summary.barberCommission / summary.revenue * 100)}% do faturamento` : undefined} />
+                  <KpiCard label="Comissão paga" value={fmt(summary.commissionPaid)}
+                    icon={TrendingDown} color="bg-emerald-500"
+                    sub="Já repassado aos profissionais" />
+                  <KpiCard label="Comissão pendente" value={fmt(summary.commissionPending)}
+                    icon={TrendingUp} color="bg-amber-500"
+                    sub="Aguardando pagamento" />
+                  <KpiCard label="Ticket médio" value={summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'}
+                    icon={TrendingUp} color="bg-violet-500"
+                    note="Valor médio faturado por serviço concluído no período" />
+                </div>
+              )}
+
+              {/* KPIs — Barbeiro */}
+              {!isAdmin && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <KpiCard label="Comissão a receber" value={fmt(summary.barberCommission)}
+                    icon={Wallet} color="bg-brand-500" highlight
+                    sub={`${summary.completed} serviços concluídos`} />
+                  <KpiCard label="Ticket médio" value={summary.completed > 0 ? fmt(summary.revenue / summary.completed) : '—'}
+                    icon={TrendingUp} color="bg-violet-500"
+                    note="Valor médio faturado por serviço concluído no período" />
+                  {summary.completed > 0 && (
+                    <KpiCard label="Total gerado" value={fmt(summary.revenue)}
+                      icon={DollarSign} color="bg-teal-500"
+                      sub="Faturamento dos seus serviços" />
+                  )}
+                </div>
+              )}
+
+              {/* Timeline */}
+              {timeline.length > 0 && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/20">
+                      <TrendingUp size={15} className="text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {isAdmin ? 'Faturamento por dia' : 'Comissão por dia'}
+                      </h2>
+                      <p className="text-xs text-gray-400 dark:text-gray-600">Evolução diária no período selecionado</p>
+                    </div>
+                    <span className="ml-auto text-xs text-gray-400 hidden sm:block">Passe o mouse para detalhes</span>
+                  </div>
+                  <TimelineChart timeline={timeline} />
+                </div>
               )}
             </div>
           )}
 
-          {/* Serviços — colapsável */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-            <button
-              onClick={() => setServicesOpen(o => !o)}
-              className="flex items-center gap-3 w-full px-6 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-            >
-              <div className="p-2 rounded-xl bg-brand-50 dark:bg-brand-900/20">
-                <Scissors size={15} className="text-brand-600 dark:text-brand-400" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho por Serviço</h2>
-                <p className="text-xs text-gray-400 dark:text-gray-600">Total de atendimentos por serviço</p>
-              </div>
-              <ChevronDown size={16} className={cn('text-gray-400 transition-transform', servicesOpen && 'rotate-180')} />
-            </button>
-            {servicesOpen && (
-              <div className="px-6 pb-6 border-t border-gray-100 dark:border-gray-800 pt-5">
+          {/* ── Sub-tab: Atendimentos ───────────────────────────────────────── */}
+          {serviceSubTab === 'atendimentos' && (
+            <div className="space-y-5">
+              {/* Por serviço */}
+              <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-xl bg-brand-50 dark:bg-brand-900/20">
+                    <Scissors size={15} className="text-brand-600 dark:text-brand-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho por Serviço</h2>
+                    <p className="text-xs text-gray-400 dark:text-gray-600">Total de atendimentos por serviço</p>
+                  </div>
+                </div>
                 {byService.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <BarChart2 size={40} className="text-gray-200 dark:text-gray-700 mb-3" />
                     <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado disponível para o período selecionado.</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Tente ajustar os filtros ou aguarde novos agendamentos.</p>
                   </div>
                 ) : (
                   <HBarChart rows={byService} valueKey="count" labelKey="name" colorClass="bg-brand-500" fmtValue={r => `${r.count} atend.`} />
                 )}
               </div>
-            )}
-          </div>
 
-          {/* By barber chart (admin only) */}
-          {isAdmin && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/20">
-                  <Users size={15} className="text-teal-600 dark:text-teal-400" />
+              {/* Por profissional (admin) */}
+              {isAdmin && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/20">
+                      <Users size={15} className="text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho por Profissional</h2>
+                      <p className="text-xs text-gray-400 dark:text-gray-600">Faturamento gerado por barbeiro</p>
+                    </div>
+                    <span className="ml-auto text-xs text-gray-400 hidden sm:block">Passe o mouse para detalhes</span>
+                  </div>
+                  {byBarber.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <BarChart2 size={40} className="text-gray-200 dark:text-gray-700 mb-3" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado disponível para o período selecionado.</p>
+                    </div>
+                  ) : (
+                    <HBarChart rows={byBarber} valueKey="revenue" labelKey="name" colorClass="bg-teal-500" fmtValue={r => fmt(r.revenue)} />
+                  )}
                 </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Desempenho por Profissional</h2>
-                  <p className="text-xs text-gray-400 dark:text-gray-600">Faturamento gerado por barbeiro</p>
-                </div>
-                <span className="ml-auto text-xs text-gray-400 hidden sm:block">Passe o mouse para detalhes</span>
-              </div>
-              {byBarber.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <BarChart2 size={40} className="text-gray-200 dark:text-gray-700 mb-3" />
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado disponível para o período selecionado.</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Tente ajustar os filtros ou aguarde novos agendamentos.</p>
-                </div>
-              ) : (
-                <HBarChart rows={byBarber} valueKey="revenue" labelKey="name" colorClass="bg-teal-500" fmtValue={r => fmt(r.revenue)} />
               )}
             </div>
           )}
 
-          {/* Comissão a pagar por profissional (admin) */}
-          {isAdmin && byBarber?.length > 0 && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="p-2.5 rounded-2xl bg-brand-500 shrink-0 shadow-sm">
-                  <Wallet size={16} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissão a pagar por profissional</h2>
-                  <p className="text-xs text-gray-400 dark:text-gray-600">Valor a repassar a cada profissional no período</p>
-                </div>
-                <div className="text-right shrink-0 bg-brand-50 dark:bg-brand-900/20 rounded-xl px-3 py-2">
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Total</p>
-                  <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{fmt(summary.barberCommission)}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {[...byBarber].sort((a, b) => b.barberCommission - a.barberCommission).map(b => (
-                  <div key={b.name} className="bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 rounded-xl p-3.5 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-colors">
-                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate mb-1.5">{b.name}</p>
-                    <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{fmt(b.barberCommission)}</p>
-                    <div className="flex gap-2 mt-1.5 flex-wrap">
-                      <span className="text-[10px] text-gray-400 dark:text-gray-600">{b.completed} serv.</span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400">pago {fmt(b.commissionPaid || 0)}</span>
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400">pend. {fmt(b.commissionPending || 0)}</span>
+          {/* ── Sub-tab: Financeiro (admin only) ───────────────────────────── */}
+          {serviceSubTab === 'financeiro' && isAdmin && (
+            <div className="space-y-5">
+              {byBarber?.length === 0 ? (
+                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-16">Nenhum dado financeiro para o período.</p>
+              ) : (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="p-2.5 rounded-2xl bg-brand-500 shrink-0 shadow-sm">
+                      <Wallet size={16} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissão a pagar por profissional</h2>
+                      <p className="text-xs text-gray-400 dark:text-gray-600">Valor a repassar a cada profissional no período</p>
+                    </div>
+                    <div className="text-right shrink-0 bg-brand-50 dark:bg-brand-900/20 rounded-xl px-3 py-2">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Total</p>
+                      <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{fmt(summary.barberCommission)}</p>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {[...byBarber].sort((a, b) => b.barberCommission - a.barberCommission).map(b => (
+                      <div key={b.name} className="bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 rounded-xl p-3.5 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-colors">
+                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate mb-1.5">{b.name}</p>
+                        <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{fmt(b.barberCommission)}</p>
+                        <div className="flex gap-2 mt-1.5 flex-wrap">
+                          <span className="text-[10px] text-gray-400 dark:text-gray-600">{b.completed} serv.</span>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400">pago {fmt(b.commissionPaid || 0)}</span>
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400">pend. {fmt(b.commissionPending || 0)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Revenue timeline */}
-          {timeline.length > 0 && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/20">
-                  <TrendingUp size={15} className="text-teal-600 dark:text-teal-400" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {isAdmin ? 'Faturamento por dia' : 'Comissão por dia'}
-                  </h2>
-                  <p className="text-xs text-gray-400 dark:text-gray-600">Evolução diária no período selecionado</p>
-                </div>
-                <span className="ml-auto text-xs text-gray-400 hidden sm:block">Passe o mouse para detalhes</span>
-              </div>
-              <TimelineChart timeline={timeline} />
-            </div>
-          )}
-
-          {/* Agendamentos — colapsável */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-            <button
-              onClick={() => setAppointmentsOpen(o => !o)}
-              className="flex items-center gap-3 w-full px-6 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-            >
-              <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800">
-                <Calendar size={15} className="text-gray-500 dark:text-gray-400" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Agendamentos</h2>
-                <p className="text-xs text-gray-400 dark:text-gray-600">{list.length} registro{list.length !== 1 ? 's' : ''} no período</p>
-              </div>
-              <ChevronDown size={16} className={cn('text-gray-400 transition-transform', appointmentsOpen && 'rotate-180')} />
-            </button>
-            {appointmentsOpen && (
-              list.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-10 border-t border-gray-100 dark:border-gray-800">Nenhum agendamento no período.</p>
+          {/* ── Sub-tab: Detalhes ───────────────────────────────────────────── */}
+          {serviceSubTab === 'detalhes' && (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+              {list.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-10">Nenhum agendamento no período.</p>
               ) : (
-                <div className="overflow-x-auto border-t border-gray-100 dark:border-gray-800">
+                <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gray-50/80 dark:bg-gray-800/50">
@@ -1213,14 +1560,206 @@ export default function ReportsPage() {
                     </tfoot>
                   </table>
                 </div>
-              )
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Tab: Estoque ─────────────────────────────────────────────────── */}
       {activeTab === 'stock' && isAdmin && <StockReportTab onDataChange={setStockPDF} />}
+
+      {/* ── Tab: Balanço Patrimonial ─────────────────────────────────────── */}
+      {activeTab === 'balanco' && isAdmin && (
+        <div className="space-y-6">
+          {/* Period filter */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-5 py-4">
+            <div className="flex flex-wrap gap-3 items-end">
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <FileText size={11} /> Período da DRE
+                </p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <input type="date" value={bsStart} max={bsEnd}
+                    onChange={e => setBsStart(e.target.value)}
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors" />
+                  <span className="text-gray-400 text-sm">até</span>
+                  <input type="date" value={bsEnd} min={bsStart} max={today}
+                    onChange={e => setBsEnd(e.target.value)}
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors" />
+                  {[
+                    { label: 'Este mês', s: firstDay, e: today },
+                    { label: 'Este ano', s: new Date().getFullYear() + '-01-01', e: today },
+                  ].map(({ label, s, e }) => (
+                    <button key={label} onClick={() => { setBsStart(s); setBsEnd(e); loadBalanceSheet(s, e); }}
+                      className={cn('px-2.5 py-1.5 text-xs rounded-lg border transition-colors',
+                        s === bsStart && e === bsEnd
+                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
+                      )}>
+                      {label}
+                    </button>
+                  ))}
+                  <button onClick={() => loadBalanceSheet(bsStart, bsEnd)} disabled={bsLoading}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-500 hover:text-brand-600 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-brand-300 transition-colors disabled:opacity-40">
+                    <RefreshCw size={12} className={bsLoading ? 'animate-spin' : ''} /> Atualizar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {bsLoading && (
+            <div className="flex justify-center py-16">
+              <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {bsData && !bsLoading && (() => {
+            const { ativo, passivo, patrimonioLiquido, equacao, dre, indicadores } = bsData;
+            const resultadoPositivo = dre.resultadoLiquido >= 0;
+            return (
+              <div className="space-y-6">
+                {/* Equação contábil */}
+                <div className={cn(
+                  'flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm',
+                  equacao.equilibrado
+                    ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-400',
+                )}>
+                  {equacao.equilibrado ? <CheckCircle size={15} className="shrink-0" /> : <AlertCircle size={15} className="shrink-0" />}
+                  <span className="font-medium">
+                    Ativo Total <strong>{bsFmt(equacao.ativo)}</strong>
+                    {' = '}Passivo <strong>{bsFmt(passivo.total)}</strong>
+                    {' + '}Patrimônio Líquido <strong>{bsFmt(patrimonioLiquido.total)}</strong>
+                  </span>
+                  <span className="ml-auto text-xs font-bold">{equacao.equilibrado ? '✓ Equilibrado' : '⚠ Verificar'}</span>
+                </div>
+
+                {/* KPIs */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <BSKPI label="Capital de Giro" value={bsFmt(indicadores.capitalDeGiro)} icon={Wallet} color="bg-brand-500"
+                    positive={indicadores.capitalDeGiro > 0} negative={indicadores.capitalDeGiro < 0} note="Ativo − Passivo Circ." />
+                  <BSKPI label="Liquidez Corrente" value={indicadores.liquidezCorrente !== null ? indicadores.liquidezCorrente.toFixed(2) : '—'}
+                    icon={Scale} color="bg-teal-500"
+                    positive={indicadores.liquidezCorrente > 1} negative={indicadores.liquidezCorrente !== null && indicadores.liquidezCorrente < 1}
+                    note={indicadores.liquidezCorrente > 1 ? 'Solvente' : 'Atenção'} />
+                  <BSKPI label="Endividamento" value={bsFmtPct(indicadores.endividamento)} icon={Landmark}
+                    color={indicadores.endividamento > 50 ? 'bg-red-500' : 'bg-violet-500'}
+                    negative={indicadores.endividamento > 50} positive={indicadores.endividamento <= 30} note="Passivo / Ativo Total" />
+                  <BSKPI label="Margem Líquida" value={bsFmtPct(indicadores.margemLiquida)} icon={TrendingUp}
+                    color={resultadoPositivo ? 'bg-emerald-500' : 'bg-red-500'}
+                    positive={indicadores.margemLiquida > 0} negative={indicadores.margemLiquida < 0} note="Resultado / Receita" />
+                  <BSKPI label="Giro do Ativo" value={indicadores.giroAtivo !== null ? indicadores.giroAtivo.toFixed(2) + 'x' : '—'}
+                    icon={RefreshCw} color="bg-amber-500" note="Receita / Ativo Total" />
+                </div>
+
+                {/* Ativo / Passivo+PL */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <BSSection title="ATIVO" icon={TrendingUp} color="bg-emerald-500" total={ativo.total} totalLabel="TOTAL DO ATIVO" totalPositive>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest py-1">Ativo Circulante</p>
+                    <BLine indent={1} label={ativo.circulante.caixa.label} value={ativo.circulante.caixa.valor} positive={ativo.circulante.caixa.valor > 0} />
+                    <BLine indent={1} label={ativo.circulante.contasAReceber.label} value={ativo.circulante.contasAReceber.valor}
+                      sub={ativo.circulante.contasAReceber.count > 0 ? `${ativo.circulante.contasAReceber.count} comanda(s)` : null}
+                      positive={ativo.circulante.contasAReceber.valor > 0} />
+                    <BLine indent={1} label={ativo.circulante.estoques.label} value={ativo.circulante.estoques.valor}
+                      sub={ativo.circulante.estoques.count > 0 ? `${ativo.circulante.estoques.count} itens` : null}
+                      positive={ativo.circulante.estoques.valor > 0} />
+                    <BLine label="Total Ativo Circulante" value={ativo.totalCirculante} bold positive />
+                    <BLine indent={1} muted label="Ativo Não Circulante (imobilizado)" value={0} />
+                  </BSSection>
+                  <div className="space-y-4">
+                    <BSSection title="PASSIVO" icon={TrendingDown} color="bg-red-500" total={passivo.total} totalLabel="TOTAL DO PASSIVO" totalNegative={passivo.total > 0}>
+                      <p className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest py-1">Passivo Circulante</p>
+                      <BLine indent={1} label={passivo.circulante.comissoesAPagar.label} value={passivo.circulante.comissoesAPagar.valor}
+                        sub={passivo.circulante.comissoesAPagar.count > 0 ? `${passivo.circulante.comissoesAPagar.count} pendente(s)` : null}
+                        negative={passivo.circulante.comissoesAPagar.valor > 0} />
+                      {passivo.mesAtual?.length > 0 && passivo.mesAtual.map(cat => (
+                        <BLine key={cat._id} indent={1} muted label={BS_CAT_LABELS[cat._id] || cat._id} value={cat.total} />
+                      ))}
+                    </BSSection>
+                    <BSSection title="PATRIMÔNIO LÍQUIDO" icon={Landmark} color="bg-brand-500" total={patrimonioLiquido.total} totalLabel="TOTAL DO PATRIMÔNIO LÍQUIDO"
+                      totalPositive={patrimonioLiquido.total >= 0} totalNegative={patrimonioLiquido.total < 0}>
+                      <BLine indent={1} label={patrimonioLiquido.capitalProprio.label} value={patrimonioLiquido.capitalProprio.valor}
+                        positive={patrimonioLiquido.capitalProprio.valor >= 0} negative={patrimonioLiquido.capitalProprio.valor < 0} />
+                      <BLine indent={2} muted label="= Ativo Total − Passivo Total" value={patrimonioLiquido.total} />
+                    </BSSection>
+                  </div>
+                </div>
+
+                {/* DRE */}
+                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-50 dark:border-gray-800 flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-violet-500 shrink-0"><BarChart2 size={15} className="text-white" /></div>
+                    <div>
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100">DRE — Demonstração do Resultado do Exercício</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                        {dre.periodo.startDate && dre.periodo.endDate
+                          ? `${new Date(dre.periodo.startDate + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dre.periodo.endDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
+                          : 'Todo o período'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800/40">
+                        <div className="flex items-center gap-1.5 mb-1"><ArrowUpRight size={13} className="text-emerald-500" />
+                          <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Receita Bruta</p>
+                        </div>
+                        <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{bsFmt(dre.receitaBruta)}</p>
+                      </div>
+                      <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-4 border border-red-100 dark:border-red-800/40">
+                        <div className="flex items-center gap-1.5 mb-1"><ArrowDownRight size={13} className="text-red-500" />
+                          <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Despesas Totais</p>
+                        </div>
+                        <p className="text-xl font-extrabold text-red-500 dark:text-red-400 tabular-nums">{bsFmt(dre.despesasTotais)}</p>
+                      </div>
+                      <div className={cn('rounded-xl p-4 border', resultadoPositivo ? 'bg-brand-50 dark:bg-brand-900/10 border-brand-100 dark:border-brand-800/40' : 'bg-gray-50 dark:bg-gray-800/40 border-gray-100 dark:border-gray-700')}>
+                        <div className="flex items-center gap-1.5 mb-1"><CircleDollarSign size={13} className={resultadoPositivo ? 'text-brand-500' : 'text-gray-400'} />
+                          <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Resultado Líquido</p>
+                        </div>
+                        <p className={cn('text-xl font-extrabold tabular-nums', resultadoPositivo ? 'text-brand-600 dark:text-brand-400' : 'text-red-500 dark:text-red-400')}>
+                          {bsFmt(dre.resultadoLiquido)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {dre.receitasPorCategoria?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <ArrowUpRight size={13} className="text-emerald-500" /> Receitas por categoria
+                          </p>
+                          <div className="space-y-1">
+                            {dre.receitasPorCategoria.map(r => (
+                              <DRECatRow key={r.category} label={BS_CAT_LABELS[r.category] || r.category} value={r.total} total={dre.receitaBruta} isExpense={false} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {dre.despesasPorCategoria?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <ArrowDownRight size={13} className="text-red-500" /> Despesas por categoria
+                          </p>
+                          <div className="space-y-1">
+                            {dre.despesasPorCategoria.map(r => (
+                              <DRECatRow key={r.category} label={BS_CAT_LABELS[r.category] || r.category} value={r.total} total={dre.despesasTotais} isExpense />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-start gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl text-[11px] text-gray-400 dark:text-gray-500">
+                      <Info size={12} className="shrink-0 mt-0.5" />
+                      <p>O Balanço reflete a posição atual: disponibilidades em caixa, contas a receber (comandas abertas) e estoques no ativo; comissões pendentes no passivo. A DRE demonstra o resultado do período filtrado.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* ── Tab: Recepção IA ─────────────────────────────────────────────── */}
       {activeTab === 'ia' && isAdmin && (

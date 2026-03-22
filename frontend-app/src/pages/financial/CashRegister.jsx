@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Financial } from '../../utils/api';
+import { Financial, Products } from '../../utils/api';
 import {
   Wallet, DoorOpen, DoorClosed, ArrowUpRight, ArrowDownRight,
-  Plus, Banknote, CreditCard, Smartphone, Receipt, X,
-  TrendingUp, TrendingDown, Clock, ChevronDown,
+  Banknote, CreditCard, Smartphone, Receipt, X,
+  TrendingUp, TrendingDown, Clock, ChevronDown, Pencil, Trash2, Percent,
 } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import { cn } from '../../utils/cn';
@@ -11,6 +11,17 @@ import { cn } from '../../utils/cn';
 const fmt = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtTime = (d) => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 const fmtDate = (d) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+// ── Taxas padrão por método (%) ───────────────────────────────────────────────
+const DEFAULT_FEES = { dinheiro: 0, pix: 0, debito: 1.5, credito: 2.99, outro: 0 };
+
+function loadFees() {
+  try { return { ...DEFAULT_FEES, ...JSON.parse(localStorage.getItem('cashregister_fees') || '{}') }; }
+  catch { return DEFAULT_FEES; }
+}
+function saveFees(fees) {
+  try { localStorage.setItem('cashregister_fees', JSON.stringify(fees)); } catch {}
+}
 
 // ── Métodos de pagamento ─────────────────────────────────────────────────────
 const PAYMENT_METHODS = [
@@ -30,10 +41,9 @@ const PM_COLORS = {
 };
 
 const CATEGORIES_IN = [
-  { key: 'servico',     label: 'Serviço' },
+  // 'servico' e 'comanda' existem no modelo mas não são exibidas manualmente
   { key: 'produto',     label: 'Produto' },
   { key: 'gorjeta',     label: 'Gorjeta' },
-  { key: 'comanda',     label: 'Comanda' },
   { key: 'outros',      label: 'Outros' },
 ];
 
@@ -55,33 +65,117 @@ const CATEGORIES_OUT = [
   { key: 'outros',      label: 'Outros' },
 ];
 
+// ── Modal de configuração de taxas ────────────────────────────────────────────
+function FeeSettingsModal({ onClose }) {
+  const [fees, setFees] = useState(loadFees);
+  const set = k => e => setFees(f => ({ ...f, [k]: parseFloat(e.target.value) || 0 }));
+  const handleSave = () => { saveFees(fees); toast('Taxas salvas!', 'success'); onClose(); };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between bg-gray-800 dark:bg-gray-950">
+          <div className="flex items-center gap-2">
+            <Percent size={16} className="text-white" />
+            <p className="text-white font-bold text-sm">Taxas por forma de pagamento</p>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white"><X size={16} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          {PAYMENT_METHODS.map(pm => (
+            <div key={pm.key} className="flex items-center gap-3">
+              <pm.icon size={14} className="text-gray-400 shrink-0" />
+              <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{pm.label}</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number" min="0" max="100" step="0.01"
+                  value={fees[pm.key] ?? 0}
+                  onChange={set(pm.key)}
+                  className="w-20 px-2 py-1.5 text-sm text-right border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:border-brand-500 outline-none"
+                />
+                <span className="text-sm text-gray-400">%</span>
+              </div>
+            </div>
+          ))}
+          <div className="flex gap-2 pt-2">
+            <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
+            <button onClick={handleSave} className="flex-1 py-2 rounded-xl text-sm font-bold bg-brand-500 hover:bg-brand-600 text-white transition-colors">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Modal de movimentação ─────────────────────────────────────────────────────
 function MovimentacaoModal({ type, cashId, onSuccess, onClose }) {
   const [amount,        setAmount]        = useState('');
   const [description,   setDescription]   = useState('');
   const [paymentMethod, setPaymentMethod] = useState('dinheiro');
-  const [category,      setCategory]      = useState('');
+  const [category,      setCategory]      = useState(type === 'entrada' ? 'produto' : '');
   const [saving,        setSaving]        = useState(false);
 
-  const cats = type === 'entrada' ? CATEGORIES_IN : CATEGORIES_OUT;
+  // Produto
+  const [products,    setProducts]    = useState([]);
+  const [selectedProd,setSelectedProd]= useState(null); // product object
+  const [qty,         setQty]         = useState(1);
+
+  const cats      = type === 'entrada' ? CATEGORIES_IN : CATEGORIES_OUT;
   const isEntrada = type === 'entrada';
+  const isProd    = isEntrada && category === 'produto';
+
+  // Carrega produtos quando selecionar categoria produto
+  useEffect(() => {
+    if (!isProd || products.length) return;
+    Products.getAll({ limit: 200 }).then(r => {
+      if (r.ok) setProducts(r.data?.data?.products || r.data?.data || []);
+    });
+  }, [isProd]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ao selecionar produto, preenche valor e descrição automaticamente
+  const handleSelectProd = p => {
+    setSelectedProd(p);
+    setAmount(String(p.salePrice || p.price || ''));
+    setDescription(p.name);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const val = parseFloat(amount.replace(',', '.'));
+    const val = parseFloat(String(amount).replace(',', '.'));
     if (!val || val <= 0) { toast('Informe um valor válido.', 'error'); return; }
+    if (isProd && !selectedProd) { toast('Selecione um produto.', 'error'); return; }
+    if (isProd && qty < 1)       { toast('Quantidade inválida.', 'error'); return; }
+
     setSaving(true);
+
+    // 1. Registra transação
     const r = await Financial.createTransaction({
       type,
-      amount: val,
+      amount: val * (isProd ? qty : 1),
       description: description.trim() || undefined,
       paymentMethod,
       category: category || 'outros',
       cashRegister: cashId,
     });
+
+    if (!r.ok) {
+      setSaving(false);
+      toast(r.data?.message || 'Erro ao registrar.', 'error');
+      return;
+    }
+
+    // 2. Subtrai estoque se for produto
+    if (isProd && selectedProd) {
+      await Products.addMovement(selectedProd._id, {
+        type: 'saida',
+        quantity: qty,
+        reason: `Venda — caixa`,
+      });
+    }
+
     setSaving(false);
-    if (r.ok) { toast(isEntrada ? 'Entrada registrada!' : 'Saída registrada!', 'success'); onSuccess(); }
-    else toast(r.data?.message || 'Erro ao registrar.', 'error');
+    toast(isEntrada ? 'Entrada registrada!' : 'Saída registrada!', 'success');
+    onSuccess();
   };
 
   return (
@@ -101,6 +195,51 @@ function MovimentacaoModal({ type, cashId, onSuccess, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+
+          {/* Categoria */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Categoria</label>
+            <select
+              value={category} onChange={e => { setCategory(e.target.value); setSelectedProd(null); setAmount(''); }}
+              className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-brand-500 outline-none transition-colors"
+            >
+              <option value="">Selecionar categoria</option>
+              {cats.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+
+          {/* Seletor de produto (só quando categoria = produto) */}
+          {isProd && (
+            <div className="space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Produto</label>
+                <select
+                  value={selectedProd?._id || ''}
+                  onChange={e => {
+                    const p = products.find(x => x._id === e.target.value);
+                    if (p) handleSelectProd(p);
+                    else setSelectedProd(null);
+                  }}
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-brand-500 outline-none transition-colors"
+                >
+                  <option value="">Selecionar produto</option>
+                  {products.map(p => (
+                    <option key={p._id} value={p._id}>
+                      {p.name} — estoque: {p.quantity ?? 0} {p.unit || 'un'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Quantidade</label>
+                <input
+                  type="number" min="1" step="1"
+                  value={qty} onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-brand-500 outline-none transition-colors"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Valor */}
           <div>
@@ -125,32 +264,17 @@ function MovimentacaoModal({ type, cashId, onSuccess, onClose }) {
                 const selected = paymentMethod === pm.key;
                 const Icon = pm.icon;
                 return (
-                  <button
-                    key={pm.key} type="button"
-                    onClick={() => setPaymentMethod(pm.key)}
+                  <button key={pm.key} type="button" onClick={() => setPaymentMethod(pm.key)}
                     className={cn(
                       'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all text-center',
                       selected ? `${c.bg} ${c.border} ${c.text}` : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
-                    )}
-                  >
+                    )}>
                     <Icon size={16} className={selected ? c.icon : ''} />
                     <span className="text-[10px] font-semibold leading-none">{pm.label}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          {/* Categoria */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Categoria</label>
-            <select
-              value={category} onChange={e => setCategory(e.target.value)}
-              className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-brand-500 outline-none transition-colors"
-            >
-              <option value="">Selecionar categoria</option>
-              {cats.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
           </div>
 
           {/* Descrição */}
@@ -184,6 +308,106 @@ function MovimentacaoModal({ type, cashId, onSuccess, onClose }) {
   );
 }
 
+// ── Modal de edição de transação ──────────────────────────────────────────────
+function EditTransactionModal({ txn, onSuccess, onClose }) {
+  const [amount,        setAmount]        = useState(String(txn.amount));
+  const [description,   setDescription]   = useState(txn.description || '');
+  const [paymentMethod, setPaymentMethod] = useState(txn.paymentMethod || 'dinheiro');
+  const [category,      setCategory]      = useState(txn.category || '');
+  const [saving,        setSaving]        = useState(false);
+
+  const cats = txn.type === 'entrada' ? CATEGORIES_IN : CATEGORIES_OUT;
+  const isEntrada = txn.type === 'entrada';
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const val = parseFloat(String(amount).replace(',', '.'));
+    if (!val || val <= 0) { toast('Informe um valor válido.', 'error'); return; }
+    setSaving(true);
+    const r = await Financial.updateTransaction(txn._id, {
+      amount: val,
+      description: description.trim() || undefined,
+      paymentMethod,
+      category: category || 'outros',
+    });
+    setSaving(false);
+    if (r.ok) { toast('Movimentação atualizada!', 'success'); onSuccess(); }
+    else toast(r.data?.message || 'Erro ao atualizar.', 'error');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div className={cn('px-5 py-4 flex items-center justify-between', isEntrada ? 'bg-emerald-500' : 'bg-red-500')}>
+          <div className="flex items-center gap-3">
+            <Pencil size={18} className="text-white" />
+            <p className="text-white font-bold text-base">Editar {isEntrada ? 'Entrada' : 'Saída'}</p>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white transition-colors"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Valor</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">R$</span>
+              <input
+                type="number" step="0.01" min="0.01" required
+                value={amount} onChange={e => setAmount(e.target.value)}
+                className="w-full pl-9 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-base font-bold text-gray-900 dark:text-white focus:border-brand-500 dark:focus:border-brand-400 outline-none transition-colors"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Forma de pagamento</label>
+            <div className="grid grid-cols-5 gap-2">
+              {PAYMENT_METHODS.map(pm => {
+                const c = PM_COLORS[pm.color];
+                const selected = paymentMethod === pm.key;
+                const Icon = pm.icon;
+                return (
+                  <button key={pm.key} type="button" onClick={() => setPaymentMethod(pm.key)}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all text-center',
+                      selected ? `${c.bg} ${c.border} ${c.text}` : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
+                    )}>
+                    <Icon size={16} className={selected ? c.icon : ''} />
+                    <span className="text-[10px] font-semibold leading-none">{pm.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Categoria</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-brand-500 outline-none transition-colors">
+              <option value="">Selecionar categoria</option>
+              {cats.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Descrição <span className="normal-case text-gray-400 font-normal">(opcional)</span></label>
+            <input type="text" maxLength={120} value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="Ex: Corte + barba — João"
+              className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-brand-500 outline-none transition-colors"
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className={cn('flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50', isEntrada ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600')}>
+              {saving ? 'Salvando...' : 'Salvar alterações'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Badge método de pagamento ─────────────────────────────────────────────────
 function PmBadge({ method }) {
   const pm = PAYMENT_METHODS.find(p => p.key === method) || PAYMENT_METHODS[4];
@@ -199,10 +423,13 @@ function PmBadge({ method }) {
 
 // ── Resumo por método de pagamento ───────────────────────────────────────────
 function PmSummaryBar({ txns }) {
+  const fees = loadFees();
   const byMethod = PAYMENT_METHODS.map(pm => {
-    const entradas = txns.filter(t => t.type === 'entrada' && t.paymentMethod === pm.key).reduce((s, t) => s + t.amount, 0);
-    const saidas   = txns.filter(t => t.type === 'saida'   && t.paymentMethod === pm.key).reduce((s, t) => s + t.amount, 0);
-    return { ...pm, entradas, saidas, total: entradas - saidas };
+    const entTxns  = txns.filter(t => t.type === 'entrada' && t.paymentMethod === pm.key);
+    const entradas = entTxns.reduce((s, t) => s + t.amount, 0);
+    const feeTotal = entTxns.reduce((s, t) => s + (t.feeAmount || t.amount * ((fees[pm.key] || 0) / 100)), 0);
+    const saidas   = txns.filter(t => t.type === 'saida' && t.paymentMethod === pm.key).reduce((s, t) => s + t.amount, 0);
+    return { ...pm, entradas, feeTotal, liquido: entradas - feeTotal, saidas };
   }).filter(pm => pm.entradas > 0 || pm.saidas > 0);
 
   if (byMethod.length === 0) return null;
@@ -217,8 +444,12 @@ function PmSummaryBar({ txns }) {
             <div className={cn('flex items-center gap-1.5 text-xs font-semibold', c.text)}>
               <Icon size={12} />{pm.label}
             </div>
-            {pm.entradas > 0 && <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">+{fmt(pm.entradas)}</p>}
-            {pm.saidas   > 0 && <p className="text-[11px] text-red-500 dark:text-red-400 font-medium">−{fmt(pm.saidas)}</p>}
+            {pm.entradas > 0 && <>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Bruto: {fmt(pm.entradas)}</p>
+              {pm.feeTotal > 0 && <p className="text-[11px] text-red-500 dark:text-red-400">Taxa: − {fmt(pm.feeTotal)}</p>}
+              {pm.feeTotal > 0 && <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold">Líq.: {fmt(pm.liquido)}</p>}
+            </>}
+            {pm.saidas > 0 && <p className="text-[11px] text-red-500 dark:text-red-400 font-medium">−{fmt(pm.saidas)}</p>}
           </div>
         );
       })}
@@ -235,8 +466,10 @@ export default function CashRegister() {
   const [closeBal,    setCloseBal]    = useState('');
   const [acting,      setActing]      = useState(false);
   const [modal,       setModal]       = useState(null); // 'entrada' | 'saida' | null
+  const [editTxn,     setEditTxn]     = useState(null);
   const [showTxns,    setShowTxns]    = useState(true);
   const [closingMode, setClosingMode] = useState(false);
+  const [showFees,    setShowFees]    = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -272,6 +505,14 @@ export default function CashRegister() {
   };
 
   const afterMovimentacao = () => { setModal(null); load(); };
+  const afterEdit = () => { setEditTxn(null); load(); };
+
+  const handleDeleteTxn = async (id) => {
+    if (!window.confirm('Remover esta movimentação?')) return;
+    const r = await Financial.deleteTransaction(id);
+    if (r.ok) { toast('Movimentação removida.', 'success'); load(); }
+    else toast(r.data?.message || 'Erro ao remover.', 'error');
+  };
 
   // ── Loading
   if (loading) {
@@ -315,13 +556,18 @@ export default function CashRegister() {
   }
 
   // ── Totais do caixa atual
+  const fees          = loadFees();
   const totalEntradas = txns.filter(t => t.type === 'entrada').reduce((s, t) => s + t.amount, 0);
   const totalSaidas   = txns.filter(t => t.type === 'saida').reduce((s, t) => s + t.amount, 0);
-  const saldoAtual    = (cash.openingBalance || 0) + totalEntradas - totalSaidas;
+  const totalTaxas    = txns
+    .filter(t => t.type === 'entrada')
+    .reduce((s, t) => s + t.amount * ((fees[t.paymentMethod] || 0) / 100), 0);
+  const saldoBruto    = (cash.openingBalance || 0) + totalEntradas - totalSaidas;
+  const saldoLiquido  = (cash.openingBalance || 0) + (totalEntradas - totalTaxas) - totalSaidas;
 
   return (
     <>
-      {/* Modal de movimentação */}
+      {/* Modais */}
       {modal && (
         <MovimentacaoModal
           type={modal}
@@ -330,6 +576,14 @@ export default function CashRegister() {
           onClose={() => setModal(null)}
         />
       )}
+      {editTxn && (
+        <EditTransactionModal
+          txn={editTxn}
+          onSuccess={afterEdit}
+          onClose={() => setEditTxn(null)}
+        />
+      )}
+      {showFees && <FeeSettingsModal onClose={() => setShowFees(false)} />}
 
       <div className="space-y-4">
 
@@ -362,7 +616,7 @@ export default function CashRegister() {
           </div>
 
           {/* KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
             <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
               <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">Abertura</p>
               <p className="text-base font-bold text-gray-700 dark:text-gray-300">{fmt(cash.openingBalance)}</p>
@@ -375,9 +629,19 @@ export default function CashRegister() {
               <p className="text-[11px] text-red-500 dark:text-red-400 mb-1 flex items-center justify-center gap-1"><TrendingDown size={10} /> Saídas</p>
               <p className="text-base font-bold text-red-600 dark:text-red-400">{fmt(totalSaidas)}</p>
             </div>
-            <div className={cn('rounded-xl p-3 text-center', saldoAtual >= 0 ? 'bg-brand-50 dark:bg-brand-900/20' : 'bg-red-50 dark:bg-red-900/20')}>
-              <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">Saldo atual</p>
-              <p className={cn('text-base font-bold', saldoAtual >= 0 ? 'text-brand-700 dark:text-brand-400' : 'text-red-600 dark:text-red-400')}>{fmt(saldoAtual)}</p>
+            {totalTaxas > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-900/15 rounded-xl p-3 text-center">
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-1 flex items-center justify-center gap-1"><Percent size={10} /> Taxas</p>
+                <p className="text-base font-bold text-amber-700 dark:text-amber-400">− {fmt(totalTaxas)}</p>
+              </div>
+            )}
+            <div className={cn('rounded-xl p-3 text-center', saldoBruto >= 0 ? 'bg-brand-50 dark:bg-brand-900/20' : 'bg-red-50 dark:bg-red-900/20')}>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">Saldo Bruto</p>
+              <p className={cn('text-base font-bold', saldoBruto >= 0 ? 'text-brand-700 dark:text-brand-400' : 'text-red-600 dark:text-red-400')}>{fmt(saldoBruto)}</p>
+            </div>
+            <div className={cn('rounded-xl p-3 text-center', saldoLiquido >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-red-50 dark:bg-red-900/20')}>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mb-1">Saldo Líquido</p>
+              <p className={cn('text-base font-bold', saldoLiquido >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{fmt(saldoLiquido)}</p>
             </div>
           </div>
 
@@ -480,9 +744,19 @@ export default function CashRegister() {
                           </div>
                         </div>
                       </div>
-                      <p className={cn('text-sm font-bold shrink-0', t.type === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400')}>
-                        {t.type === 'entrada' ? '+' : '−'}{fmt(t.amount)}
-                      </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <p className={cn('text-sm font-bold', t.type === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400')}>
+                          {t.type === 'entrada' ? '+' : '−'}{fmt(t.amount)}
+                        </p>
+                        <button onClick={() => setEditTxn(t)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => handleDeleteTxn(t._id)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
