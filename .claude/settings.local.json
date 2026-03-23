@@ -17,7 +17,10 @@
       "Bash(node -e \":*)",
       "Bash(find /c/Users/vinic/Desktop/barberapp/barberapp -name Dockerfile -o -name docker-compose* -o -name *.conf -o -name .github -type d)",
       "Bash(ls -la /c/Users/vinic/Desktop/barberapp/barberapp/backend/.docker*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(grep -l \"Star\\\\|Brain\\\\|Activity\\\\|Repeat\\\\|UserCheck\\\\|Scissors\\\\|ShoppingBag\\\\|CreditCard\\\\|ArrowUpRight\\\\|ArrowDownLeft\\\\|Percent\\\\|Clock\" *.jsx)",
+      "Bash(node -e \"require\\(''./node_modules/jspdf''\\); require\\(''./node_modules/jspdf-autotable''\\); require\\(''./node_modules/xlsx''\\)\")",
+      "Bash(grep -rn \"useFilters\\\\|from ''./ReportsIndex''\\\\|from ''../reports/ReportsIndex''\" \"c:/Users/vinic/Desktop/barberapp/barberapp/frontend-app/src/\")"
     ]
   }
 }

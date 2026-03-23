@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  ArrowLeft, Zap, Star, Crown, Check, Shield, MessageSquare,
+  Zap, Star, Crown, Check, Shield, MessageSquare,
   Sparkles, Users, BarChart3, Headphones, X, CheckCircle,
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
@@ -378,7 +378,7 @@ function PlanSelectionContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div>
       {/* Modal de confirmação */}
       {confirmingPlan && (
         <ConfirmModal
@@ -390,75 +390,59 @@ function PlanSelectionContent() {
         />
       )}
 
-      {/* Top bar */}
-      <div className="sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-gray-800">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          >
-            <ArrowLeft size={16} /> Voltar
-          </button>
-          <span className="text-gray-200 dark:text-gray-700">|</span>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Escolher plano</p>
+      {/* Header dentro do layout de settings */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium">
+            <Sparkles size={11} /> Escolher plano
+          </div>
         </div>
+        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">Planos disponíveis</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Cobrança recorrente mensal. Cancele a qualquer momento. Sem fidelidade.
+        </p>
       </div>
 
-      {/* Hero */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-4">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium mb-4">
-            <Sparkles size={12} /> Potencialize sua barbearia
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
-            Escolha o plano ideal
-          </h1>
-          <p className="text-lg text-gray-500 dark:text-gray-400 mt-3 max-w-xl mx-auto">
-            Cobranca recorrente mensal. Cancele a qualquer momento. Sem fidelidade.
+      {!hasCard && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            Cadastre um cartão na página de{' '}
+            <button onClick={() => navigate('/settings/billing')} className="underline font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition-colors">
+              cobrança
+            </button>{' '}
+            antes de assinar.
           </p>
         </div>
+      )}
 
-        {!hasCard && (
-          <div className="mb-8 max-w-lg mx-auto p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 text-center">
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              Cadastre um cartao na pagina de{' '}
-              <button onClick={() => navigate('/settings/billing')} className="underline font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition-colors">
-                cobranca
-              </button>{' '}
-              antes de assinar.
-            </p>
-          </div>
-        )}
+      {/* Plans grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+        {PLANS.map(plan => (
+          <PlanCard
+            key={plan.key}
+            plan={plan}
+            currentPlan={currentPlan}
+            paying={paying}
+            onSelect={handleSelect}
+            hasCard={hasCard}
+            isPopular={plan.key === 'professional'}
+          />
+        ))}
+      </div>
 
-        {/* Plans grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
-          {PLANS.map(plan => (
-            <PlanCard
-              key={plan.key}
-              plan={plan}
-              currentPlan={currentPlan}
-              paying={paying}
-              onSelect={handleSelect}
-              hasCard={hasCard}
-              isPopular={plan.key === 'professional'}
-            />
-          ))}
+      {/* Trust bar */}
+      <div className="flex flex-wrap items-center gap-6 mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+          <Shield size={14} className="text-green-500" />
+          Pagamentos seguros via Stripe
         </div>
-
-        {/* Trust bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-12 pb-8">
-          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
-            <Shield size={15} className="text-green-500" />
-            Pagamentos seguros via Stripe
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
-            <BarChart3 size={15} className="text-brand-500" />
-            IA com Gemini Flash-Lite
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
-            <Headphones size={15} className="text-violet-500" />
-            Suporte em portugues
-          </div>
+        <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+          <BarChart3 size={14} className="text-brand-500" />
+          IA com Gemini Flash-Lite
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+          <Headphones size={14} className="text-violet-500" />
+          Suporte em português
         </div>
       </div>
     </div>

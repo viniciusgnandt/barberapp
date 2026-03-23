@@ -97,7 +97,7 @@ function EmployeeModal({ open, onClose, shopId, roles, onCreated }) {
     >
       <div className="space-y-4">
         <Input label="Nome completo" required value={form.name}     onChange={set('name')}     placeholder="Ex: Carlos Silva" />
-        <Input label="E-mail"        required value={form.email}    onChange={set('email')}    placeholder="carlos@barbearia.com" type="email" />
+        <Input label="E-mail"        required value={form.email}    onChange={set('email')}    placeholder="carlos@estabelecimento.com" type="email" />
         <Input label="Senha"         required value={form.password} onChange={set('password')} placeholder="Mínimo 6 caracteres" type="password" autoComplete="new-password" />
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Função</label>

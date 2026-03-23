@@ -148,6 +148,17 @@ export const Reports = {
     const qs = new URLSearchParams(params).toString();
     return request(`/reports${qs ? '?' + qs : ''}`);
   },
+  getFilters:       ()       => request('/reports/filters'),
+  getOverview:      (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/overview?${qs}`); },
+  getServices:      (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/services?${qs}`); },
+  getSales:         (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/sales?${qs}`); },
+  getFinancial:     (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/financial?${qs}`); },
+  getProfessionals: (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/professionals?${qs}`); },
+  getAgenda:        (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/agenda?${qs}`); },
+  getClients:       (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/clients?${qs}`); },
+  getStock:         (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/stock?${qs}`); },
+  getReception:     (params) => { const qs = new URLSearchParams(params).toString(); return request(`/reports/reception?${qs}`); },
+  postCustom:       (data)   => request('/reports/custom', { method: 'POST', body: data }),
 };
 
 // ── Products / Stock ───────────────────────────────────────────────────────────

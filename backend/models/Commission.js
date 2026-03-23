@@ -15,6 +15,7 @@ const commissionSchema = new mongoose.Schema({
   status:           { type: String, enum: ['pendente', 'pago'], default: 'pendente' },
   paidAt:           { type: Date },
   paidBy:           { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  paymentMethod:    { type: String, enum: ['dinheiro', 'pix', 'debito', 'credito', 'outro'] },
   discount:         { type: Number, default: 0 },
   discountReason:   { type: String, trim: true },
 }, { timestamps: true });

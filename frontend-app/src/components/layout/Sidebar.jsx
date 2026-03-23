@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Scissors, LogOut,
   Camera, ChevronUp, Check,
-  BarChart2, TrendingUp, Settings, Boxes,
+  BarChart2, Settings, Boxes,
   PanelLeftClose, PanelLeftOpen, UserRound, Bot, Wallet,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -29,8 +29,7 @@ const NAV_FINANCIAL = [
 ];
 
 const NAV_ANALYTICS = [
-  { to: '/reports',  icon: BarChart2,  label: 'Relatórios' },
-  { to: '/business', icon: TrendingUp, label: 'Desempenho'  },
+  { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },
 ];
 
 const NAV_AI = [
@@ -207,7 +206,7 @@ export default function Sidebar() {
           )}
           {collapsed && <div className="my-3 border-t border-gray-100 dark:border-gray-800" />}
           <div className="space-y-1">
-            {NAV_ANALYTICS.map(({ to, icon: Icon, label }) => (
+            {NAV_ANALYTICS.filter(n => !n.adminOnly || isAdmin).map(({ to, icon: Icon, label }) => (
               <NavLink key={to} to={to} title={collapsed ? label : undefined}
                 className={({ isActive }) => navLinkClass(isActive, collapsed)}>
                 <Icon size={16} className="shrink-0" />

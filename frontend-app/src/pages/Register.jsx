@@ -297,7 +297,7 @@ export default function Register() {
                     </select>
                   </div>
 
-                  <Input label="Nome do estabelecimento" placeholder="Ex: Barbearia do João" value={form.barbershopName} onChange={set('barbershopName')} />
+                  <Input label="Nome do estabelecimento" placeholder="Ex: Estabelecimento do João" value={form.barbershopName} onChange={set('barbershopName')} />
 
                   <div className="grid grid-cols-2 gap-3">
                     <Input label="Telefone" placeholder="(11) 99999-9999" value={form.phone} onChange={set('phone')} />

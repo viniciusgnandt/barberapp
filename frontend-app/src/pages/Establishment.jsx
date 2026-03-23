@@ -111,7 +111,7 @@ function InfoTab({ shop, onSaved }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input label="Nome do estabelecimento" required value={form.name} onChange={set('name')} placeholder="Ex: Barbearia do João" className="sm:col-span-2" />
+        <Input label="Nome do estabelecimento" required value={form.name} onChange={set('name')} placeholder="Ex: Estabelecimento do João" className="sm:col-span-2" />
 
         {/* Tipo de estabelecimento */}
         <div className="sm:col-span-2 space-y-1.5">
@@ -127,7 +127,7 @@ function InfoTab({ shop, onSaved }) {
           </select>
         </div>
 
-        <Input label="E-mail" required value={form.email} onChange={set('email')} placeholder="contato@barbearia.com" type="email" />
+        <Input label="E-mail" required value={form.email} onChange={set('email')} placeholder="contato@estabelecimento.com" type="email" />
         <Input label="Telefone"            value={form.phone}    onChange={set('phone')}   placeholder="(11) 99999-9999" />
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -284,7 +284,7 @@ export default function Establishment() {
     <div className="space-y-6 animate-fade-up">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Estabelecimento</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie as informações da sua barbearia</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie as informações do seu estabelecimento</p>
       </div>
 
       <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">

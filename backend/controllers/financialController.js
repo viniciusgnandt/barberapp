@@ -257,7 +257,7 @@ const payCommission = async (req, res) => {
 
     const result = await Commission.updateMany(
       { _id: { $in: commissionIds }, barbershop: shopId(req), status: 'pendente' },
-      { $set: { status: 'pago', paidAt: new Date(), paidBy: req.user._id, discount, discountReason } },
+      { $set: { status: 'pago', paidAt: new Date(), paidBy: req.user._id, paymentMethod: req.body.paymentMethod || 'dinheiro', discount, discountReason } },
     );
 
     // Record as transaction — one entry per barber

@@ -1,4 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Component } from 'react';
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ padding: 32, fontFamily: 'monospace', background: '#1a1a2e', color: '#e2e8f0', minHeight: '100vh' }}>
+        <h2 style={{ color: '#f87171', marginBottom: 16 }}>Erro de Renderização</h2>
+        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{this.state.error?.message}{'\n\n'}{this.state.error?.stack}</pre>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ClientAuthProvider } from './context/ClientAuthContext';
@@ -29,7 +44,26 @@ import Agenda from './pages/Agenda';
 import Services from './pages/Services';
 import Profile from './pages/Profile';
 import Establishment from './pages/Establishment';
-import Reports from './pages/Reports';
+
+// Reports module
+import ReportsIndex from './pages/reports/ReportsIndex';
+import OverviewReport from './pages/reports/OverviewReport';
+import ServicesReport from './pages/reports/ServicesReport';
+import SalesReport from './pages/reports/SalesReport';
+import FinancialReport from './pages/reports/FinancialReport';
+import ProfessionalsReport from './pages/reports/ProfessionalsReport';
+import AgendaReport from './pages/reports/AgendaReport';
+import ClientsReport from './pages/reports/ClientsReport';
+import StockReport from './pages/reports/StockReport';
+import ReceptionReport from './pages/reports/ReceptionReport';
+import PerformanceReport from './pages/reports/PerformanceReport';
+import CustomReport from './pages/reports/CustomReport';
+import FinOverviewReport from './pages/reports/FinOverviewReport';
+import FinFluxoReport from './pages/reports/FinFluxoReport';
+import FinTaxasReport from './pages/reports/FinTaxasReport';
+import FinReceitasReport from './pages/reports/FinReceitasReport';
+import CliRecorrenciaReport from './pages/reports/CliRecorrenciaReport';
+import CliLtvReport from './pages/reports/CliLtvReport';
 import Billing from './pages/Billing';
 import Clients from './pages/Clients';
 import Stock from './pages/Stock';
@@ -71,6 +105,7 @@ import ClientSettings from './pages/client/ClientSettings';
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <ThemeProvider>
       <ClientAuthProvider>
       <AuthProvider>
@@ -92,7 +127,27 @@ export default function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/agenda"    element={<Agenda />}    />
               <Route path="/services"  element={<Services />}  />
-              <Route path="/reports"   element={<Reports />}   />
+
+              {/* Reports module */}
+              <Route path="/relatorios" element={<ReportsIndex />}>
+                <Route index                  element={<OverviewReport />}       />
+                <Route path="servicos"        element={<ServicesReport />}       />
+                <Route path="vendas"          element={<SalesReport />}          />
+                <Route path="financeiro"      element={<FinancialReport />}      />
+                <Route path="profissionais"   element={<ProfessionalsReport />}  />
+                <Route path="agenda"          element={<AgendaReport />}         />
+                <Route path="clientes"        element={<ClientsReport />}        />
+                <Route path="estoque"         element={<StockReport />}          />
+                <Route path="recepcao"        element={<ReceptionReport />}      />
+                <Route path="desempenho"      element={<PerformanceReport />}    />
+                <Route path="personalizado"   element={<CustomReport />}         />
+                <Route path="fin-overview"   element={<FinOverviewReport />}    />
+                <Route path="fin-fluxo"      element={<FinFluxoReport />}       />
+                <Route path="fin-taxas"      element={<FinTaxasReport />}       />
+                <Route path="fin-receitas"   element={<FinReceitasReport />}    />
+                <Route path="cli-recorrencia" element={<CliRecorrenciaReport />} />
+                <Route path="cli-ltv"        element={<CliLtvReport />}         />
+              </Route>
               <Route path="/clients"   element={<Clients />}   />
               <Route path="/stock"     element={<Stock />}     />
               <Route path="/business"   element={<Business />}    />
@@ -151,5 +206,6 @@ export default function App() {
       </AuthProvider>
       </ClientAuthProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }

@@ -96,7 +96,7 @@ function Receipt_({ data, onClose }) {
         <tbody>
           ${data.items.map(i => `<tr>
             <td>${i.serviceName || 'Serviço'}</td>
-            <td>${fmtShort(i.createdAt)}</td>
+            <td>${fmtShort(i.createdAt)}${i.paidAt ? ` <span style="color:#16a34a;font-size:10px">(pago ${fmtShort(i.paidAt)})</span>` : ''}</td>
             <td class="right">${i.commissionRate}%</td>
             <td class="right">${fmt(i.commissionAmount)}</td>
           </tr>`).join('')}
@@ -104,7 +104,7 @@ function Receipt_({ data, onClose }) {
       </table>
       <div class="total"><span>Total pago</span><span>${fmt(data.total)}</span></div>
       <div style="margin-top:12px"><span class="badge">✓ PAGO</span></div>
-      <div class="footer">AgendaVip — Sistema de Gestão para Barbearias</div>
+      <div class="footer">AgendaVip — Sistema de Gestão para Estabelecimentos</div>
       </body></html>
     `);
     w.document.close();
@@ -143,7 +143,10 @@ function Receipt_({ data, onClose }) {
               <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/40">
                 <div>
                   <p className="text-sm text-gray-800 dark:text-gray-200">{item.serviceName || 'Serviço'}</p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500">{fmtShort(item.createdAt)} · {item.commissionRate}% de {fmt(item.serviceAmount)}</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {fmtShort(item.createdAt)} · {item.commissionRate}% de {fmt(item.serviceAmount)}
+                    {item.paidAt && <span className="text-emerald-500 ml-1">· pago em {fmtDate(item.paidAt)}</span>}
+                  </p>
                 </div>
                 <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{fmt(item.commissionAmount)}</p>
               </div>
@@ -278,7 +281,7 @@ function PayModal({ barberName, selectedItems, onConfirm, onClose }) {
 }
 
 // ── Card de profissional ─────────────────────────────────────────────────────
-function BarberCard({ barberName, commissions, isAdmin, onPay }) {
+function BarberCard({ barberName, commissions, isAdmin, onPay, onPrintReceipt, periodLabel }) {
   const [expanded,  setExpanded]  = useState(false);
   const [selected,  setSelected]  = useState([]); // IDs selecionados
 
@@ -368,6 +371,14 @@ function BarberCard({ barberName, commissions, isAdmin, onPay }) {
               </button>
             )}
 
+            {/* Botão imprimir recibo (comissões pagas) */}
+            {paid.length > 0 && onPrintReceipt && (
+              <button onClick={() => onPrintReceipt(barberName, paid, periodLabel)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-semibold transition-colors">
+                <Printer size={12} /> Recibo
+              </button>
+            )}
+
             <button onClick={() => { setExpanded(v => !v); if (!expanded) setSelected([]); }}
               className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
               {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -447,7 +458,14 @@ function BarberCard({ barberName, commissions, isAdmin, onPay }) {
                           {c.paidAt && (
                             <>
                               <span className="text-[10px] text-gray-300 dark:text-gray-600">·</span>
-                              <span className="text-[10px] text-emerald-500">pago {fmtShort(c.paidAt)}</span>
+                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                pago em {fmtDate(c.paidAt)}
+                              </span>
+                              {c.paymentMethod && (
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                                  · {PM_LABEL[c.paymentMethod] || c.paymentMethod}
+                                </span>
+                              )}
                             </>
                           )}
                         </div>
@@ -551,9 +569,10 @@ export default function Commissions() {
   const handleConfirmPay = async (ids, paymentMethod, items) => {
     const r = await Financial.payCommissions({ commissionIds: ids, paymentMethod });
     if (r.ok) {
-      const period = startDate || endDate
-        ? `${startDate ? fmtDate(startDate) : 'início'} até ${endDate ? fmtDate(endDate) : 'hoje'}`
-        : 'Completo';
+      const today = new Date().toISOString().slice(0, 10);
+      const effectiveStart = startDate || items.reduce((min, c) => (!min || c.createdAt < min ? c.createdAt : min), null);
+      const effectiveEnd   = endDate   || today;
+      const period = `${fmtDate(effectiveStart)} a ${fmtDate(effectiveEnd)}`;
       setPayModal(null);
       setReceipt({
         barberName:    payModal.barberName,
@@ -568,14 +587,27 @@ export default function Commissions() {
     }
   };
 
+  const handlePrintReceipt = (barberName, paidItems, period) => {
+    // Determine payment method from items (use most common, or first)
+    const method = paidItems[0]?.paymentMethod || 'dinheiro';
+    setReceipt({
+      barberName,
+      period: period || periodLabel,
+      paymentMethod: method,
+      items: paidItems,
+      total: paidItems.reduce((s, c) => s + c.commissionAmount, 0),
+    });
+  };
+
   const handlePayAll = () => {
     const allPending = commissions.filter(c => c.status === 'pendente');
     if (!allPending.length) return;
     openPayModal('Todos os profissionais', allPending);
   };
 
+  const today2 = new Date().toISOString().slice(0, 10);
   const periodLabel = startDate || endDate
-    ? `${startDate ? fmtDate(startDate) : '—'} até ${endDate ? fmtDate(endDate) : 'hoje'}`
+    ? `${fmtDate(startDate || today2)} a ${fmtDate(endDate || today2)}`
     : 'Todo o período';
 
   return (
@@ -734,6 +766,8 @@ export default function Commissions() {
                 commissions={data.commissions}
                 isAdmin={isAdmin}
                 onPay={openPayModal}
+                onPrintReceipt={handlePrintReceipt}
+                periodLabel={periodLabel}
               />
             ))}
           </div>
